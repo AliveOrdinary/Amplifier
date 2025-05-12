@@ -1,0 +1,39 @@
+@import "tailwindcss";
+@import "../styles/fonts.css";
+
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  --foreground-rgb: 247, 247, 247;
+  --background-rgb: 0, 0, 0;
+  --font-sans: 'PP Neue Montreal', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Right Serif', Georgia, serif;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  font-family: var(--font-sans);
+}
+
+/* Custom transitions */
+a {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Project grid layout for different screen sizes */
+@media (min-width: 768px) {
+  .project-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+}
+
+/* Prevent images from being dragged */
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
+}

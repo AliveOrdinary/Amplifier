@@ -1,0 +1,94 @@
+backend:
+  name: git-gateway
+  branch: main
+
+media_folder: "public/images/uploads/{{slug}}" # Media will be stored in the repo under this path
+public_folder: "/images/uploads/{{slug}}" # The src attribute for uploaded media
+
+collections:
+  - name: "projects"
+    label: "Projects"
+    folder: "content/projects"
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: "Title", name: "title", widget: "string" }
+      - { label: "Slug", name: "slug", widget: "string" }
+      - { label: "Featured Image", name: "featuredImage", widget: "image", required: false }
+      - { label: "Featured Video", name: "featuredVideo", widget: "file", required: false }
+      - { label: "Featured Video Has Audio?", name: "featuredVideoHasAudio", widget: "boolean", default: false, required: false }
+      - { label: "Short Summary", name: "shortSummary", widget: "string", pattern: ['.{1,160}', "Must be 160 characters or less"] }
+      - { label: "Main Summary", name: "mainSummary", widget: "markdown" }
+      - { label: "Year", name: "year", widget: "number" }
+      - { label: "Services", name: "services", widget: "select", multiple: true, options: ["Branding", "Web Design", "Print", "Packaging", "UI/UX", "Illustration", "Naming", "Art Direction", "Motion Graphics", "Photography"] }
+      - label: "Project Images"
+        name: "projectImages"
+        widget: "list"
+        fields:
+          - { label: "Image", name: "image", widget: "image" }
+          - { label: "Caption", name: "caption", widget: "string", required: false }
+          - { label: "Display Order", name: "order", widget: "number", default: 1, required: false }
+      - label: "Project Videos"
+        name: "projectVideos"
+        widget: "list"
+        required: false
+        fields:
+          - { label: "Video", name: "video", widget: "file" }
+          - { label: "Caption", name: "caption", widget: "string", required: false }
+          - { label: "Display Order", name: "order", widget: "number", default: 1, required: false }
+          - { label: "Has Audio?", name: "hasAudio", widget: "boolean", default: false, required: false }
+      - { label: "Featured", name: "featured", widget: "boolean", default: false }
+      - { label: "Order", name: "order", widget: "number", default: 1 }
+
+  - name: "pages"
+    label: "Pages"
+    files:
+      - label: "About Page"
+        name: "about"
+        file: "content/pages/about.md"
+        fields:
+          - { label: "Title", name: "title", widget: "string", default: "About" }
+          - { label: "Bio", name: "bio", widget: "markdown" }
+          - { label: "Profile Image", name: "profileImage", widget: "image" }
+      
+      - label: "Contact Page"
+        name: "contact"
+        file: "content/pages/contact.md"
+        fields:
+          - { label: "Title", name: "title", widget: "string", default: "Contact" }
+          - { label: "Email", name: "email", widget: "string" }
+          - { label: "Phone", name: "phone", widget: "string", required: false }
+          - label: "Social Media"
+            name: "socialMedia"
+            widget: "list"
+            fields:
+              - { label: "Platform", name: "platform", widget: "string" }
+              - { label: "URL", name: "url", widget: "string" }
+      
+      - label: "Home Page"
+        name: "home"
+        file: "content/pages/home.md"
+        fields:
+          - { label: "Title", name: "title", widget: "string", default: "Home" }
+          - { label: "Intro Text", name: "introText", widget: "string" }
+          - { label: "Featured Projects Heading", name: "featuredProjectsHeading", widget: "string", default: "Featured Projects" }
+
+  - name: "global"
+    label: "Global Settings"
+    files:
+      - label: "Site Info"
+        name: "info"
+        file: "content/global/info.md"
+        fields:
+          - { label: "Site Title", name: "siteTitle", widget: "string" }
+          - { label: "Site Description", name: "siteDescription", widget: "string" }
+          - { label: "Logo", name: "logo", widget: "image", required: false }
+          - label: "Navigation"
+            name: "navigation"
+            widget: "list"
+            fields:
+              - { label: "Text", name: "text", widget: "string" }
+              - { label: "URL", name: "url", widget: "string" }
+          - label: "Footer Text"
+            name: "footerText"
+            widget: "string" 
