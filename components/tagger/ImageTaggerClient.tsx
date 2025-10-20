@@ -1,0 +1,1446 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { supabase } from '@/lib/supabase'
+
+interface UploadedImage {
+  id: string
+  file: File
+  previewUrl: string
+  filename: string
+  status: 'pending' | 'tagged' | 'skipped'
+}
+
+interface TagVocabulary {
+  industries: string[]
+  projectTypes: string[]
+  styles: string[]
+  moods: string[]
+  elements: string[]
+}
+
+interface TagVocabularyRow {
+  category: string
+  tag_value: string
+  sort_order: number
+}
+
+interface ImageTags {
+  industries: string[]
+  projectTypes: string[]
+  styles: string[]
+  moods: string[]
+  elements: string[]
+  notes: string
+}
+
+export default function ImageTaggerClient() {
+  // State management
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isTaggingMode, setIsTaggingMode] = useState(false)
+  const [vocabulary, setVocabulary] = useState<TagVocabulary>({
+    industries: [],
+    projectTypes: [],
+    styles: [],
+    moods: [],
+    elements: []
+  })
+  const [isLoadingVocabulary, setIsLoadingVocabulary] = useState(true)
+  const [vocabularyError, setVocabularyError] = useState<string | null>(null)
+
+  // Track tags for each image (keyed by image ID)
+  const [imageTags, setImageTags] = useState<Record<string, ImageTags>>({})
+
+  // Save state
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+
+  // Custom tag modal state
+  const [isAddTagModalOpen, setIsAddTagModalOpen] = useState(false)
+  const [addTagCategory, setAddTagCategory] = useState<keyof Omit<ImageTags, 'notes'> | null>(null)
+  const [newTagValue, setNewTagValue] = useState('')
+  const [isAddingTag, setIsAddingTag] = useState(false)
+  const [similarTags, setSimilarTags] = useState<string[]>([])
+  const [addTagError, setAddTagError] = useState<string | null>(null)
+
+  // AI suggestion state
+  interface AISuggestion {
+    industries: string[]
+    projectTypes: string[]
+    styles: string[]
+    moods: string[]
+    elements: string[]
+    confidence: 'high' | 'medium' | 'low'
+    reasoning: string
+  }
+  const [aiSuggestions, setAiSuggestions] = useState<Record<string, AISuggestion>>({})
+  const [isLoadingAI, setIsLoadingAI] = useState<Record<string, boolean>>({})
+  const [aiError, setAiError] = useState<Record<string, string | null>>({})
+
+  // Load vocabulary from Supabase on mount
+  useEffect(() => {
+    const loadVocabulary = async () => {
+      try {
+        setIsLoadingVocabulary(true)
+        setVocabularyError(null)
+
+        // Fetch all active tags, sorted by category and sort_order
+        const { data, error } = await supabase
+          .from('tag_vocabulary')
+          .select('category, tag_value, sort_order')
+          .eq('is_active', true)
+          .order('category', { ascending: true })
+          .order('sort_order', { ascending: true })
+
+        if (error) {
+          throw error
+        }
+
+        if (!data) {
+          throw new Error('No vocabulary data returned')
+        }
+
+        // Group tags by category
+        const groupedVocabulary = data.reduce((acc, row: TagVocabularyRow) => {
+          const category = row.category
+          if (!acc[category]) {
+            acc[category] = []
+          }
+          acc[category].push(row.tag_value)
+          return acc
+        }, {} as Record<string, string[]>)
+
+        // Map to vocabulary state structure
+        const vocabularyState: TagVocabulary = {
+          industries: groupedVocabulary['industry'] || [],
+          projectTypes: groupedVocabulary['project_type'] || [],
+          styles: groupedVocabulary['style'] || [],
+          moods: groupedVocabulary['mood'] || [],
+          elements: groupedVocabulary['elements'] || []
+        }
+
+        setVocabulary(vocabularyState)
+
+        // Log for verification
+        console.log('✅ Vocabulary loaded successfully:', vocabularyState)
+        console.log('📊 Tag counts:', {
+          industries: vocabularyState.industries.length,
+          projectTypes: vocabularyState.projectTypes.length,
+          styles: vocabularyState.styles.length,
+          moods: vocabularyState.moods.length,
+          elements: vocabularyState.elements.length,
+          total: Object.values(vocabularyState).flat().length
+        })
+      } catch (error) {
+        console.error('❌ Error loading vocabulary:', error)
+        setVocabularyError(error instanceof Error ? error.message : 'Failed to load vocabulary')
+      } finally {
+        setIsLoadingVocabulary(false)
+      }
+    }
+
+    loadVocabulary()
+  }, [])
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      uploadedImages.forEach(img => {
+        URL.revokeObjectURL(img.previewUrl)
+      })
+    }
+  }, [uploadedImages])
+
+  // Handle file upload
+  const handleFilesSelected = (files: FileList | null) => {
+    if (!files) return
+
+    const validFiles = Array.from(files).filter(file => {
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+      return validTypes.includes(file.type)
+    })
+
+    const newImages: UploadedImage[] = validFiles.map(file => ({
+      id: crypto.randomUUID(),
+      file,
+      previewUrl: URL.createObjectURL(file),
+      filename: file.name,
+      status: 'pending'
+    }))
+
+    setUploadedImages(prev => [...prev, ...newImages])
+  }
+
+  // Start tagging
+  const handleStartTagging = () => {
+    setIsTaggingMode(true)
+    setCurrentIndex(0)
+  }
+
+  // Resize image for AI analysis (max 1200px, keep under 5MB limit)
+  const resizeImageForAI = async (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+
+      img.onload = () => {
+        // Calculate dimensions (max 1200px on longest side)
+        let width = img.width
+        let height = img.height
+        const maxSize = 1200
+
+        if (width > height && width > maxSize) {
+          height = (height * maxSize) / width
+          width = maxSize
+        } else if (height > maxSize) {
+          width = (width * maxSize) / height
+          height = maxSize
+        }
+
+        canvas.width = width
+        canvas.height = height
+        ctx?.drawImage(img, 0, 0, width, height)
+
+        // Convert to blob with compression
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob)
+            } else {
+              reject(new Error('Failed to resize image for AI'))
+            }
+          },
+          file.type,
+          0.85 // Quality for compression
+        )
+      }
+
+      img.onerror = () => reject(new Error('Failed to load image for AI'))
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
+  // Convert Blob to base64 data URI
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+
+  // Get AI tag suggestions for an image
+  const getSuggestionsFromAI = async (imageId: string, file: File) => {
+    try {
+      // Mark as loading
+      setIsLoadingAI(prev => ({ ...prev, [imageId]: true }))
+      setAiError(prev => ({ ...prev, [imageId]: null }))
+
+      console.log(`🤖 Getting AI suggestions for ${file.name}...`)
+
+      // Resize image to keep under 5MB Claude API limit
+      const resizedBlob = await resizeImageForAI(file)
+      console.log(`📐 Resized from ${(file.size / 1024 / 1024).toFixed(2)}MB to ${(resizedBlob.size / 1024 / 1024).toFixed(2)}MB`)
+
+      // Convert resized image to base64
+      const base64Image = await blobToBase64(resizedBlob)
+
+      // Call API
+      const response = await fetch('/api/suggest-tags', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: base64Image,
+          vocabulary,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
+
+      const suggestions: AISuggestion = await response.json()
+
+      console.log('✨ AI suggestions received:', suggestions)
+
+      // Store suggestions
+      setAiSuggestions(prev => ({ ...prev, [imageId]: suggestions }))
+
+      // Auto-apply suggestions to image tags
+      const currentTags = imageTags[imageId] || {
+        industries: [],
+        projectTypes: [],
+        styles: [],
+        moods: [],
+        elements: [],
+        notes: ''
+      }
+
+      // Merge AI suggestions with any existing manual selections
+      setImageTags(prev => ({
+        ...prev,
+        [imageId]: {
+          industries: [...new Set([...currentTags.industries, ...suggestions.industries])],
+          projectTypes: [...new Set([...currentTags.projectTypes, ...suggestions.projectTypes])],
+          styles: [...new Set([...currentTags.styles, ...suggestions.styles])],
+          moods: [...new Set([...currentTags.moods, ...suggestions.moods])],
+          elements: [...new Set([...currentTags.elements, ...suggestions.elements])],
+          notes: currentTags.notes
+        }
+      }))
+
+    } catch (error) {
+      console.error('❌ Error getting AI suggestions:', error)
+      setAiError(prev => ({
+        ...prev,
+        [imageId]: error instanceof Error ? error.message : 'Failed to get AI suggestions'
+      }))
+    } finally {
+      setIsLoadingAI(prev => ({ ...prev, [imageId]: false }))
+    }
+  }
+
+  // Trigger AI suggestions when entering tagging mode or changing images
+  useEffect(() => {
+    if (isTaggingMode && uploadedImages.length > 0 && vocabulary.industries.length > 0) {
+      const currentImage = uploadedImages[currentIndex]
+      if (currentImage && !aiSuggestions[currentImage.id] && !isLoadingAI[currentImage.id]) {
+        getSuggestionsFromAI(currentImage.id, currentImage.file)
+      }
+    }
+  }, [isTaggingMode, currentIndex, uploadedImages, vocabulary])
+
+  // Generate thumbnail from image file
+  const generateThumbnail = async (file: File, maxWidth: number = 800): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+
+      img.onload = () => {
+        // Calculate new dimensions
+        let width = img.width
+        let height = img.height
+
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width
+          width = maxWidth
+        }
+
+        canvas.width = width
+        canvas.height = height
+
+        // Draw resized image
+        ctx?.drawImage(img, 0, 0, width, height)
+
+        // Convert to blob
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob)
+            } else {
+              reject(new Error('Failed to generate thumbnail'))
+            }
+          },
+          file.type,
+          0.9 // Quality
+        )
+      }
+
+      img.onerror = () => reject(new Error('Failed to load image'))
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
+  // Save current image to Supabase
+  const handleSaveImage = async () => {
+    const currentImage = uploadedImages[currentIndex]
+    const currentTags = getCurrentImageTags()
+
+    if (!currentImage) return
+
+    try {
+      setIsSaving(true)
+      setSaveError(null)
+      setSaveSuccess(false)
+
+      // Generate unique ID for storage paths
+      const imageId = crypto.randomUUID()
+      const sanitizedFilename = currentImage.filename.replace(/[^a-zA-Z0-9.-]/g, '_')
+
+      // 1. Generate thumbnail
+      console.log('📸 Generating thumbnail...')
+      const thumbnailBlob = await generateThumbnail(currentImage.file)
+
+      // 2. Upload original image to Supabase Storage
+      console.log('⬆️ Uploading original image...')
+      const originalPath = `originals/${imageId}-${sanitizedFilename}`
+      const { error: uploadOriginalError } = await supabase.storage
+        .from('reference-images')
+        .upload(originalPath, currentImage.file, {
+          contentType: currentImage.file.type,
+          upsert: false
+        })
+
+      if (uploadOriginalError) throw uploadOriginalError
+
+      // 3. Upload thumbnail to Supabase Storage
+      console.log('⬆️ Uploading thumbnail...')
+      const thumbnailPath = `thumbnails/${imageId}-${sanitizedFilename}`
+      const { error: uploadThumbnailError } = await supabase.storage
+        .from('reference-images')
+        .upload(thumbnailPath, thumbnailBlob, {
+          contentType: currentImage.file.type,
+          upsert: false
+        })
+
+      if (uploadThumbnailError) throw uploadThumbnailError
+
+      // 4. Get public URLs
+      const { data: originalUrlData } = supabase.storage
+        .from('reference-images')
+        .getPublicUrl(originalPath)
+
+      const { data: thumbnailUrlData } = supabase.storage
+        .from('reference-images')
+        .getPublicUrl(thumbnailPath)
+
+      // 5. Insert record into reference_images table
+      console.log('💾 Saving to database...')
+      const { error: dbError } = await supabase
+        .from('reference_images')
+        .insert({
+          storage_path: originalUrlData.publicUrl,
+          thumbnail_path: thumbnailUrlData.publicUrl,
+          original_filename: currentImage.filename,
+          industries: currentTags.industries,
+          project_types: currentTags.projectTypes,
+          tags: {
+            style: currentTags.styles,
+            mood: currentTags.moods,
+            elements: currentTags.elements
+          },
+          notes: currentTags.notes || null,
+          status: 'tagged',
+          tagged_at: new Date().toISOString()
+        })
+
+      if (dbError) throw dbError
+
+      console.log('✅ Image saved successfully!')
+      setSaveSuccess(true)
+
+      // Update image status
+      setUploadedImages(prev =>
+        prev.map((img, idx) =>
+          idx === currentIndex ? { ...img, status: 'tagged' as const } : img
+        )
+      )
+
+      // Clear success message after 2 seconds
+      setTimeout(() => setSaveSuccess(false), 2000)
+
+    } catch (error) {
+      console.error('❌ Error saving image:', error)
+      setSaveError(error instanceof Error ? error.message : 'Failed to save image')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Navigation handlers
+  const handlePrevious = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(prev => prev - 1)
+    }
+  }
+
+  const handleSkip = () => {
+    // Mark current image as skipped
+    setUploadedImages(prev =>
+      prev.map((img, idx) =>
+        idx === currentIndex ? { ...img, status: 'skipped' } : img
+      )
+    )
+    // Move to next image if available
+    if (currentIndex < uploadedImages.length - 1) {
+      setCurrentIndex(prev => prev + 1)
+    }
+  }
+
+  const handleSaveAndNext = async () => {
+    // Save current image
+    await handleSaveImage()
+
+    // Move to next image if not last
+    if (currentIndex < uploadedImages.length - 1) {
+      setCurrentIndex(prev => prev + 1)
+      setSaveError(null) // Clear any previous errors
+    }
+  }
+
+  // Get current image tags
+  const getCurrentImageTags = (): ImageTags => {
+    const currentImage = uploadedImages[currentIndex]
+    if (!currentImage) {
+      return { industries: [], projectTypes: [], styles: [], moods: [], elements: [], notes: '' }
+    }
+    return imageTags[currentImage.id] || {
+      industries: [],
+      projectTypes: [],
+      styles: [],
+      moods: [],
+      elements: [],
+      notes: ''
+    }
+  }
+
+  // Update current image tags
+  const updateCurrentImageTags = (tags: Partial<ImageTags>) => {
+    const currentImage = uploadedImages[currentIndex]
+    if (!currentImage) return
+
+    setImageTags(prev => ({
+      ...prev,
+      [currentImage.id]: {
+        ...getCurrentImageTags(),
+        ...tags
+      }
+    }))
+  }
+
+  // Simple fuzzy matching - checks if strings are similar
+  const findSimilarTags = (input: string, tags: string[]): string[] => {
+    const normalized = input.toLowerCase().trim()
+    if (!normalized) return []
+
+    return tags.filter(tag => {
+      const tagLower = tag.toLowerCase()
+      // Exact match
+      if (tagLower === normalized) return true
+      // Contains
+      if (tagLower.includes(normalized) || normalized.includes(tagLower)) return true
+      // Simple Levenshtein distance check (edit distance <= 2)
+      const distance = levenshteinDistance(normalized, tagLower)
+      return distance <= 2 && distance > 0
+    })
+  }
+
+  // Levenshtein distance for fuzzy matching
+  const levenshteinDistance = (str1: string, str2: string): number => {
+    const matrix: number[][] = []
+
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i]
+    }
+
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j
+    }
+
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1]
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1, // substitution
+            matrix[i][j - 1] + 1,     // insertion
+            matrix[i - 1][j] + 1      // deletion
+          )
+        }
+      }
+    }
+
+    return matrix[str2.length][str1.length]
+  }
+
+  // Open add tag modal
+  const handleOpenAddTagModal = (category: keyof Omit<ImageTags, 'notes'>) => {
+    setAddTagCategory(category)
+    setNewTagValue('')
+    setSimilarTags([])
+    setAddTagError(null)
+    setIsAddTagModalOpen(true)
+  }
+
+  // Check for similar tags as user types
+  const handleTagInputChange = (value: string) => {
+    setNewTagValue(value)
+    setAddTagError(null)
+
+    if (!addTagCategory) return
+
+    // Get vocabulary for current category
+    const categoryMap: Record<keyof Omit<ImageTags, 'notes'>, keyof TagVocabulary> = {
+      industries: 'industries',
+      projectTypes: 'projectTypes',
+      styles: 'styles',
+      moods: 'moods',
+      elements: 'elements'
+    }
+
+    const vocabKey = categoryMap[addTagCategory]
+    const existingTags = vocabulary[vocabKey]
+
+    // Find similar tags
+    const similar = findSimilarTags(value, existingTags)
+    setSimilarTags(similar)
+  }
+
+  // Add custom tag to vocabulary
+  const handleAddCustomTag = async () => {
+    if (!addTagCategory || !newTagValue.trim()) return
+
+    const normalized = newTagValue.toLowerCase().trim()
+
+    // Map frontend category to database category
+    const categoryMap: Record<keyof Omit<ImageTags, 'notes'>, string> = {
+      industries: 'industry',
+      projectTypes: 'project_type',
+      styles: 'style',
+      moods: 'mood',
+      elements: 'elements'
+    }
+
+    const dbCategory = categoryMap[addTagCategory]
+
+    try {
+      setIsAddingTag(true)
+      setAddTagError(null)
+
+      // Check for exact duplicate
+      const vocabKey = addTagCategory === 'industries' ? 'industries' :
+                       addTagCategory === 'projectTypes' ? 'projectTypes' :
+                       addTagCategory === 'styles' ? 'styles' :
+                       addTagCategory === 'moods' ? 'moods' : 'elements'
+
+      const existingTags = vocabulary[vocabKey]
+      if (existingTags.some(tag => tag.toLowerCase() === normalized)) {
+        setAddTagError('This tag already exists')
+        return
+      }
+
+      // Get next sort_order
+      const { data: maxOrderData } = await supabase
+        .from('tag_vocabulary')
+        .select('sort_order')
+        .eq('category', dbCategory)
+        .order('sort_order', { ascending: false })
+        .limit(1)
+
+      const nextSortOrder = (maxOrderData && maxOrderData[0]?.sort_order ? maxOrderData[0].sort_order : 0) + 1
+
+      // Insert new tag into database
+      const { error: insertError } = await supabase
+        .from('tag_vocabulary')
+        .insert({
+          category: dbCategory,
+          tag_value: normalized,
+          sort_order: nextSortOrder,
+          is_active: true,
+          added_by: null, // TODO: Add user ID when auth is implemented
+          times_used: 0
+        })
+
+      if (insertError) throw insertError
+
+      // Update local vocabulary state
+      setVocabulary(prev => ({
+        ...prev,
+        [vocabKey]: [...prev[vocabKey], normalized]
+      }))
+
+      // Auto-select the new tag
+      const currentTags = getCurrentImageTags()
+      const currentValues = currentTags[addTagCategory]
+      updateCurrentImageTags({
+        [addTagCategory]: [...currentValues, normalized]
+      })
+
+      console.log(`✅ Added custom tag: ${normalized} to ${dbCategory}`)
+
+      // Close modal
+      setIsAddTagModalOpen(false)
+      setNewTagValue('')
+      setSimilarTags([])
+
+    } catch (error) {
+      console.error('❌ Error adding custom tag:', error)
+      setAddTagError(error instanceof Error ? error.message : 'Failed to add tag')
+    } finally {
+      setIsAddingTag(false)
+    }
+  }
+
+  // Use similar tag instead of creating new one
+  const handleUseSimilarTag = (tag: string) => {
+    if (!addTagCategory) return
+
+    const currentTags = getCurrentImageTags()
+    const currentValues = currentTags[addTagCategory]
+
+    // Add to current image tags if not already selected
+    if (!currentValues.includes(tag)) {
+      updateCurrentImageTags({
+        [addTagCategory]: [...currentValues, tag]
+      })
+    }
+
+    // Close modal
+    setIsAddTagModalOpen(false)
+    setNewTagValue('')
+    setSimilarTags([])
+  }
+
+  // Show loading state
+  if (isLoadingVocabulary) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto"></div>
+          <p className="text-gray-600">Loading tag vocabulary...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (vocabularyError) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <div className="text-4xl mb-4">⚠️</div>
+        <h3 className="text-lg font-semibold text-red-900 mb-2">
+          Failed to Load Vocabulary
+        </h3>
+        <p className="text-red-700 mb-4">{vocabularyError}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  // Render based on state
+  if (!isTaggingMode) {
+    return (
+      <UploadSection
+        onFilesSelected={handleFilesSelected}
+        uploadedImages={uploadedImages}
+        onStartTagging={handleStartTagging}
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Success Toast */}
+      {saveSuccess && (
+        <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-slide-in">
+          <div className="flex items-center space-x-2">
+            <span className="text-lg">✓</span>
+            <span className="font-medium">Image saved successfully!</span>
+          </div>
+        </div>
+      )}
+
+      {/* Error Toast */}
+      {saveError && (
+        <div className="fixed top-4 right-4 bg-red-600 text-white px-6 py-4 rounded-lg shadow-lg z-50 max-w-md">
+          <div className="flex items-center justify-between space-x-3">
+            <div className="flex items-center space-x-2">
+              <span className="text-lg">✕</span>
+              <div>
+                <p className="font-medium">Failed to save image</p>
+                <p className="text-sm text-red-100 mt-1">{saveError}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSaveError(null)}
+              className="text-white hover:text-red-100 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add Tag Modal */}
+      {isAddTagModalOpen && addTagCategory && (
+        <AddTagModal
+          category={addTagCategory}
+          categoryLabel={
+            addTagCategory === 'industries' ? 'Industry' :
+            addTagCategory === 'projectTypes' ? 'Project Type' :
+            addTagCategory === 'styles' ? 'Style' :
+            addTagCategory === 'moods' ? 'Mood' : 'Element'
+          }
+          newTagValue={newTagValue}
+          similarTags={similarTags}
+          isAdding={isAddingTag}
+          error={addTagError}
+          onInputChange={handleTagInputChange}
+          onAdd={handleAddCustomTag}
+          onUseSimilar={handleUseSimilarTag}
+          onClose={() => {
+            setIsAddTagModalOpen(false)
+            setNewTagValue('')
+            setSimilarTags([])
+            setAddTagError(null)
+          }}
+        />
+      )}
+
+      {/* Progress Indicator */}
+      <ProgressIndicator
+        current={currentIndex + 1}
+        total={uploadedImages.length}
+      />
+
+      {/* Main Tagging Interface */}
+      <div className="flex gap-6">
+        {/* Image Preview - 70% */}
+        <div className="w-[70%]">
+          <ImagePreview
+            image={uploadedImages[currentIndex]}
+            currentIndex={currentIndex}
+            totalImages={uploadedImages.length}
+            onPrevious={handlePrevious}
+            onSkip={handleSkip}
+            onSaveAndNext={handleSaveAndNext}
+            isSaving={isSaving}
+          />
+        </div>
+
+        {/* Tag Form - 30% */}
+        <div className="w-[30%]">
+          <TagForm
+            vocabulary={vocabulary}
+            currentTags={getCurrentImageTags()}
+            onUpdateTags={updateCurrentImageTags}
+            onOpenAddTagModal={handleOpenAddTagModal}
+            aiSuggestions={uploadedImages[currentIndex] ? aiSuggestions[uploadedImages[currentIndex].id] : undefined}
+            isLoadingAI={uploadedImages[currentIndex] ? isLoadingAI[uploadedImages[currentIndex].id] : false}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Upload Section Component
+interface UploadSectionProps {
+  onFilesSelected: (files: FileList | null) => void
+  uploadedImages: UploadedImage[]
+  onStartTagging: () => void
+}
+
+function UploadSection({ onFilesSelected, uploadedImages, onStartTagging }: UploadSectionProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    onFilesSelected(e.dataTransfer.files)
+  }
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onFilesSelected(e.target.files)
+  }
+
+  const handleSelectClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Upload Drop Zone */}
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+          isDragging
+            ? 'border-black bg-gray-50'
+            : 'border-gray-300 hover:border-gray-400'
+        }`}
+      >
+        <div className="space-y-4">
+          <div className="text-6xl">📁</div>
+          <h2 className="text-2xl font-semibold">Upload Reference Images</h2>
+          <p className="text-gray-600">
+            Drag and drop images here, or click to select files
+          </p>
+          <p className="text-sm text-gray-500">
+            Supported formats: JPG, PNG, WEBP
+          </p>
+          <button
+            onClick={handleSelectClick}
+            className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            Select Images
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/jpeg,image/jpg,image/png,image/webp"
+            onChange={handleFileInputChange}
+            className="hidden"
+          />
+        </div>
+      </div>
+
+      {/* Uploaded Images Grid */}
+      {uploadedImages.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">
+              {uploadedImages.length} {uploadedImages.length === 1 ? 'Image' : 'Images'} Uploaded
+            </h3>
+            <button
+              onClick={onStartTagging}
+              className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+            >
+              Start Tagging →
+            </button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-4">
+            {uploadedImages.map((image) => (
+              <div
+                key={image.id}
+                className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="aspect-square bg-gray-100 overflow-hidden">
+                  <img
+                    src={image.previewUrl}
+                    alt={image.filename}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="p-2">
+                  <p className="text-xs text-gray-600 truncate" title={image.filename}>
+                    {image.filename}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Progress Indicator Component
+function ProgressIndicator({ current, total }: { current: number; total: number }) {
+  const percentage = (current / total) * 100
+
+  return (
+    <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-200">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-base font-semibold text-gray-900">
+          Image {current} of {total}
+        </span>
+        <span className="text-sm font-medium text-gray-600">
+          {Math.round(percentage)}% Complete
+        </span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-3">
+        <div
+          className="bg-black h-3 rounded-full transition-all duration-300"
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// Image Preview Component with Navigation
+interface ImagePreviewProps {
+  image: UploadedImage
+  currentIndex: number
+  totalImages: number
+  onPrevious: () => void
+  onSkip: () => void
+  onSaveAndNext: () => Promise<void>
+  isSaving: boolean
+}
+
+function ImagePreview({
+  image,
+  currentIndex,
+  totalImages,
+  onPrevious,
+  onSkip,
+  onSaveAndNext,
+  isSaving
+}: ImagePreviewProps) {
+  const isFirstImage = currentIndex === 0
+  const isLastImage = currentIndex === totalImages - 1
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
+      {/* Image Container */}
+      <div className="bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center border border-gray-200" style={{ maxHeight: '70vh' }}>
+        <img
+          src={image.previewUrl}
+          alt={image.filename}
+          className="max-w-full max-h-[70vh] object-contain"
+        />
+      </div>
+
+      {/* Filename */}
+      <div className="border-t border-gray-200 pt-4">
+        <p className="text-sm font-semibold text-gray-900 truncate" title={image.filename}>
+          {image.filename}
+        </p>
+        {image.status === 'skipped' && (
+          <span className="inline-block mt-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded">
+            Skipped
+          </span>
+        )}
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex gap-3 border-t border-gray-200 pt-4">
+        <button
+          onClick={onPrevious}
+          disabled={isFirstImage}
+          className={`flex-1 px-4 py-3 border-2 rounded-lg font-medium transition-all ${
+            isFirstImage
+              ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-100'
+              : 'border-gray-400 text-gray-900 bg-white hover:bg-gray-50 hover:border-gray-500'
+          }`}
+        >
+          ← Previous
+        </button>
+
+        <button
+          onClick={onSkip}
+          className="flex-1 px-4 py-3 border-2 border-orange-400 text-orange-700 bg-orange-50 rounded-lg font-medium hover:bg-orange-100 hover:border-orange-500 transition-all"
+        >
+          Skip
+        </button>
+
+        <button
+          onClick={onSaveAndNext}
+          disabled={isSaving}
+          className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+            isSaving
+              ? 'bg-gray-400 text-gray-100 cursor-wait'
+              : 'bg-black text-white hover:bg-gray-800 shadow-sm hover:shadow-md'
+          }`}
+        >
+          {isSaving ? (
+            <span className="flex items-center justify-center space-x-2">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span>Saving...</span>
+            </span>
+          ) : (
+            <span>Save & Next →</span>
+          )}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Tag Checkbox Component
+interface TagCheckboxProps {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  aiSuggested?: boolean
+}
+
+function TagCheckbox({ label, checked, onChange, aiSuggested = false }: TagCheckboxProps) {
+  return (
+    <label className="flex items-center space-x-2 cursor-pointer group">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="w-4 h-4 text-black border-gray-300 rounded focus:ring-2 focus:ring-black cursor-pointer"
+      />
+      <span className={`text-sm group-hover:text-gray-900 select-none flex items-center gap-1.5 ${
+        aiSuggested ? 'text-blue-700 font-medium' : 'text-gray-700'
+      }`}>
+        {aiSuggested && <span className="text-xs">✨</span>}
+        {label}
+      </span>
+    </label>
+  )
+}
+
+// Tag Form Component
+interface TagFormProps {
+  vocabulary: TagVocabulary
+  currentTags: ImageTags
+  onUpdateTags: (tags: Partial<ImageTags>) => void
+  onOpenAddTagModal: (category: keyof Omit<ImageTags, 'notes'>) => void
+  aiSuggestions?: {
+    industries: string[]
+    projectTypes: string[]
+    styles: string[]
+    moods: string[]
+    elements: string[]
+    confidence: 'high' | 'medium' | 'low'
+    reasoning: string
+  }
+  isLoadingAI?: boolean
+}
+
+function TagForm({ vocabulary, currentTags, onUpdateTags, onOpenAddTagModal, aiSuggestions, isLoadingAI = false }: TagFormProps) {
+  const handleTagToggle = (category: keyof Omit<ImageTags, 'notes'>, tagValue: string) => {
+    const currentValues = currentTags[category]
+    const newValues = currentValues.includes(tagValue)
+      ? currentValues.filter(v => v !== tagValue)
+      : [...currentValues, tagValue]
+
+    onUpdateTags({ [category]: newValues })
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6 max-h-[85vh] overflow-y-auto sticky top-0">
+      <h3 className="text-xl font-semibold text-gray-900 pb-3 border-b sticky top-0 bg-white z-10">
+        Tag Image
+      </h3>
+
+      {/* AI Insights Panel */}
+      {aiSuggestions && aiSuggestions.reasoning && (
+        <div className={`rounded-lg p-4 border-2 ${
+          aiSuggestions.confidence === 'high' ? 'bg-blue-50 border-blue-200' :
+          aiSuggestions.confidence === 'medium' ? 'bg-yellow-50 border-yellow-200' :
+          'bg-gray-50 border-gray-200'
+        }`}>
+          <div className="flex items-start gap-2 mb-2">
+            <span className="text-lg">✨</span>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm font-semibold text-gray-900">AI Analysis</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  aiSuggestions.confidence === 'high' ? 'bg-blue-200 text-blue-800' :
+                  aiSuggestions.confidence === 'medium' ? 'bg-yellow-200 text-yellow-800' :
+                  'bg-gray-200 text-gray-800'
+                }`}>
+                  {aiSuggestions.confidence} confidence
+                </span>
+              </div>
+              <p className="text-xs text-gray-700 leading-relaxed">
+                {aiSuggestions.reasoning}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Industries */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-900 mb-3">
+          Industries ({currentTags.industries.length})
+          {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
+        </label>
+        <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+          {vocabulary.industries.map((tag) => (
+            <TagCheckbox
+              key={tag}
+              label={tag}
+              checked={currentTags.industries.includes(tag)}
+              onChange={() => handleTagToggle('industries', tag)}
+              aiSuggested={aiSuggestions?.industries.includes(tag)}
+            />
+          ))}
+        </div>
+        <button
+          onClick={() => onOpenAddTagModal('industries')}
+          className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          + Add custom industry
+        </button>
+      </div>
+
+      {/* Project Types */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-900 mb-3">
+          Project Types ({currentTags.projectTypes.length})
+          {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
+        </label>
+        <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+          {vocabulary.projectTypes.map((tag) => (
+            <TagCheckbox
+              key={tag}
+              label={tag}
+              checked={currentTags.projectTypes.includes(tag)}
+              onChange={() => handleTagToggle('projectTypes', tag)}
+              aiSuggested={aiSuggestions?.projectTypes.includes(tag)}
+            />
+          ))}
+        </div>
+        <button
+          onClick={() => onOpenAddTagModal('projectTypes')}
+          className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          + Add custom project type
+        </button>
+      </div>
+
+      {/* Styles */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-900 mb-3">
+          Style ({currentTags.styles.length})
+          {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
+        </label>
+        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+          {vocabulary.styles.map((tag) => (
+            <TagCheckbox
+              key={tag}
+              label={tag}
+              checked={currentTags.styles.includes(tag)}
+              onChange={() => handleTagToggle('styles', tag)}
+              aiSuggested={aiSuggestions?.styles.includes(tag)}
+            />
+          ))}
+        </div>
+        <button
+          onClick={() => onOpenAddTagModal('styles')}
+          className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          + Add custom style
+        </button>
+      </div>
+
+      {/* Moods */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-900 mb-3">
+          Mood ({currentTags.moods.length})
+          {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
+        </label>
+        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+          {vocabulary.moods.map((tag) => (
+            <TagCheckbox
+              key={tag}
+              label={tag}
+              checked={currentTags.moods.includes(tag)}
+              onChange={() => handleTagToggle('moods', tag)}
+              aiSuggested={aiSuggestions?.moods.includes(tag)}
+            />
+          ))}
+        </div>
+        <button
+          onClick={() => onOpenAddTagModal('moods')}
+          className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          + Add custom mood
+        </button>
+      </div>
+
+      {/* Elements */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-900 mb-3">
+          Elements ({currentTags.elements.length})
+          {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
+        </label>
+        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+          {vocabulary.elements.map((tag) => (
+            <TagCheckbox
+              key={tag}
+              label={tag}
+              checked={currentTags.elements.includes(tag)}
+              onChange={() => handleTagToggle('elements', tag)}
+              aiSuggested={aiSuggestions?.elements.includes(tag)}
+            />
+          ))}
+        </div>
+        <button
+          onClick={() => onOpenAddTagModal('elements')}
+          className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          + Add custom element
+        </button>
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-900 mb-3">
+          Notes (Optional)
+        </label>
+        <textarea
+          value={currentTags.notes}
+          onChange={(e) => onUpdateTags({ notes: e.target.value })}
+          placeholder="e.g., 'Great for high-end restaurant projects'..."
+          rows={4}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent resize-none"
+        />
+      </div>
+    </div>
+  )
+}
+
+// Add Tag Modal Component
+interface AddTagModalProps {
+  category: keyof Omit<ImageTags, 'notes'>
+  categoryLabel: string
+  newTagValue: string
+  similarTags: string[]
+  isAdding: boolean
+  error: string | null
+  onInputChange: (value: string) => void
+  onAdd: () => void
+  onUseSimilar: (tag: string) => void
+  onClose: () => void
+}
+
+function AddTagModal({
+  categoryLabel,
+  newTagValue,
+  similarTags,
+  isAdding,
+  error,
+  onInputChange,
+  onAdd,
+  onUseSimilar,
+  onClose
+}: AddTagModalProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && newTagValue.trim() && !isAdding) {
+      onAdd()
+    } else if (e.key === 'Escape') {
+      onClose()
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Add Custom {categoryLabel}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            disabled={isAdding}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-4 space-y-4">
+          {/* Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tag Name
+            </label>
+            <input
+              ref={inputRef}
+              type="text"
+              value={newTagValue}
+              onChange={(e) => onInputChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={`e.g., "${categoryLabel.toLowerCase()}"`}
+              disabled={isAdding}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Tag will be normalized to lowercase
+            </p>
+          </div>
+
+          {/* Similar Tags Warning */}
+          {similarTags.length > 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-sm font-medium text-yellow-800 mb-2">
+                Similar tags found:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {similarTags.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => onUseSimilar(tag)}
+                    disabled={isAdding}
+                    className="px-2 py-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-xs rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-yellow-700">
+                Click a tag to use it instead
+              </p>
+            </div>
+          )}
+
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+          <button
+            onClick={onClose}
+            disabled={isAdding}
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onAdd}
+            disabled={!newTagValue.trim() || isAdding}
+            className="px-4 py-2 bg-black text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isAdding ? (
+              <>
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Adding...
+              </>
+            ) : (
+              'Add Tag'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
