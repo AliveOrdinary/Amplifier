@@ -15,13 +15,13 @@ export default function AboutPageClient({ introText, story }: AboutPageClientPro
     offset: ['start start', 'end end'],
   });
 
-  const introOpacity = useTransform(scrollYProgress, [0, 0.3, 0.5], [1, 1, 0]);
-  const introScale = useTransform(scrollYProgress, [0, 0.5], [1, 2.5]);
-  const introY = useTransform(scrollYProgress, [0, 0.5], ['0%', '5%']);
+  const introOpacity = useTransform(scrollYProgress, [0, 0.3, 1], [1, 1, 0]);
+  const introScale = useTransform(scrollYProgress, [0, 1], [1, 10]);
+  const introY = useTransform(scrollYProgress, [0, 1], ['0%', '0%']);
 
-  const storyOpacity = useTransform(scrollYProgress, [0.4, 0.6, 0.8], [0, 1, 1]);
-  const storyY = useTransform(scrollYProgress, [0.4, 0.8], ['50px', '0px']);
-  const storyScale = useTransform(scrollYProgress, [0.4, 0.8], [0.5, 1.5]);
+  const storyOpacity = useTransform(scrollYProgress, [0.5, 0.8, 1.0], [0, 1, 1]);
+  const storyY = useTransform(scrollYProgress, [0.5, 1.0], ['50px', '0px']);
+  const storyScale = useTransform(scrollYProgress, [0.5, 1.0], [0.5, 1.5]);
 
   return (
     <section ref={targetRef} className="relative min-h-[200vh]">
