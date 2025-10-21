@@ -79,6 +79,10 @@ export default function ImageTaggerClient() {
   const [isLoadingAI, setIsLoadingAI] = useState<Record<string, boolean>>({})
   const [aiError, setAiError] = useState<Record<string, string | null>>({})
 
+  // Filter state
+  type FilterType = 'all' | 'pending' | 'skipped' | 'tagged'
+  const [currentFilter, setCurrentFilter] = useState<FilterType>('all')
+
   // Load vocabulary from Supabase on mount
   useEffect(() => {
     const loadVocabulary = async () => {
@@ -144,14 +148,18 @@ export default function ImageTaggerClient() {
     loadVocabulary()
   }, [])
 
-  // Cleanup preview URLs on unmount
+  // Store blob URLs for cleanup
+  const blobUrlsRef = useRef<Set<string>>(new Set())
+
+  // Cleanup preview URLs only on unmount
   useEffect(() => {
     return () => {
-      uploadedImages.forEach(img => {
-        URL.revokeObjectURL(img.previewUrl)
+      blobUrlsRef.current.forEach(url => {
+        URL.revokeObjectURL(url)
       })
+      blobUrlsRef.current.clear()
     }
-  }, [uploadedImages])
+  }, [])
 
   // Handle file upload
   const handleFilesSelected = (files: FileList | null) => {
@@ -162,13 +170,17 @@ export default function ImageTaggerClient() {
       return validTypes.includes(file.type)
     })
 
-    const newImages: UploadedImage[] = validFiles.map(file => ({
-      id: crypto.randomUUID(),
-      file,
-      previewUrl: URL.createObjectURL(file),
-      filename: file.name,
-      status: 'pending'
-    }))
+    const newImages: UploadedImage[] = validFiles.map(file => {
+      const previewUrl = URL.createObjectURL(file)
+      blobUrlsRef.current.add(previewUrl) // Track for cleanup
+      return {
+        id: crypto.randomUUID(),
+        file,
+        previewUrl,
+        filename: file.name,
+        status: 'pending'
+      }
+    })
 
     setUploadedImages(prev => [...prev, ...newImages])
   }
@@ -316,6 +328,82 @@ export default function ImageTaggerClient() {
     }
   }, [isTaggingMode, currentIndex, uploadedImages, vocabulary])
 
+  // Track corrections between AI suggestions and designer selections
+  const trackCorrections = async (
+    imageId: string,
+    aiSuggestion: AISuggestion,
+    designerTags: ImageTags
+  ) => {
+    try {
+      // Flatten AI suggestions
+      const aiSuggestedFlat = [
+        ...aiSuggestion.industries,
+        ...aiSuggestion.projectTypes,
+        ...aiSuggestion.styles,
+        ...aiSuggestion.moods,
+        ...aiSuggestion.elements
+      ]
+
+      // Flatten designer selections
+      const designerSelectedFlat = [
+        ...designerTags.industries,
+        ...designerTags.projectTypes,
+        ...designerTags.styles,
+        ...designerTags.moods,
+        ...designerTags.elements
+      ]
+
+      // Calculate differences
+      const tagsAdded = designerSelectedFlat.filter(tag => !aiSuggestedFlat.includes(tag))
+      const tagsRemoved = aiSuggestedFlat.filter(tag => !designerSelectedFlat.includes(tag))
+
+      // Only insert if there are corrections
+      if (tagsAdded.length > 0 || tagsRemoved.length > 0) {
+        console.log('📊 Tracking corrections:', {
+          added: tagsAdded.length,
+          removed: tagsRemoved.length
+        })
+
+        const { error: correctionError } = await supabase
+          .from('tag_corrections')
+          .insert({
+            image_id: imageId,
+            ai_suggested: {
+              industries: aiSuggestion.industries,
+              projectTypes: aiSuggestion.projectTypes,
+              styles: aiSuggestion.styles,
+              moods: aiSuggestion.moods,
+              elements: aiSuggestion.elements,
+              confidence: aiSuggestion.confidence,
+              reasoning: aiSuggestion.reasoning
+            },
+            designer_selected: {
+              industries: designerTags.industries,
+              projectTypes: designerTags.projectTypes,
+              styles: designerTags.styles,
+              moods: designerTags.moods,
+              elements: designerTags.elements
+            },
+            tags_added: tagsAdded,
+            tags_removed: tagsRemoved,
+            corrected_at: new Date().toISOString()
+          })
+
+        if (correctionError) {
+          console.error('⚠️ Error tracking corrections:', correctionError)
+          // Don't throw - corrections are non-critical
+        } else {
+          console.log('✅ Corrections tracked successfully')
+        }
+      } else {
+        console.log('✨ Designer accepted all AI suggestions (no corrections)')
+      }
+    } catch (error) {
+      console.error('⚠️ Error in trackCorrections:', error)
+      // Don't throw - corrections are non-critical
+    }
+  }
+
   // Generate thumbnail from image file
   const generateThumbnail = async (file: File, maxWidth: number = 800): Promise<Blob> => {
     return new Promise((resolve, reject) => {
@@ -365,6 +453,12 @@ export default function ImageTaggerClient() {
 
     if (!currentImage) return
 
+    // Don't save if already tagged
+    if (currentImage.status === 'tagged') {
+      console.log('⏭️ Image already tagged, skipping save')
+      return
+    }
+
     try {
       setIsSaving(true)
       setSaveError(null)
@@ -411,11 +505,15 @@ export default function ImageTaggerClient() {
         .from('reference-images')
         .getPublicUrl(thumbnailPath)
 
+      // Get AI suggestions for this image
+      const aiSuggestion = aiSuggestions[currentImage.id]
+
       // 5. Insert record into reference_images table
       console.log('💾 Saving to database...')
-      const { error: dbError } = await supabase
+      const { data: insertedData, error: dbError } = await supabase
         .from('reference_images')
         .insert({
+          id: imageId,
           storage_path: originalUrlData.publicUrl,
           thumbnail_path: thumbnailUrlData.publicUrl,
           original_filename: currentImage.filename,
@@ -428,10 +526,31 @@ export default function ImageTaggerClient() {
           },
           notes: currentTags.notes || null,
           status: 'tagged',
-          tagged_at: new Date().toISOString()
+          tagged_at: new Date().toISOString(),
+          // AI metadata
+          ai_suggested_tags: aiSuggestion ? {
+            industries: aiSuggestion.industries,
+            projectTypes: aiSuggestion.projectTypes,
+            styles: aiSuggestion.styles,
+            moods: aiSuggestion.moods,
+            elements: aiSuggestion.elements
+          } : null,
+          ai_confidence_score: aiSuggestion ? (
+            aiSuggestion.confidence === 'high' ? 0.9 :
+            aiSuggestion.confidence === 'medium' ? 0.6 : 0.3
+          ) : null,
+          ai_reasoning: aiSuggestion?.reasoning || null,
+          ai_model_version: 'claude-sonnet-4-20250514'
         })
+        .select()
+        .single()
 
       if (dbError) throw dbError
+
+      // 6. Track corrections if AI made suggestions
+      if (aiSuggestion) {
+        await trackCorrections(imageId, aiSuggestion, currentTags)
+      }
 
       console.log('✅ Image saved successfully!')
       setSaveSuccess(true)
@@ -461,6 +580,12 @@ export default function ImageTaggerClient() {
     }
   }
 
+  const handleNext = () => {
+    if (currentIndex < uploadedImages.length - 1) {
+      setCurrentIndex(prev => prev + 1)
+    }
+  }
+
   const handleSkip = () => {
     // Mark current image as skipped
     setUploadedImages(prev =>
@@ -478,10 +603,56 @@ export default function ImageTaggerClient() {
     // Save current image
     await handleSaveImage()
 
-    // Move to next image if not last
-    if (currentIndex < uploadedImages.length - 1) {
-      setCurrentIndex(prev => prev + 1)
+    // Find next untagged image (pending or skipped)
+    const nextUntaggedIndex = uploadedImages.findIndex(
+      (img, idx) => idx > currentIndex && img.status !== 'tagged'
+    )
+
+    if (nextUntaggedIndex !== -1) {
+      // Move to next untagged image
+      setCurrentIndex(nextUntaggedIndex)
       setSaveError(null) // Clear any previous errors
+    } else {
+      // No more untagged images
+      console.log('✅ All images processed!')
+    }
+  }
+
+  // Get filtered images based on current filter
+  const getFilteredImages = (): UploadedImage[] => {
+    switch (currentFilter) {
+      case 'pending':
+        return uploadedImages.filter(img => img.status === 'pending')
+      case 'skipped':
+        return uploadedImages.filter(img => img.status === 'skipped')
+      case 'tagged':
+        return uploadedImages.filter(img => img.status === 'tagged')
+      case 'all':
+      default:
+        return uploadedImages
+    }
+  }
+
+  // Review skipped images
+  const handleReviewSkipped = () => {
+    const skippedImages = uploadedImages.filter(img => img.status === 'skipped')
+    if (skippedImages.length > 0) {
+      setCurrentFilter('skipped')
+      // Find index of first skipped image in full array
+      const firstSkippedIndex = uploadedImages.findIndex(img => img.status === 'skipped')
+      if (firstSkippedIndex !== -1) {
+        setCurrentIndex(firstSkippedIndex)
+      }
+    }
+  }
+
+  // Get status counts for filter badges
+  const getStatusCounts = () => {
+    return {
+      all: uploadedImages.length,
+      pending: uploadedImages.filter(img => img.status === 'pending').length,
+      skipped: uploadedImages.filter(img => img.status === 'skipped').length,
+      tagged: uploadedImages.filter(img => img.status === 'tagged').length
     }
   }
 
@@ -800,10 +971,28 @@ export default function ImageTaggerClient() {
         />
       )}
 
+      {/* Filter Bar */}
+      <FilterBar
+        currentFilter={currentFilter}
+        statusCounts={getStatusCounts()}
+        onFilterChange={(filter) => {
+          setCurrentFilter(filter)
+          // Jump to first image of selected type
+          if (filter !== 'all') {
+            const firstIndex = uploadedImages.findIndex(img => img.status === filter)
+            if (firstIndex !== -1) {
+              setCurrentIndex(firstIndex)
+            }
+          }
+        }}
+        onReviewSkipped={handleReviewSkipped}
+      />
+
       {/* Progress Indicator */}
       <ProgressIndicator
         current={currentIndex + 1}
         total={uploadedImages.length}
+        currentStatus={uploadedImages[currentIndex]?.status}
       />
 
       {/* Main Tagging Interface */}
@@ -815,6 +1004,7 @@ export default function ImageTaggerClient() {
             currentIndex={currentIndex}
             totalImages={uploadedImages.length}
             onPrevious={handlePrevious}
+            onNext={handleNext}
             onSkip={handleSkip}
             onSaveAndNext={handleSaveAndNext}
             isSaving={isSaving}
@@ -953,16 +1143,109 @@ function UploadSection({ onFilesSelected, uploadedImages, onStartTagging }: Uplo
   )
 }
 
+// Filter Bar Component
+interface FilterBarProps {
+  currentFilter: 'all' | 'pending' | 'skipped' | 'tagged'
+  statusCounts: {
+    all: number
+    pending: number
+    skipped: number
+    tagged: number
+  }
+  onFilterChange: (filter: 'all' | 'pending' | 'skipped' | 'tagged') => void
+  onReviewSkipped: () => void
+}
+
+function FilterBar({ currentFilter, statusCounts, onFilterChange, onReviewSkipped }: FilterBarProps) {
+  const filters: Array<{ key: 'all' | 'pending' | 'skipped' | 'tagged'; label: string; color: string; description: string }> = [
+    { key: 'all', label: 'All Images', color: 'gray', description: 'Show all images' },
+    { key: 'pending', label: 'Pending', color: 'gray', description: 'Jump to first pending' },
+    { key: 'skipped', label: 'Skipped', color: 'orange', description: 'Jump to first skipped' },
+    { key: 'tagged', label: 'Completed', color: 'green', description: 'Jump to first tagged' }
+  ]
+
+  return (
+    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          {filters.map((filter) => {
+            const count = statusCounts[filter.key]
+            const isActive = currentFilter === filter.key
+
+            return (
+              <button
+                key={filter.key}
+                onClick={() => onFilterChange(filter.key)}
+                disabled={count === 0 && filter.key !== 'all'}
+                title={filter.description}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  isActive
+                    ? filter.color === 'orange'
+                      ? 'bg-orange-100 text-orange-800 border-2 border-orange-400'
+                      : filter.color === 'green'
+                      ? 'bg-green-100 text-green-800 border-2 border-green-400'
+                      : 'bg-gray-200 text-gray-900 border-2 border-gray-400'
+                    : count === 0 && filter.key !== 'all'
+                    ? 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                }`}
+              >
+                {filter.label}
+                <span className={`ml-2 ${
+                  isActive ? 'font-bold' : 'font-normal'
+                }`}>
+                  ({count})
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {statusCounts.skipped > 0 && (
+          <button
+            onClick={onReviewSkipped}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors shadow-sm"
+          >
+            Review Skipped ({statusCounts.skipped})
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // Progress Indicator Component
-function ProgressIndicator({ current, total }: { current: number; total: number }) {
+interface ProgressIndicatorProps {
+  current: number
+  total: number
+  currentStatus?: 'pending' | 'tagged' | 'skipped'
+}
+
+function ProgressIndicator({ current, total, currentStatus }: ProgressIndicatorProps) {
   const percentage = (current / total) * 100
+
+  const statusConfig = {
+    pending: { label: 'Pending', color: 'bg-gray-500', textColor: 'text-gray-700' },
+    skipped: { label: 'Skipped', color: 'bg-orange-500', textColor: 'text-orange-700' },
+    tagged: { label: 'Tagged', color: 'bg-green-500', textColor: 'text-green-700' }
+  }
+
+  const status = currentStatus ? statusConfig[currentStatus] : null
 
   return (
     <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-200">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-base font-semibold text-gray-900">
-          Image {current} of {total}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-base font-semibold text-gray-900">
+            Image {current} of {total}
+          </span>
+          {status && (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.textColor} bg-${status.color}/10`}>
+              <span className={`w-2 h-2 rounded-full ${status.color}`} />
+              {status.label}
+            </span>
+          )}
+        </div>
         <span className="text-sm font-medium text-gray-600">
           {Math.round(percentage)}% Complete
         </span>
@@ -983,6 +1266,7 @@ interface ImagePreviewProps {
   currentIndex: number
   totalImages: number
   onPrevious: () => void
+  onNext: () => void
   onSkip: () => void
   onSaveAndNext: () => Promise<void>
   isSaving: boolean
@@ -993,6 +1277,7 @@ function ImagePreview({
   currentIndex,
   totalImages,
   onPrevious,
+  onNext,
   onSkip,
   onSaveAndNext,
   isSaving
@@ -1021,6 +1306,14 @@ function ImagePreview({
             Skipped
           </span>
         )}
+        {image.status === 'tagged' && (
+          <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            Already Tagged
+          </span>
+        )}
       </div>
 
       {/* Navigation Buttons */}
@@ -1037,34 +1330,50 @@ function ImagePreview({
           ← Previous
         </button>
 
-        <button
-          onClick={onSkip}
-          className="flex-1 px-4 py-3 border-2 border-orange-400 text-orange-700 bg-orange-50 rounded-lg font-medium hover:bg-orange-100 hover:border-orange-500 transition-all"
-        >
-          Skip
-        </button>
+        {image.status !== 'tagged' ? (
+          <>
+            <button
+              onClick={onSkip}
+              className="flex-1 px-4 py-3 border-2 border-orange-400 text-orange-700 bg-orange-50 rounded-lg font-medium hover:bg-orange-100 hover:border-orange-500 transition-all"
+            >
+              Skip
+            </button>
 
-        <button
-          onClick={onSaveAndNext}
-          disabled={isSaving}
-          className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-            isSaving
-              ? 'bg-gray-400 text-gray-100 cursor-wait'
-              : 'bg-black text-white hover:bg-gray-800 shadow-sm hover:shadow-md'
-          }`}
-        >
-          {isSaving ? (
-            <span className="flex items-center justify-center space-x-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              <span>Saving...</span>
-            </span>
-          ) : (
-            <span>Save & Next →</span>
-          )}
-        </button>
+            <button
+              onClick={onSaveAndNext}
+              disabled={isSaving}
+              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+                isSaving
+                  ? 'bg-gray-400 text-gray-100 cursor-not-allowed'
+                  : 'bg-black text-white hover:bg-gray-800 shadow-sm hover:shadow-md'
+              }`}
+            >
+              {isSaving ? (
+                <span className="flex items-center justify-center space-x-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>Saving...</span>
+                </span>
+              ) : (
+                <span>Save & Next →</span>
+              )}
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={onNext}
+            disabled={isLastImage}
+            className={`flex-1 px-4 py-3 border-2 rounded-lg font-medium transition-all ${
+              isLastImage
+                ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-100'
+                : 'border-gray-400 text-gray-900 bg-white hover:bg-gray-50 hover:border-gray-500'
+            }`}
+          >
+            Next →
+          </button>
+        )}
       </div>
     </div>
   )
