@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import VocabularyClient from '@/components/tagger/VocabularyClient'
+import Link from 'next/link'
 
 // Server-side Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -46,6 +47,13 @@ export default async function VocabularyPage() {
     <div className="min-h-screen bg-custom-bg">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
+          <Link
+            href="/tagger/dashboard"
+            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+          >
+            <span>←</span>
+            <span>Back to Dashboard</span>
+          </Link>
           <h1 className="text-4xl font-bold mb-2">Tag Vocabulary Management</h1>
           <p className="text-gray-600">
             Manage your reference image tagging vocabulary

@@ -1,7 +1,7 @@
-import ImageTaggerClient from '@/components/tagger/ImageTaggerClient'
+import BulkUploadClient from '@/components/tagger/BulkUploadClient'
 import Link from 'next/link'
 
-export default function TaggerPage() {
+export default function BulkUploadPage() {
   return (
     <div className="min-h-screen bg-custom-bg">
       <div className="container mx-auto px-4 py-8">
@@ -13,9 +13,13 @@ export default function TaggerPage() {
             <span>←</span>
             <span>Back to Dashboard</span>
           </Link>
-          <h1 className="text-4xl font-bold">Reference Image Tagger</h1>
+          <h1 className="text-4xl font-bold mb-2">Bulk Image Upload</h1>
+          <p className="text-gray-600">
+            Optimized for uploading and tagging 10-100 similar images efficiently
+          </p>
         </div>
-        <ImageTaggerClient />
+
+        <BulkUploadClient />
       </div>
     </div>
   )

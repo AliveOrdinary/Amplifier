@@ -74,6 +74,7 @@ export default function ImageTaggerClient() {
     elements: string[]
     confidence: 'high' | 'medium' | 'low'
     reasoning: string
+    promptVersion?: 'baseline' | 'enhanced'
   }
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, AISuggestion>>({})
   const [isLoadingAI, setIsLoadingAI] = useState<Record<string, boolean>>({})
@@ -328,6 +329,69 @@ export default function ImageTaggerClient() {
     }
   }, [isTaggingMode, currentIndex, uploadedImages, vocabulary])
 
+  // Update tag usage counts in tag_vocabulary table
+  const updateTagUsageCounts = async (tags: ImageTags) => {
+    try {
+      const now = new Date().toISOString()
+
+      // Map frontend categories to database categories
+      const categoryMap = {
+        industries: 'industry',
+        projectTypes: 'project_type',
+        styles: 'style',
+        moods: 'mood',
+        elements: 'elements'
+      }
+
+      // Collect all tags with their categories
+      const tagUpdates: Array<{ category: string; tagValue: string }> = []
+
+      // Add industries
+      tags.industries.forEach(tag => {
+        tagUpdates.push({ category: categoryMap.industries, tagValue: tag })
+      })
+
+      // Add project types
+      tags.projectTypes.forEach(tag => {
+        tagUpdates.push({ category: categoryMap.projectTypes, tagValue: tag })
+      })
+
+      // Add styles
+      tags.styles.forEach(tag => {
+        tagUpdates.push({ category: categoryMap.styles, tagValue: tag })
+      })
+
+      // Add moods
+      tags.moods.forEach(tag => {
+        tagUpdates.push({ category: categoryMap.moods, tagValue: tag })
+      })
+
+      // Add elements
+      tags.elements.forEach(tag => {
+        tagUpdates.push({ category: categoryMap.elements, tagValue: tag })
+      })
+
+      // Update each tag's usage count
+      for (const { category, tagValue } of tagUpdates) {
+        const { error } = await supabase.rpc('increment_tag_usage', {
+          p_category: category,
+          p_tag_value: tagValue,
+          p_last_used_at: now
+        })
+
+        if (error) {
+          console.error(`⚠️ Error updating usage for ${category}:${tagValue}:`, error)
+          // Don't throw - continue with other tags
+        }
+      }
+
+      console.log(`✅ Updated usage counts for ${tagUpdates.length} tags`)
+    } catch (error) {
+      console.error('⚠️ Error updating tag usage counts:', error)
+      // Don't throw - usage tracking is non-critical
+    }
+  }
+
   // Track corrections between AI suggestions and designer selections
   const trackCorrections = async (
     imageId: string,
@@ -510,7 +574,7 @@ export default function ImageTaggerClient() {
 
       // 5. Insert record into reference_images table
       console.log('💾 Saving to database...')
-      const { data: insertedData, error: dbError } = await supabase
+      const { error: dbError } = await supabase
         .from('reference_images')
         .insert({
           id: imageId,
@@ -540,14 +604,19 @@ export default function ImageTaggerClient() {
             aiSuggestion.confidence === 'medium' ? 0.6 : 0.3
           ) : null,
           ai_reasoning: aiSuggestion?.reasoning || null,
-          ai_model_version: 'claude-sonnet-4-20250514'
+          ai_model_version: 'claude-sonnet-4-20250514',
+          prompt_version: aiSuggestion?.promptVersion || 'baseline'
         })
         .select()
         .single()
 
       if (dbError) throw dbError
 
-      // 6. Track corrections if AI made suggestions
+      // 6. Update tag usage counts in vocabulary
+      console.log('📊 Updating tag usage counts...')
+      await updateTagUsageCounts(currentTags)
+
+      // 7. Track corrections if AI made suggestions
       if (aiSuggestion) {
         await trackCorrections(imageId, aiSuggestion, currentTags)
       }
@@ -615,21 +684,6 @@ export default function ImageTaggerClient() {
     } else {
       // No more untagged images
       console.log('✅ All images processed!')
-    }
-  }
-
-  // Get filtered images based on current filter
-  const getFilteredImages = (): UploadedImage[] => {
-    switch (currentFilter) {
-      case 'pending':
-        return uploadedImages.filter(img => img.status === 'pending')
-      case 'skipped':
-        return uploadedImages.filter(img => img.status === 'skipped')
-      case 'tagged':
-        return uploadedImages.filter(img => img.status === 'tagged')
-      case 'all':
-      default:
-        return uploadedImages
     }
   }
 

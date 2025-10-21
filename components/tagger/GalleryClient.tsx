@@ -40,6 +40,67 @@ interface TagVocabulary {
   elements: string[]
 }
 
+// Helper function to update tag usage counts when tags change
+async function updateTagUsageForChanges(
+  oldTags: { industries: string[], projectTypes: string[], styles: string[], moods: string[], elements: string[] },
+  newTags: { industries: string[], projectTypes: string[], styles: string[], moods: string[], elements: string[] }
+) {
+  try {
+    const now = new Date().toISOString()
+
+    // Map frontend categories to database categories
+    const categoryMap = {
+      industries: 'industry',
+      projectTypes: 'project_type',
+      styles: 'style',
+      moods: 'mood',
+      elements: 'elements'
+    }
+
+    // Track added and removed tags
+    const categories: Array<keyof typeof categoryMap> = ['industries', 'projectTypes', 'styles', 'moods', 'elements']
+
+    for (const category of categories) {
+      const dbCategory = categoryMap[category]
+      const oldSet = new Set(oldTags[category] || [])
+      const newSet = new Set(newTags[category] || [])
+
+      // Find added tags (in new but not in old)
+      const added = Array.from(newSet).filter(tag => !oldSet.has(tag))
+
+      // Find removed tags (in old but not in new)
+      const removed = Array.from(oldSet).filter(tag => !newSet.has(tag))
+
+      // Increment counts for added tags
+      for (const tag of added) {
+        const { error } = await supabase.rpc('increment_tag_usage', {
+          p_category: dbCategory,
+          p_tag_value: tag,
+          p_last_used_at: now
+        })
+        if (error) {
+          console.error(`⚠️ Error incrementing usage for ${dbCategory}:${tag}:`, error)
+        }
+      }
+
+      // Decrement counts for removed tags
+      for (const tag of removed) {
+        const { error } = await supabase.rpc('decrement_tag_usage', {
+          p_category: dbCategory,
+          p_tag_value: tag
+        })
+        if (error) {
+          console.error(`⚠️ Error decrementing usage for ${dbCategory}:${tag}:`, error)
+        }
+      }
+    }
+
+    console.log('✅ Tag usage counts updated')
+  } catch (error) {
+    console.error('⚠️ Error updating tag usage counts:', error)
+  }
+}
+
 export default function GalleryClient({ images: initialImages }: GalleryClientProps) {
   const [images, setImages] = useState<ReferenceImage[]>(initialImages)
   const [selectedImage, setSelectedImage] = useState<ReferenceImage | null>(null)
@@ -737,6 +798,24 @@ function EditImageModal({ image, vocabulary, onClose, onSave }: EditImageModalPr
     setIsSaving(true)
 
     try {
+      // Update tag usage counts (compare old vs new)
+      await updateTagUsageForChanges(
+        {
+          industries: image.industries || [],
+          projectTypes: image.project_types || [],
+          styles: image.tags?.style || [],
+          moods: image.tags?.mood || [],
+          elements: image.tags?.elements || []
+        },
+        {
+          industries,
+          projectTypes,
+          styles,
+          moods,
+          elements
+        }
+      )
+
       const { data, error } = await supabase
         .from('reference_images')
         .update({
@@ -1005,6 +1084,24 @@ function BulkEditModal({ images, vocabulary, onClose, onSave }: BulkEditModalPro
           newMoods = newMoods.filter(tag => !moods.includes(tag))
           newElements = newElements.filter(tag => !elements.includes(tag))
         }
+
+        // Update tag usage counts for this image
+        await updateTagUsageForChanges(
+          {
+            industries: image.industries || [],
+            projectTypes: image.project_types || [],
+            styles: image.tags?.style || [],
+            moods: image.tags?.mood || [],
+            elements: image.tags?.elements || []
+          },
+          {
+            industries: newIndustries,
+            projectTypes: newProjectTypes,
+            styles: newStyles,
+            moods: newMoods,
+            elements: newElements
+          }
+        )
 
         const { data, error } = await supabase
           .from('reference_images')

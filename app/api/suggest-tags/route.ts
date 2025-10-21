@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@supabase/supabase-js'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
 })
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+})
+
+// ========== INTERFACES ==========
 
 interface TagVocabulary {
   industries: string[]
@@ -26,8 +39,58 @@ interface SuggestTagsResponse {
   elements: string[]
   confidence: 'high' | 'medium' | 'low'
   reasoning: string
+  promptVersion?: 'baseline' | 'enhanced'
   error?: string
 }
+
+interface CorrectionPattern {
+  tag: string
+  category: string
+  count: number
+  percentage: number
+}
+
+interface CorrectionAnalysis {
+  totalImages: number
+  frequentlyMissed: CorrectionPattern[]
+  frequentlyWrong: CorrectionPattern[]
+  accuracyRate: number
+  categoryAccuracy: Record<string, number>
+  lastUpdated: number
+}
+
+// ========== IN-MEMORY CACHE ==========
+
+let correctionCache: CorrectionAnalysis | null = null
+let cacheTimestamp: number = 0
+let lastImageCount: number = 0
+const CACHE_DURATION = 60 * 60 * 1000 // 1 hour
+const CACHE_IMAGE_THRESHOLD = 5 // Invalidate cache after 5 new images
+
+// Helper function to get enhanced prompt setting from database
+async function getEnhancedPromptSetting(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('setting_value')
+      .eq('setting_key', 'use_enhanced_prompt')
+      .single()
+
+    if (error) {
+      console.error('Error fetching enhanced prompt setting:', error)
+      // Fallback to environment variable if database query fails
+      return process.env.USE_ENHANCED_PROMPT === 'true'
+    }
+
+    return data.setting_value === 'true'
+  } catch (error) {
+    console.error('Error in getEnhancedPromptSetting:', error)
+    // Fallback to environment variable
+    return process.env.USE_ENHANCED_PROMPT === 'true'
+  }
+}
+
+// ========== MAIN POST HANDLER ==========
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,8 +134,10 @@ export async function POST(request: NextRequest) {
     const mediaType = matches[1] as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
     const base64Data = matches[2]
 
-    // Build prompt with vocabulary
-    const prompt = buildTagSuggestionPrompt(vocabulary)
+    // Build prompt (enhanced or baseline based on database setting)
+    const useEnhanced = await getEnhancedPromptSetting()
+    const promptVersion = useEnhanced ? 'enhanced' : 'baseline'
+    const prompt = await buildTagSuggestionPrompt(vocabulary, promptVersion)
 
     // Call Claude Sonnet API with image
     const message = await anthropic.messages.create({
@@ -103,6 +168,9 @@ export async function POST(request: NextRequest) {
     // Parse JSON response from Claude
     const suggestions = parseTagSuggestions(responseText)
 
+    // Add prompt version to response
+    suggestions.promptVersion = promptVersion
+
     return NextResponse.json(suggestions as SuggestTagsResponse)
 
   } catch (error) {
@@ -123,8 +191,175 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function buildTagSuggestionPrompt(vocabulary: TagVocabulary): string {
-  return `You are analyzing a design reference image for a graphic design studio's reference bank. Your task is to suggest relevant tags from the provided vocabulary that best describe this image.
+// ========== CORRECTION ANALYSIS ==========
+
+async function getCorrectionAnalysis(): Promise<CorrectionAnalysis | null> {
+  try {
+    // Check if cache is valid
+    const now = Date.now()
+    const cacheAge = now - cacheTimestamp
+
+    // Get current image count
+    const { count: currentImageCount } = await supabase
+      .from('reference_images')
+      .select('*', { count: 'exact', head: true })
+      .not('ai_suggested_tags', 'is', null)
+
+    const imageCountDelta = (currentImageCount || 0) - lastImageCount
+
+    // Return cached data if valid
+    if (
+      correctionCache &&
+      cacheAge < CACHE_DURATION &&
+      imageCountDelta < CACHE_IMAGE_THRESHOLD
+    ) {
+      console.log('📊 Using cached correction analysis')
+      return correctionCache
+    }
+
+    console.log('🔄 Refreshing correction analysis cache...')
+
+    // Fetch all corrections
+    const { data: corrections, error: correctionsError } = await supabase
+      .from('tag_corrections')
+      .select('*')
+
+    if (correctionsError) throw correctionsError
+
+    // Fetch tag vocabulary for category mapping
+    const { data: vocabulary, error: vocabError } = await supabase
+      .from('tag_vocabulary')
+      .select('tag_value, category')
+
+    if (vocabError) throw vocabError
+
+    // Create tag to category mapping
+    const tagToCategory: Record<string, string> = {}
+    vocabulary?.forEach(v => {
+      tagToCategory[v.tag_value] = v.category
+    })
+
+    const totalImages = corrections?.length || 0
+
+    if (totalImages < 5) {
+      console.log('⏸ Not enough data for correction analysis (need at least 5 images)')
+      return null
+    }
+
+    // Analyze missed tags (tags_added)
+    const missedTagsCount: Record<string, number> = {}
+    corrections?.forEach(correction => {
+      correction.tags_added?.forEach((tag: string) => {
+        missedTagsCount[tag] = (missedTagsCount[tag] || 0) + 1
+      })
+    })
+
+    const frequentlyMissed: CorrectionPattern[] = Object.entries(missedTagsCount)
+      .map(([tag, count]) => ({
+        tag,
+        category: tagToCategory[tag] || 'unknown',
+        count,
+        percentage: Math.round((count / totalImages) * 100)
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+
+    // Analyze wrong tags (tags_removed)
+    const wrongTagsCount: Record<string, number> = {}
+    corrections?.forEach(correction => {
+      correction.tags_removed?.forEach((tag: string) => {
+        wrongTagsCount[tag] = (wrongTagsCount[tag] || 0) + 1
+      })
+    })
+
+    const frequentlyWrong: CorrectionPattern[] = Object.entries(wrongTagsCount)
+      .map(([tag, count]) => ({
+        tag,
+        category: tagToCategory[tag] || 'unknown',
+        count,
+        percentage: Math.round((count / totalImages) * 100)
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+
+    // Calculate overall accuracy
+    let totalSuggestions = 0
+    let totalAccepted = 0
+    corrections?.forEach(correction => {
+      const added = correction.tags_added?.length || 0
+      const removed = correction.tags_removed?.length || 0
+      totalSuggestions += added + removed
+      totalAccepted += (added + removed - removed)
+    })
+
+    const accuracyRate = totalSuggestions > 0
+      ? Math.round((totalAccepted / totalSuggestions) * 100)
+      : 0
+
+    // Calculate category-specific accuracy
+    const categoryAccuracy: Record<string, number> = {}
+    const categoryStats: Record<string, { total: number, correct: number }> = {
+      industry: { total: 0, correct: 0 },
+      project_type: { total: 0, correct: 0 },
+      style: { total: 0, correct: 0 },
+      mood: { total: 0, correct: 0 },
+      elements: { total: 0, correct: 0 }
+    }
+
+    // This is simplified - would need more detailed tracking in production
+    frequentlyMissed.forEach(pattern => {
+      const cat = pattern.category
+      if (categoryStats[cat]) {
+        categoryStats[cat].total += pattern.count
+      }
+    })
+
+    frequentlyWrong.forEach(pattern => {
+      const cat = pattern.category
+      if (categoryStats[cat]) {
+        categoryStats[cat].total += pattern.count
+      }
+    })
+
+    Object.entries(categoryStats).forEach(([cat, stats]) => {
+      categoryAccuracy[cat] = stats.total > 0
+        ? Math.round((stats.correct / stats.total) * 100)
+        : 100
+    })
+
+    // Build analysis object
+    const analysis: CorrectionAnalysis = {
+      totalImages,
+      frequentlyMissed,
+      frequentlyWrong,
+      accuracyRate,
+      categoryAccuracy,
+      lastUpdated: now
+    }
+
+    // Update cache
+    correctionCache = analysis
+    cacheTimestamp = now
+    lastImageCount = currentImageCount || 0
+
+    console.log(`✅ Correction analysis cached (${totalImages} images analyzed)`)
+
+    return analysis
+
+  } catch (error) {
+    console.error('Error analyzing corrections:', error)
+    return null
+  }
+}
+
+// ========== ENHANCED PROMPT GENERATION ==========
+
+async function buildTagSuggestionPrompt(
+  vocabulary: TagVocabulary,
+  version: 'baseline' | 'enhanced'
+): Promise<string> {
+  // Base prompt (same for both versions)
+  let prompt = `You are analyzing a design reference image for a graphic design studio's reference bank. Your task is to suggest relevant tags from the provided vocabulary that best describe this image.
 
 **AVAILABLE TAG VOCABULARY:**
 
@@ -144,7 +379,51 @@ ${vocabulary.moods.map(tag => `- ${tag}`).join('\n')}
 ${vocabulary.elements.map(tag => `- ${tag}`).join('\n')}
 
 ---
+`
 
+  // Add enhanced learning section if enabled
+  if (version === 'enhanced') {
+    const corrections = await getCorrectionAnalysis()
+
+    if (corrections && corrections.totalImages >= 5) {
+      prompt += `
+**🧠 LEARNING FROM PAST CORRECTIONS:**
+
+Based on ${corrections.totalImages} previously tagged images by professional designers, here are critical patterns to improve your accuracy (current: ${corrections.accuracyRate}%):
+
+**⚠️ TAGS YOU FREQUENTLY MISS** - Pay EXTRA attention to these:
+${corrections.frequentlyMissed.slice(0, 8).map(tag =>
+  `- "${tag.tag}" (${tag.category}) - designers added this ${tag.count} times (${tag.percentage}% of images)`
+).join('\n')}
+
+${generateMissedTagGuidance(corrections.frequentlyMissed)}
+
+**❌ TAGS YOU WRONGLY SUGGEST** - Be MORE CONSERVATIVE with these:
+${corrections.frequentlyWrong.slice(0, 8).map(tag =>
+  `- "${tag.tag}" (${tag.category}) - designers removed this ${tag.count} times (${tag.percentage}% of images)`
+).join('\n')}
+
+${generateWrongTagGuidance(corrections.frequentlyWrong)}
+
+**🎯 SPECIFIC CATEGORY PERFORMANCE:**
+${Object.entries(corrections.categoryAccuracy).map(([cat, acc]) => {
+  const label = cat.replace('_', ' ').toUpperCase()
+  const emoji = acc >= 80 ? '✅' : acc >= 60 ? '⚠️' : '❌'
+  return `${emoji} ${label}: ${acc}% accuracy ${acc < 70 ? '- NEEDS IMPROVEMENT' : ''}`
+}).join('\n')}
+
+**💡 KEY IMPROVEMENTS NEEDED:**
+${generateActionableGuidance(corrections)}
+
+**Your goal:** Improve accuracy by learning from these designer corrections. Consider context carefully before suggesting or avoiding these specific tags.
+
+---
+`
+    }
+  }
+
+  // Standard instructions (same for both versions)
+  prompt += `
 **INSTRUCTIONS:**
 1. Analyze the image carefully, considering:
    - What industry or sector this design relates to
@@ -178,7 +457,102 @@ Return your response as a JSON object with this exact structure:
 - "low": Image is unclear, abstract, or doesn't fit vocabulary well
 
 Respond ONLY with valid JSON. Do not include any markdown formatting, code blocks, or explanatory text outside the JSON.`
+
+  return prompt
 }
+
+// ========== GUIDANCE GENERATION HELPERS ==========
+
+function generateMissedTagGuidance(missedTags: CorrectionPattern[]): string {
+  const guidance: string[] = []
+
+  // Analyze patterns in missed tags
+  const industries = missedTags.filter(t => t.category === 'industry')
+  const styles = missedTags.filter(t => t.category === 'style')
+  const moods = missedTags.filter(t => t.category === 'mood')
+  const elements = missedTags.filter(t => t.category === 'elements')
+
+  if (industries.length > 0) {
+    const topIndustry = industries[0]
+    guidance.push(`→ When you see ${topIndustry.tag}-related imagery, don't hesitate to tag it - you've missed this ${topIndustry.count} times!`)
+  }
+
+  if (styles.length > 0) {
+    const topStyle = styles[0]
+    guidance.push(`→ Look more carefully for "${topStyle.tag}" style characteristics - this is often present but you miss it`)
+  }
+
+  if (moods.length > 0) {
+    const topMood = moods[0]
+    guidance.push(`→ The "${topMood.tag}" mood appears more frequently than you think - consider it more often`)
+  }
+
+  if (elements.length > 0) {
+    const topElement = elements[0]
+    guidance.push(`→ "${topElement.tag}" is a key design element you frequently overlook - check for it specifically`)
+  }
+
+  return guidance.length > 0 ? '\n' + guidance.join('\n') : ''
+}
+
+function generateWrongTagGuidance(wrongTags: CorrectionPattern[]): string {
+  const guidance: string[] = []
+
+  // Analyze patterns in wrong suggestions
+  const topWrong = wrongTags[0]
+  if (topWrong) {
+    if (topWrong.percentage > 40) {
+      guidance.push(`→ CRITICAL: You over-suggest "${topWrong.tag}" - only use when EXTREMELY confident`)
+    }
+  }
+
+  const styles = wrongTags.filter(t => t.category === 'style')
+  if (styles.length >= 2) {
+    guidance.push(`→ You're misidentifying styles - be more conservative with style tags unless 100% certain`)
+  }
+
+  const moods = wrongTags.filter(t => t.category === 'mood')
+  if (moods.length >= 2) {
+    guidance.push(`→ Mood interpretation is inconsistent - only suggest moods that are very clearly conveyed`)
+  }
+
+  return guidance.length > 0 ? '\n' + guidance.join('\n') : ''
+}
+
+function generateActionableGuidance(corrections: CorrectionAnalysis): string {
+  const guidance: string[] = []
+
+  // Overall accuracy guidance
+  if (corrections.accuracyRate < 70) {
+    guidance.push('- Overall accuracy is low - be more careful and selective with ALL tags')
+  } else if (corrections.accuracyRate < 80) {
+    guidance.push('- Accuracy is moderate - focus on the specific problem tags listed above')
+  } else {
+    guidance.push('- Overall accuracy is good - maintain this standard while addressing specific gaps')
+  }
+
+  // Category-specific guidance
+  const worstCategory = Object.entries(corrections.categoryAccuracy)
+    .sort((a, b) => a[1] - b[1])[0]
+
+  if (worstCategory && worstCategory[1] < 70) {
+    guidance.push(`- ${worstCategory[0].replace('_', ' ')} tags need the most improvement - double-check these especially`)
+  }
+
+  // Pattern-based guidance
+  const avgMissedPerImage = corrections.frequentlyMissed.reduce((sum, t) => sum + t.count, 0) / corrections.totalImages
+  const avgWrongPerImage = corrections.frequentlyWrong.reduce((sum, t) => sum + t.count, 0) / corrections.totalImages
+
+  if (avgMissedPerImage > avgWrongPerImage) {
+    guidance.push('- You tend to under-tag (missing relevant tags) - be more inclusive when confident')
+  } else if (avgWrongPerImage > avgMissedPerImage) {
+    guidance.push('- You tend to over-tag (suggesting irrelevant tags) - be more conservative and selective')
+  }
+
+  return guidance.join('\n')
+}
+
+// ========== RESPONSE PARSING ==========
 
 function parseTagSuggestions(responseText: string): SuggestTagsResponse {
   try {
