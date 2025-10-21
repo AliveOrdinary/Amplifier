@@ -9,7 +9,7 @@ import KeywordEditor from './KeywordEditor';
 import ImageGallery from './ImageGallery';
 import BriefingSummary from './BriefingSummary';
 import SuccessScreen from './SuccessScreen';
-import type { QuestionnaireResponses, ArenaBlock } from '@/lib/types';
+import type { QuestionnaireResponses, ArenaBlock, ReferenceImage } from '@/lib/types';
 
 const STEP_LABELS = [
   'Client Info',
@@ -68,6 +68,8 @@ export default function BriefingClient() {
   const [editedKeywords, setEditedKeywords] = useState<string[]>([]);
   const [arenaBlocks, setArenaBlocks] = useState<ArenaBlock[]>([]);
   const [favoritedBlockIds, setFavoritedBlockIds] = useState<number[]>([]);
+  const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
+  const [favoritedImageIds, setFavoritedImageIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -139,12 +141,12 @@ export default function BriefingClient() {
     }
   };
 
-  const handleSearchArena = async (keywords: string[]) => {
+  const handleSearchReferences = async (keywords: string[]) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/search-arena', {
+      const response = await fetch('/api/search-references', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keywords }),
@@ -152,12 +154,17 @@ export default function BriefingClient() {
 
       const data = await response.json();
 
-      if (data.blocks && data.blocks.length > 0) {
-        setArenaBlocks(data.blocks);
+      if (data.images && data.images.length > 0) {
+        setReferenceImages(data.images);
+        setEditedKeywords(keywords);
+        handleNext();
+      } else if (data.warning) {
+        // Empty database - show empty state but allow to continue
+        setReferenceImages([]);
         setEditedKeywords(keywords);
         handleNext();
       } else {
-        setError('No images found. Try editing the keywords.');
+        setError(data.error || 'No images found. Try editing the keywords.');
       }
     } catch (err) {
       setError('Failed to search images. Please try again.');
@@ -182,6 +189,8 @@ export default function BriefingClient() {
             editedKeywords,
             arenaBlocks,
             favoritedBlockIds,
+            referenceImages,
+            favoritedImageIds,
             timestamp: new Date().toISOString(),
           },
         }),
@@ -246,6 +255,8 @@ export default function BriefingClient() {
     setEditedKeywords([]);
     setArenaBlocks([]);
     setFavoritedBlockIds([]);
+    setReferenceImages([]);
+    setFavoritedImageIds([]);
     setIsSubmitted(false);
     setError(null);
     localStorage.removeItem(STORAGE_KEY);
@@ -302,7 +313,7 @@ export default function BriefingClient() {
           <KeywordEditor
             keywords={editedKeywords}
             onChange={setEditedKeywords}
-            onSearch={handleSearchArena}
+            onSearch={handleSearchReferences}
             isLoading={isLoading}
           />
         );
@@ -311,8 +322,15 @@ export default function BriefingClient() {
           <ImageGallery
             blocks={arenaBlocks}
             favoritedIds={favoritedBlockIds}
+            referenceImages={referenceImages}
+            favoritedImageIds={favoritedImageIds}
             onToggleFavorite={(id) => {
               setFavoritedBlockIds(prev =>
+                prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+              );
+            }}
+            onToggleFavoriteImage={(id) => {
+              setFavoritedImageIds(prev =>
                 prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
               );
             }}
@@ -326,6 +344,7 @@ export default function BriefingClient() {
             responses={responses}
             keywords={editedKeywords.length > 0 ? editedKeywords : extractedKeywords}
             favoritedBlocks={arenaBlocks.filter(b => favoritedBlockIds.includes(b.id))}
+            favoritedImages={referenceImages.filter(img => favoritedImageIds.includes(img.id))}
             onBack={handleBack}
             onSubmit={handleSubmit}
             isLoading={isLoading}

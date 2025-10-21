@@ -1,3 +1,6 @@
+// DEPRECATED: This route has been replaced by /api/search-references
+// Keeping for reference only - not used in production
+
 import { NextRequest, NextResponse } from 'next/server';
 import type { SearchArenaRequest, SearchArenaResponse, ArenaBlock, ArenaSearchResponse } from '@/lib/types';
 
@@ -7,6 +10,17 @@ const MAX_TOTAL_RESULTS = 40; // Limit total results
 const REQUEST_DELAY = 600; // 600ms delay between requests to be respectful
 
 export async function POST(request: NextRequest) {
+  // Return error - this endpoint is deprecated
+  return NextResponse.json(
+    {
+      blocks: [],
+      error: 'This endpoint has been replaced by /api/search-references. Please use the new internal reference search.'
+    } as SearchArenaResponse,
+    { status: 410 }
+  );
+
+  /* ORIGINAL CODE - COMMENTED OUT
+export async function POST_DEPRECATED(request: NextRequest) {
   try {
     const { keywords }: SearchArenaRequest = await request.json();
 
@@ -110,3 +124,4 @@ function isImageBlock(block: ArenaBlock): boolean {
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+*/

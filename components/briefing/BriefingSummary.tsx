@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import type { QuestionnaireResponses, ArenaBlock } from '@/lib/types';
+import type { QuestionnaireResponses, ArenaBlock, ReferenceImage } from '@/lib/types';
 
 interface BriefingSummaryProps {
   responses: QuestionnaireResponses;
   keywords: string[];
   favoritedBlocks: ArenaBlock[];
+  favoritedImages?: ReferenceImage[];
   onBack: () => void;
   onSubmit: () => void;
   isLoading: boolean;
@@ -16,6 +17,7 @@ export default function BriefingSummary({
   responses,
   keywords,
   favoritedBlocks,
+  favoritedImages = [],
   onBack,
   onSubmit,
   isLoading,
@@ -124,18 +126,31 @@ export default function BriefingSummary({
       </div>
 
       {/* Favorited Images */}
-      {favoritedBlocks.length > 0 && (
+      {(favoritedImages.length > 0 || favoritedBlocks.length > 0) && (
         <div className="mb-8 p-6 bg-gray-900 border-2 border-gray-800 rounded-lg">
-          <h3 className="text-xl font-bold mb-4 text-white">Selected Visual References ({favoritedBlocks.length})</h3>
+          <h3 className="text-xl font-bold mb-4 text-white">
+            Selected Visual References ({favoritedImages.length > 0 ? favoritedImages.length : favoritedBlocks.length})
+          </h3>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-            {favoritedBlocks.map(block => (
-              <img
-                key={block.id}
-                src={block.image?.thumb?.url || block.image?.display?.url || ''}
-                alt={block.title || 'Favorited image'}
-                className="w-full h-24 object-cover rounded-md border border-gray-700"
-              />
-            ))}
+            {favoritedImages.length > 0 ? (
+              favoritedImages.map(image => (
+                <img
+                  key={image.id}
+                  src={image.thumbnail_path}
+                  alt={image.original_filename}
+                  className="w-full h-24 object-cover rounded-md border border-gray-700"
+                />
+              ))
+            ) : (
+              favoritedBlocks.map(block => (
+                <img
+                  key={block.id}
+                  src={block.image?.thumb?.url || block.image?.display?.url || ''}
+                  alt={block.title || 'Favorited image'}
+                  className="w-full h-24 object-cover rounded-md border border-gray-700"
+                />
+              ))
+            )}
           </div>
         </div>
       )}

@@ -132,6 +132,8 @@ export interface BriefingData {
   editedKeywords?: string[];
   arenaBlocks: ArenaBlock[];
   favoritedBlockIds: number[];
+  referenceImages?: ReferenceImage[];
+  favoritedImageIds?: string[];
   timestamp: string;
 }
 
@@ -161,4 +163,40 @@ export interface SendBriefingResponse {
   success: boolean;
   message: string;
   error?: string;
+}
+
+// Reference Image Bank Types
+
+export interface ReferenceImage {
+  id: string;
+  thumbnail_path: string;
+  storage_path: string;
+  original_filename: string;
+  industries: string[];
+  project_types: string[];
+  tags: {
+    style: string[];
+    mood: string[];
+    elements: string[];
+  };
+  notes?: string;
+  match_score?: number;
+  matched_keywords?: string[];
+  matched_on?: {
+    industries: string[];
+    project_types: string[];
+    styles: string[];
+    moods: string[];
+    elements: string[];
+  };
+}
+
+export interface SearchReferencesRequest {
+  keywords: string[];
+}
+
+export interface SearchReferencesResponse {
+  images: ReferenceImage[];
+  error?: string;
+  warning?: string;
 } 

@@ -2,22 +2,31 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import type { ArenaBlock } from '@/lib/types';
+import type { ReferenceImage } from '@/lib/types';
 
-interface ImageCardProps {
-  block: ArenaBlock;
+interface ReferenceImageCardProps {
+  image: ReferenceImage;
   isFavorited: boolean;
   onToggleFavorite: () => void;
 }
 
-export default function ImageCard({ block, isFavorited, onToggleFavorite }: ImageCardProps) {
+export default function ReferenceImageCard({ image, isFavorited, onToggleFavorite }: ReferenceImageCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  const imageUrl = block.image?.display?.url || block.image?.thumb?.url || '';
-  const title = block.title || 'Untitled';
-  const username = block.user?.username || 'Unknown';
-  const sourceUrl = block.source?.url || `https://are.na/block/${block.id}`;
+  const imageUrl = image.thumbnail_path;
+  const filename = image.original_filename || 'Untitled';
+  const matchScore = image.match_score || 0;
+  const matchedKeywords = image.matched_keywords || [];
+
+  // Determine match quality badge
+  const getMatchBadge = () => {
+    if (matchScore >= 10) return { text: '⭐ Excellent', color: 'bg-green-500' };
+    if (matchScore >= 5) return { text: '✓ Good', color: 'bg-blue-500' };
+    return { text: '~ Related', color: 'bg-gray-500' };
+  };
+
+  const badge = getMatchBadge();
 
   return (
     <motion.div
@@ -38,7 +47,7 @@ export default function ImageCard({ block, isFavorited, onToggleFavorite }: Imag
         {imageUrl ? (
           <img
             src={imageUrl}
-            alt={title}
+            alt={filename}
             className={`w-full h-auto transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             onLoad={() => setImageLoaded(true)}
             onError={() => {
@@ -52,6 +61,11 @@ export default function ImageCard({ block, isFavorited, onToggleFavorite }: Imag
             <p className="text-sm">No image available</p>
           </div>
         )}
+
+        {/* Match score badge */}
+        <div className={`absolute top-3 left-3 ${badge.color} text-white px-2 py-1 rounded text-xs font-bold`}>
+          {badge.text}
+        </div>
 
         {/* Overlay with favorite button */}
         <div
@@ -75,20 +89,34 @@ export default function ImageCard({ block, isFavorited, onToggleFavorite }: Imag
 
       {/* Info */}
       <div className="mt-2 px-1">
-        <p className="text-sm font-medium text-white truncate">{title}</p>
-        <div className="flex items-center justify-between mt-1">
-          <p className="text-xs text-gray-400">by {username}</p>
-          {sourceUrl && (
-            <a
-              href={sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-gray-300 hover:text-white hover:underline transition-colors"
-            >
-              View Source →
-            </a>
-          )}
-        </div>
+        <p className="text-sm font-medium text-white truncate">{filename}</p>
+        {matchedKeywords.length > 0 && (
+          <div className="mt-1">
+            <p className="text-xs text-gray-400">
+              Matches: {matchedKeywords.slice(0, 3).join(', ')}
+              {matchedKeywords.length > 3 && ` +${matchedKeywords.length - 3}`}
+            </p>
+          </div>
+        )}
+        {image.matched_on && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {image.matched_on.industries.slice(0, 2).map((tag, i) => (
+              <span key={`ind-${i}`} className="text-xs bg-purple-900 text-purple-200 px-1.5 py-0.5 rounded">
+                {tag}
+              </span>
+            ))}
+            {image.matched_on.styles.slice(0, 2).map((tag, i) => (
+              <span key={`style-${i}`} className="text-xs bg-blue-900 text-blue-200 px-1.5 py-0.5 rounded">
+                {tag}
+              </span>
+            ))}
+            {image.matched_on.moods.slice(0, 2).map((tag, i) => (
+              <span key={`mood-${i}`} className="text-xs bg-pink-900 text-pink-200 px-1.5 py-0.5 rounded">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </motion.div>
   );

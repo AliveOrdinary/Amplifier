@@ -488,7 +488,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
       {/* Quick Actions */}
       <div>
         <h2 className="text-2xl font-semibold mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Link
             href="/tagger"
             className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all p-6 group"
@@ -514,6 +514,15 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
             <div className="text-3xl mb-3">📚</div>
             <div className="font-semibold text-lg mb-1">Manage Vocabulary</div>
             <div className="text-sm text-purple-100">Edit tags and categories</div>
+          </Link>
+
+          <Link
+            href="/tagger/vocabulary-config"
+            className="bg-gradient-to-br from-pink-500 to-pink-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all p-6 group"
+          >
+            <div className="text-3xl mb-3">⚙️</div>
+            <div className="font-semibold text-lg mb-1">Vocabulary Config</div>
+            <div className="text-sm text-pink-100">Manage vocabulary structure</div>
           </Link>
 
           <Link

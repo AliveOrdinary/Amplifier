@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import type { SendBriefingRequest, SendBriefingResponse, BriefingData, ArenaBlock } from '@/lib/types';
+import type { SendBriefingRequest, SendBriefingResponse, BriefingData, ArenaBlock, ReferenceImage } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   try {
@@ -74,9 +74,12 @@ export async function POST(request: NextRequest) {
 }
 
 function generateEmailHTML(data: BriefingData): string {
-  const { responses, extractedKeywords, editedKeywords, favoritedBlockIds, arenaBlocks } = data;
+  const { responses, extractedKeywords, editedKeywords, favoritedBlockIds, arenaBlocks, referenceImages, favoritedImageIds } = data;
   const keywords = editedKeywords && editedKeywords.length > 0 ? editedKeywords : extractedKeywords;
   const favoritedBlocks = arenaBlocks.filter(block => favoritedBlockIds.includes(block.id));
+  const favoritedImages = referenceImages?.filter(img => favoritedImageIds?.includes(img.id)) || [];
+  const useReferenceImages = favoritedImages.length > 0 || (referenceImages && referenceImages.length > 0);
+  const allReferenceImages = referenceImages || [];
 
   return `
 <!DOCTYPE html>
@@ -253,18 +256,39 @@ function generateEmailHTML(data: BriefingData): string {
   </div>
 
   <h2>Client-Selected Visual References</h2>
-  ${favoritedBlocks.length > 0 ? `
+  ${useReferenceImages ? (
+    favoritedImages.length > 0 ? `
+  <p><em>The client favorited ${favoritedImages.length} image${favoritedImages.length > 1 ? 's' : ''} from our internal collection:</em></p>
+  <div class="gallery">
+    ${favoritedImages.map(img => formatReferenceImageItem(img)).join('')}
+  </div>
+  ` : '<p><em>Client did not select specific favorite images.</em></p>'
+  ) : (
+    favoritedBlocks.length > 0 ? `
   <p><em>The client favorited ${favoritedBlocks.length} image${favoritedBlocks.length > 1 ? 's' : ''} from the AI-curated gallery:</em></p>
   <div class="gallery">
     ${favoritedBlocks.map(block => formatGalleryItem(block)).join('')}
   </div>
-  ` : '<p><em>Client did not select specific favorite images.</em></p>'}
+  ` : '<p><em>Client did not select specific favorite images.</em></p>'
+  )}
 
   <h2>All Curated Visual References</h2>
+  ${useReferenceImages ? `
+  <p><em>Complete gallery of ${allReferenceImages.length} images from our internal collection, curated based on extracted keywords:</em></p>
+  ${allReferenceImages.length > 0 ? `
+  <div class="gallery">
+    ${allReferenceImages.map(img => formatReferenceImageItem(img)).join('')}
+  </div>
+  ` : '<p><em>No images in collection yet. Visual direction to be discussed during kickoff call.</em></p>'}
+  <p style="margin-top: 2rem; color: #666; font-size: 14px;">
+    All references are from our internal design library, curated and tagged by our team.
+  </p>
+  ` : `
   <p><em>Complete gallery of ${arenaBlocks.length} images curated based on extracted keywords:</em></p>
   <div class="gallery">
     ${arenaBlocks.map(block => formatGalleryItem(block)).join('')}
   </div>
+  `}
 
 </body>
 </html>
@@ -284,6 +308,36 @@ function formatGalleryItem(block: ArenaBlock): string {
         <div><strong>${title}</strong></div>
         <div>by ${username}</div>
         <div><a href="${sourceUrl}" target="_blank">View on Are.na</a></div>
+      </div>
+    </div>
+  `;
+}
+
+function formatReferenceImageItem(image: ReferenceImage): string {
+  const imageUrl = image.storage_path;
+  const filename = image.original_filename || 'Untitled';
+  const matchScore = image.match_score || 0;
+  const matchedKeywords = image.matched_keywords || [];
+
+  const matchBadge = matchScore >= 10 ? '⭐ Excellent Match' :
+                     matchScore >= 5 ? '✓ Good Match' :
+                     '~ Related';
+
+  const tags = [
+    ...(image.matched_on?.industries || []),
+    ...(image.matched_on?.project_types || []),
+    ...(image.matched_on?.styles || []),
+    ...(image.matched_on?.moods || [])
+  ].slice(0, 5);
+
+  return `
+    <div class="gallery-item">
+      <img src="${imageUrl}" alt="${filename}" />
+      <div class="gallery-item-info">
+        <div><strong>${filename}</strong></div>
+        <div style="color: #666; font-size: 11px;">${matchBadge} (Score: ${matchScore.toFixed(1)})</div>
+        ${matchedKeywords.length > 0 ? `<div style="color: #888; font-size: 11px; margin-top: 4px;">Keywords: ${matchedKeywords.slice(0, 3).join(', ')}</div>` : ''}
+        ${tags.length > 0 ? `<div style="margin-top: 4px;">${tags.map(tag => `<span style="background: #eee; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-right: 2px;">${tag}</span>`).join('')}</div>` : ''}
       </div>
     </div>
   `;

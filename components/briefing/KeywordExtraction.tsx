@@ -15,7 +15,7 @@ export default function KeywordExtraction({ onExtract, isLoading }: KeywordExtra
           We'll now use AI to analyze your responses and extract visual keywords that capture your brand's aesthetic.
         </p>
         <p className="text-md text-gray-400">
-          These keywords will be used to curate a personalized visual gallery from Are.na.
+          These keywords will be used to curate a personalized visual gallery from our internal reference collection.
         </p>
       </div>
 

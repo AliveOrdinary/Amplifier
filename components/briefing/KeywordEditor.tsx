@@ -82,7 +82,7 @@ export default function KeywordEditor({ keywords, onChange, onSearch, isLoading 
         {isLoading ? (
           <div className="text-center py-8">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
-            <p className="text-gray-400">Searching Are.na for visual references...</p>
+            <p className="text-gray-400">Searching our curated collection for visual references...</p>
           </div>
         ) : (
           <div className="flex justify-center">
@@ -91,7 +91,7 @@ export default function KeywordEditor({ keywords, onChange, onSearch, isLoading 
               disabled={keywords.length === 0}
               className="px-8 py-4 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-bold text-lg disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed"
             >
-              Search Are.na Gallery →
+              Search Reference Gallery →
             </button>
           </div>
         )}
