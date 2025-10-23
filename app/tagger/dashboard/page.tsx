@@ -1,16 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@/lib/supabase'
 import DashboardClient from '@/components/tagger/DashboardClient'
+import SignOutButton from '@/components/tagger/SignOutButton'
 
-// Server-side Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
+// Get server-side Supabase client
+const supabaseAdmin = createServerClient()
 
 interface DashboardStats {
   images: {
@@ -144,11 +137,15 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-custom-bg">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Reference Image Tagger</h1>
-          <p className="text-gray-600">
-            Manage your design reference library with AI-powered tagging
-          </p>
+        {/* Header with Sign Out Button */}
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Reference Image Tagger</h1>
+            <p className="text-gray-600">
+              Manage your design reference library with AI-powered tagging
+            </p>
+          </div>
+          <SignOutButton />
         </div>
 
         <DashboardClient stats={stats} />

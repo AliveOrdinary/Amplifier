@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 interface ReplaceVocabularyRequest {
   structure: {
@@ -65,8 +62,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Initialize Supabase client
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Initialize Supabase client with service role key
+    const supabase = createServerClient();
 
     // Start replacement process
     console.log('Starting vocabulary replacement...');

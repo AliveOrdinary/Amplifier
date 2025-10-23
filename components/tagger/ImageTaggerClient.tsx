@@ -11,12 +11,24 @@ interface UploadedImage {
   status: 'pending' | 'tagged' | 'skipped'
 }
 
+interface VocabularyCategory {
+  key: string
+  label: string
+  description: string
+  placeholder: string
+  storage_path: string
+  storage_type: 'array' | 'jsonb_array' | 'text'
+  search_weight: number
+}
+
+interface VocabularyConfig {
+  structure: {
+    categories: VocabularyCategory[]
+  }
+}
+
 interface TagVocabulary {
-  industries: string[]
-  projectTypes: string[]
-  styles: string[]
-  moods: string[]
-  elements: string[]
+  [categoryKey: string]: string[]
 }
 
 interface TagVocabularyRow {
@@ -26,26 +38,20 @@ interface TagVocabularyRow {
 }
 
 interface ImageTags {
-  industries: string[]
-  projectTypes: string[]
-  styles: string[]
-  moods: string[]
-  elements: string[]
-  notes: string
+  [categoryKey: string]: string[] | string
 }
 
 export default function ImageTaggerClient() {
+  // Vocabulary config state
+  const [vocabConfig, setVocabConfig] = useState<VocabularyConfig | null>(null)
+  const [configLoading, setConfigLoading] = useState(true)
+  const [configError, setConfigError] = useState<string | null>(null)
+
   // State management
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isTaggingMode, setIsTaggingMode] = useState(false)
-  const [vocabulary, setVocabulary] = useState<TagVocabulary>({
-    industries: [],
-    projectTypes: [],
-    styles: [],
-    moods: [],
-    elements: []
-  })
+  const [vocabulary, setVocabulary] = useState<TagVocabulary>({})
   const [isLoadingVocabulary, setIsLoadingVocabulary] = useState(true)
   const [vocabularyError, setVocabularyError] = useState<string | null>(null)
 
@@ -59,7 +65,7 @@ export default function ImageTaggerClient() {
 
   // Custom tag modal state
   const [isAddTagModalOpen, setIsAddTagModalOpen] = useState(false)
-  const [addTagCategory, setAddTagCategory] = useState<keyof Omit<ImageTags, 'notes'> | null>(null)
+  const [addTagCategory, setAddTagCategory] = useState<string | null>(null)
   const [newTagValue, setNewTagValue] = useState('')
   const [isAddingTag, setIsAddingTag] = useState(false)
   const [similarTags, setSimilarTags] = useState<string[]>([])
@@ -67,11 +73,7 @@ export default function ImageTaggerClient() {
 
   // AI suggestion state
   interface AISuggestion {
-    industries: string[]
-    projectTypes: string[]
-    styles: string[]
-    moods: string[]
-    elements: string[]
+    [categoryKey: string]: string[] | string
     confidence: 'high' | 'medium' | 'low'
     reasoning: string
     promptVersion?: 'baseline' | 'enhanced'
@@ -84,8 +86,37 @@ export default function ImageTaggerClient() {
   type FilterType = 'all' | 'pending' | 'skipped' | 'tagged'
   const [currentFilter, setCurrentFilter] = useState<FilterType>('all')
 
-  // Load vocabulary from Supabase on mount
+  // Load vocabulary config from API on mount
   useEffect(() => {
+    const loadVocabularyConfig = async () => {
+      try {
+        setConfigLoading(true)
+        setConfigError(null)
+
+        const response = await fetch('/api/vocabulary-config')
+        if (!response.ok) {
+          throw new Error('Failed to load vocabulary config')
+        }
+
+        const { config } = await response.json()
+        setVocabConfig(config)
+
+        console.log('✅ Vocabulary config loaded:', config.structure.categories.length, 'categories')
+      } catch (error) {
+        console.error('❌ Error loading vocabulary config:', error)
+        setConfigError(error instanceof Error ? error.message : 'Failed to load vocabulary config')
+      } finally {
+        setConfigLoading(false)
+      }
+    }
+
+    loadVocabularyConfig()
+  }, [])
+
+  // Load vocabulary from Supabase when config is ready
+  useEffect(() => {
+    if (!vocabConfig) return
+
     const loadVocabulary = async () => {
       try {
         setIsLoadingVocabulary(true)
@@ -117,27 +148,30 @@ export default function ImageTaggerClient() {
           return acc
         }, {} as Record<string, string[]>)
 
-        // Map to vocabulary state structure
-        const vocabularyState: TagVocabulary = {
-          industries: groupedVocabulary['industry'] || [],
-          projectTypes: groupedVocabulary['project_type'] || [],
-          styles: groupedVocabulary['style'] || [],
-          moods: groupedVocabulary['mood'] || [],
-          elements: groupedVocabulary['elements'] || []
-        }
+        // Map database categories to vocabulary config keys dynamically
+        const vocabularyState: TagVocabulary = {}
+
+        vocabConfig.structure.categories.forEach(cat => {
+          if (cat.storage_type === 'array' || cat.storage_type === 'jsonb_array') {
+            // Map from config key to database category name
+            // Most keys match database categories, but handle special cases
+            const dbCategory = cat.key === 'project_types' ? 'project_type' :
+                              cat.key === 'industries' ? 'industry' : cat.key
+            vocabularyState[cat.key] = groupedVocabulary[dbCategory] || []
+          }
+        })
 
         setVocabulary(vocabularyState)
 
         // Log for verification
         console.log('✅ Vocabulary loaded successfully:', vocabularyState)
-        console.log('📊 Tag counts:', {
-          industries: vocabularyState.industries.length,
-          projectTypes: vocabularyState.projectTypes.length,
-          styles: vocabularyState.styles.length,
-          moods: vocabularyState.moods.length,
-          elements: vocabularyState.elements.length,
-          total: Object.values(vocabularyState).flat().length
+        const tagCounts: Record<string, number> = {}
+        let total = 0
+        Object.entries(vocabularyState).forEach(([key, values]) => {
+          tagCounts[key] = values.length
+          total += values.length
         })
+        console.log('📊 Tag counts:', { ...tagCounts, total })
       } catch (error) {
         console.error('❌ Error loading vocabulary:', error)
         setVocabularyError(error instanceof Error ? error.message : 'Failed to load vocabulary')
@@ -147,7 +181,7 @@ export default function ImageTaggerClient() {
     }
 
     loadVocabulary()
-  }, [])
+  }, [vocabConfig])
 
   // Store blob URLs for cleanup
   const blobUrlsRef = useRef<Set<string>>(new Set())
@@ -285,27 +319,27 @@ export default function ImageTaggerClient() {
       // Store suggestions
       setAiSuggestions(prev => ({ ...prev, [imageId]: suggestions }))
 
-      // Auto-apply suggestions to image tags
-      const currentTags = imageTags[imageId] || {
-        industries: [],
-        projectTypes: [],
-        styles: [],
-        moods: [],
-        elements: [],
-        notes: ''
-      }
+      // Auto-apply suggestions to image tags (dynamically merge based on config)
+      if (!vocabConfig) return
 
-      // Merge AI suggestions with any existing manual selections
+      const currentTags = imageTags[imageId] || {}
+
+      // Merge AI suggestions with existing manual selections for each category
+      const mergedTags: ImageTags = {}
+
+      vocabConfig.structure.categories.forEach(cat => {
+        if (cat.storage_type === 'array' || cat.storage_type === 'jsonb_array') {
+          const currentValues = (currentTags[cat.key] || []) as string[]
+          const suggestedValues = (suggestions[cat.key] || []) as string[]
+          mergedTags[cat.key] = [...new Set([...currentValues, ...suggestedValues])]
+        } else if (cat.storage_type === 'text') {
+          mergedTags[cat.key] = currentTags[cat.key] || ''
+        }
+      })
+
       setImageTags(prev => ({
         ...prev,
-        [imageId]: {
-          industries: [...new Set([...currentTags.industries, ...suggestions.industries])],
-          projectTypes: [...new Set([...currentTags.projectTypes, ...suggestions.projectTypes])],
-          styles: [...new Set([...currentTags.styles, ...suggestions.styles])],
-          moods: [...new Set([...currentTags.moods, ...suggestions.moods])],
-          elements: [...new Set([...currentTags.elements, ...suggestions.elements])],
-          notes: currentTags.notes
-        }
+        [imageId]: mergedTags
       }))
 
     } catch (error) {
@@ -329,46 +363,35 @@ export default function ImageTaggerClient() {
     }
   }, [isTaggingMode, currentIndex, uploadedImages, vocabulary])
 
-  // Update tag usage counts in tag_vocabulary table
+  // Update tag usage counts in tag_vocabulary table (dynamic)
   const updateTagUsageCounts = async (tags: ImageTags) => {
     try {
+      if (!vocabConfig) return
+
       const now = new Date().toISOString()
 
-      // Map frontend categories to database categories
-      const categoryMap = {
-        industries: 'industry',
-        projectTypes: 'project_type',
-        styles: 'style',
-        moods: 'mood',
-        elements: 'elements'
+      // Map config keys to database categories
+      const keyToDbCategory = (key: string): string => {
+        if (key === 'industries') return 'industry'
+        if (key === 'project_types') return 'project_type'
+        return key
       }
 
       // Collect all tags with their categories
       const tagUpdates: Array<{ category: string; tagValue: string }> = []
 
-      // Add industries
-      tags.industries.forEach(tag => {
-        tagUpdates.push({ category: categoryMap.industries, tagValue: tag })
-      })
-
-      // Add project types
-      tags.projectTypes.forEach(tag => {
-        tagUpdates.push({ category: categoryMap.projectTypes, tagValue: tag })
-      })
-
-      // Add styles
-      tags.styles.forEach(tag => {
-        tagUpdates.push({ category: categoryMap.styles, tagValue: tag })
-      })
-
-      // Add moods
-      tags.moods.forEach(tag => {
-        tagUpdates.push({ category: categoryMap.moods, tagValue: tag })
-      })
-
-      // Add elements
-      tags.elements.forEach(tag => {
-        tagUpdates.push({ category: categoryMap.elements, tagValue: tag })
+      vocabConfig.structure.categories.forEach(cat => {
+        if (cat.storage_type === 'array' || cat.storage_type === 'jsonb_array') {
+          const tagValues = tags[cat.key]
+          if (Array.isArray(tagValues)) {
+            tagValues.forEach(tag => {
+              tagUpdates.push({
+                category: keyToDbCategory(cat.key),
+                tagValue: tag
+              })
+            })
+          }
+        }
       })
 
       // Update each tag's usage count
@@ -392,30 +415,32 @@ export default function ImageTaggerClient() {
     }
   }
 
-  // Track corrections between AI suggestions and designer selections
+  // Track corrections between AI suggestions and designer selections (dynamic)
   const trackCorrections = async (
     imageId: string,
     aiSuggestion: AISuggestion,
     designerTags: ImageTags
   ) => {
     try {
-      // Flatten AI suggestions
-      const aiSuggestedFlat = [
-        ...aiSuggestion.industries,
-        ...aiSuggestion.projectTypes,
-        ...aiSuggestion.styles,
-        ...aiSuggestion.moods,
-        ...aiSuggestion.elements
-      ]
+      if (!vocabConfig) return
 
-      // Flatten designer selections
-      const designerSelectedFlat = [
-        ...designerTags.industries,
-        ...designerTags.projectTypes,
-        ...designerTags.styles,
-        ...designerTags.moods,
-        ...designerTags.elements
-      ]
+      // Flatten AI suggestions (only array categories)
+      const aiSuggestedFlat: string[] = []
+      const designerSelectedFlat: string[] = []
+
+      vocabConfig.structure.categories.forEach(cat => {
+        if (cat.storage_type === 'array' || cat.storage_type === 'jsonb_array') {
+          const aiValues = aiSuggestion[cat.key]
+          const designerValues = designerTags[cat.key]
+
+          if (Array.isArray(aiValues)) {
+            aiSuggestedFlat.push(...aiValues)
+          }
+          if (Array.isArray(designerValues)) {
+            designerSelectedFlat.push(...designerValues)
+          }
+        }
+      })
 
       // Calculate differences
       const tagsAdded = designerSelectedFlat.filter(tag => !aiSuggestedFlat.includes(tag))
@@ -428,26 +453,23 @@ export default function ImageTaggerClient() {
           removed: tagsRemoved.length
         })
 
+        // Build ai_suggested and designer_selected objects dynamically
+        const aiSuggestedData: Record<string, any> = { confidence: aiSuggestion.confidence, reasoning: aiSuggestion.reasoning }
+        const designerSelectedData: Record<string, any> = {}
+
+        vocabConfig.structure.categories.forEach(cat => {
+          if (cat.storage_type === 'array' || cat.storage_type === 'jsonb_array') {
+            aiSuggestedData[cat.key] = aiSuggestion[cat.key] || []
+            designerSelectedData[cat.key] = designerTags[cat.key] || []
+          }
+        })
+
         const { error: correctionError } = await supabase
           .from('tag_corrections')
           .insert({
             image_id: imageId,
-            ai_suggested: {
-              industries: aiSuggestion.industries,
-              projectTypes: aiSuggestion.projectTypes,
-              styles: aiSuggestion.styles,
-              moods: aiSuggestion.moods,
-              elements: aiSuggestion.elements,
-              confidence: aiSuggestion.confidence,
-              reasoning: aiSuggestion.reasoning
-            },
-            designer_selected: {
-              industries: designerTags.industries,
-              projectTypes: designerTags.projectTypes,
-              styles: designerTags.styles,
-              moods: designerTags.moods,
-              elements: designerTags.elements
-            },
+            ai_suggested: aiSuggestedData,
+            designer_selected: designerSelectedData,
             tags_added: tagsAdded,
             tags_removed: tagsRemoved,
             corrected_at: new Date().toISOString()
@@ -572,41 +594,69 @@ export default function ImageTaggerClient() {
       // Get AI suggestions for this image
       const aiSuggestion = aiSuggestions[currentImage.id]
 
-      // 5. Insert record into reference_images table
+      // 5. Build the data object dynamically based on vocabulary config
       console.log('💾 Saving to database...')
+      if (!vocabConfig) {
+        throw new Error('Vocabulary config not loaded')
+      }
+
+      const imageData: any = {
+        id: imageId,
+        storage_path: originalUrlData.publicUrl,
+        thumbnail_path: thumbnailUrlData.publicUrl,
+        original_filename: currentImage.filename,
+        status: 'tagged',
+        tagged_at: new Date().toISOString(),
+        ai_model_version: 'claude-sonnet-4-20250514',
+        prompt_version: aiSuggestion?.promptVersion || 'baseline'
+      }
+
+      // Dynamically populate fields based on vocabulary config
+      vocabConfig.structure.categories.forEach((cat) => {
+        const storagePath = cat.storage_path
+        const value = currentTags[cat.key]
+
+        if (cat.storage_type === 'array') {
+          // Direct array field (e.g., industries, project_types)
+          imageData[storagePath] = Array.isArray(value) ? value : []
+        } else if (cat.storage_type === 'jsonb_array') {
+          // JSONB nested array (e.g., tags.style, tags.mood)
+          const pathParts = storagePath.split('.')
+          if (pathParts.length === 2) {
+            if (!imageData[pathParts[0]]) {
+              imageData[pathParts[0]] = {}
+            }
+            imageData[pathParts[0]][pathParts[1]] = Array.isArray(value) ? value : []
+          }
+        } else if (cat.storage_type === 'text') {
+          // Text field (e.g., notes)
+          imageData[storagePath] = value || null
+        }
+      })
+
+      // Add AI metadata if AI made suggestions
+      if (aiSuggestion) {
+        const aiSuggestedTags: any = {}
+        vocabConfig.structure.categories.forEach(cat => {
+          if (cat.storage_type === 'array' || cat.storage_type === 'jsonb_array') {
+            aiSuggestedTags[cat.key] = aiSuggestion[cat.key] || []
+          }
+        })
+
+        imageData.ai_suggested_tags = aiSuggestedTags
+        imageData.ai_confidence_score = aiSuggestion.confidence === 'high' ? 0.9 :
+                                         aiSuggestion.confidence === 'medium' ? 0.6 : 0.3
+        imageData.ai_reasoning = aiSuggestion.reasoning || null
+      } else {
+        imageData.ai_suggested_tags = null
+        imageData.ai_confidence_score = null
+        imageData.ai_reasoning = null
+      }
+
+      // Insert into database
       const { error: dbError } = await supabase
         .from('reference_images')
-        .insert({
-          id: imageId,
-          storage_path: originalUrlData.publicUrl,
-          thumbnail_path: thumbnailUrlData.publicUrl,
-          original_filename: currentImage.filename,
-          industries: currentTags.industries,
-          project_types: currentTags.projectTypes,
-          tags: {
-            style: currentTags.styles,
-            mood: currentTags.moods,
-            elements: currentTags.elements
-          },
-          notes: currentTags.notes || null,
-          status: 'tagged',
-          tagged_at: new Date().toISOString(),
-          // AI metadata
-          ai_suggested_tags: aiSuggestion ? {
-            industries: aiSuggestion.industries,
-            projectTypes: aiSuggestion.projectTypes,
-            styles: aiSuggestion.styles,
-            moods: aiSuggestion.moods,
-            elements: aiSuggestion.elements
-          } : null,
-          ai_confidence_score: aiSuggestion ? (
-            aiSuggestion.confidence === 'high' ? 0.9 :
-            aiSuggestion.confidence === 'medium' ? 0.6 : 0.3
-          ) : null,
-          ai_reasoning: aiSuggestion?.reasoning || null,
-          ai_model_version: 'claude-sonnet-4-20250514',
-          prompt_version: aiSuggestion?.promptVersion || 'baseline'
-        })
+        .insert(imageData)
         .select()
         .single()
 
@@ -710,20 +760,29 @@ export default function ImageTaggerClient() {
     }
   }
 
-  // Get current image tags
+  // Get current image tags (dynamic based on config)
   const getCurrentImageTags = (): ImageTags => {
     const currentImage = uploadedImages[currentIndex]
-    if (!currentImage) {
-      return { industries: [], projectTypes: [], styles: [], moods: [], elements: [], notes: '' }
+    if (!currentImage || !vocabConfig) {
+      return {}
     }
-    return imageTags[currentImage.id] || {
-      industries: [],
-      projectTypes: [],
-      styles: [],
-      moods: [],
-      elements: [],
-      notes: ''
+
+    // If tags exist for this image, return them
+    if (imageTags[currentImage.id]) {
+      return imageTags[currentImage.id]
     }
+
+    // Otherwise, return empty state based on config
+    const emptyTags: ImageTags = {}
+    vocabConfig.structure.categories.forEach(cat => {
+      if (cat.storage_type === 'array' || cat.storage_type === 'jsonb_array') {
+        emptyTags[cat.key] = []
+      } else if (cat.storage_type === 'text') {
+        emptyTags[cat.key] = ''
+      }
+    })
+
+    return emptyTags
   }
 
   // Update current image tags
@@ -786,9 +845,9 @@ export default function ImageTaggerClient() {
     return matrix[str2.length][str1.length]
   }
 
-  // Open add tag modal
-  const handleOpenAddTagModal = (category: keyof Omit<ImageTags, 'notes'>) => {
-    setAddTagCategory(category)
+  // Open add tag modal (now accepts any category key)
+  const handleOpenAddTagModal = (categoryKey: string) => {
+    setAddTagCategory(categoryKey)
     setNewTagValue('')
     setSimilarTags([])
     setAddTagError(null)
@@ -803,50 +862,34 @@ export default function ImageTaggerClient() {
     if (!addTagCategory) return
 
     // Get vocabulary for current category
-    const categoryMap: Record<keyof Omit<ImageTags, 'notes'>, keyof TagVocabulary> = {
-      industries: 'industries',
-      projectTypes: 'projectTypes',
-      styles: 'styles',
-      moods: 'moods',
-      elements: 'elements'
-    }
-
-    const vocabKey = categoryMap[addTagCategory]
-    const existingTags = vocabulary[vocabKey]
+    const existingTags = vocabulary[addTagCategory] || []
 
     // Find similar tags
     const similar = findSimilarTags(value, existingTags)
     setSimilarTags(similar)
   }
 
-  // Add custom tag to vocabulary
+  // Add custom tag to vocabulary (dynamic)
   const handleAddCustomTag = async () => {
-    if (!addTagCategory || !newTagValue.trim()) return
+    if (!addTagCategory || !newTagValue.trim() || !vocabConfig) return
 
     const normalized = newTagValue.toLowerCase().trim()
 
-    // Map frontend category to database category
-    const categoryMap: Record<keyof Omit<ImageTags, 'notes'>, string> = {
-      industries: 'industry',
-      projectTypes: 'project_type',
-      styles: 'style',
-      moods: 'mood',
-      elements: 'elements'
+    // Map config key to database category
+    const keyToDbCategory = (key: string): string => {
+      if (key === 'industries') return 'industry'
+      if (key === 'project_types') return 'project_type'
+      return key
     }
 
-    const dbCategory = categoryMap[addTagCategory]
+    const dbCategory = keyToDbCategory(addTagCategory)
 
     try {
       setIsAddingTag(true)
       setAddTagError(null)
 
       // Check for exact duplicate
-      const vocabKey = addTagCategory === 'industries' ? 'industries' :
-                       addTagCategory === 'projectTypes' ? 'projectTypes' :
-                       addTagCategory === 'styles' ? 'styles' :
-                       addTagCategory === 'moods' ? 'moods' : 'elements'
-
-      const existingTags = vocabulary[vocabKey]
+      const existingTags = vocabulary[addTagCategory] || []
       if (existingTags.some(tag => tag.toLowerCase() === normalized)) {
         setAddTagError('This tag already exists')
         return
@@ -879,12 +922,12 @@ export default function ImageTaggerClient() {
       // Update local vocabulary state
       setVocabulary(prev => ({
         ...prev,
-        [vocabKey]: [...prev[vocabKey], normalized]
+        [addTagCategory]: [...(prev[addTagCategory] || []), normalized]
       }))
 
       // Auto-select the new tag
       const currentTags = getCurrentImageTags()
-      const currentValues = currentTags[addTagCategory]
+      const currentValues = currentTags[addTagCategory] as string[]
       updateCurrentImageTags({
         [addTagCategory]: [...currentValues, normalized]
       })
@@ -909,7 +952,7 @@ export default function ImageTaggerClient() {
     if (!addTagCategory) return
 
     const currentTags = getCurrentImageTags()
-    const currentValues = currentTags[addTagCategory]
+    const currentValues = currentTags[addTagCategory] as string[]
 
     // Add to current image tags if not already selected
     if (!currentValues.includes(tag)) {
@@ -925,26 +968,28 @@ export default function ImageTaggerClient() {
   }
 
   // Show loading state
-  if (isLoadingVocabulary) {
+  if (configLoading || isLoadingVocabulary) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto"></div>
-          <p className="text-gray-600">Loading tag vocabulary...</p>
+          <p className="text-gray-600">
+            {configLoading ? 'Loading vocabulary configuration...' : 'Loading tag vocabulary...'}
+          </p>
         </div>
       </div>
     )
   }
 
   // Show error state
-  if (vocabularyError) {
+  if (configError || vocabularyError) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
         <div className="text-4xl mb-4">⚠️</div>
         <h3 className="text-lg font-semibold text-red-900 mb-2">
-          Failed to Load Vocabulary
+          {configError ? 'Failed to Load Vocabulary Configuration' : 'Failed to Load Vocabulary'}
         </h3>
-        <p className="text-red-700 mb-4">{vocabularyError}</p>
+        <p className="text-red-700 mb-4">{configError || vocabularyError}</p>
         <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
@@ -1000,14 +1045,11 @@ export default function ImageTaggerClient() {
       )}
 
       {/* Add Tag Modal */}
-      {isAddTagModalOpen && addTagCategory && (
+      {isAddTagModalOpen && addTagCategory && vocabConfig && (
         <AddTagModal
           category={addTagCategory}
           categoryLabel={
-            addTagCategory === 'industries' ? 'Industry' :
-            addTagCategory === 'projectTypes' ? 'Project Type' :
-            addTagCategory === 'styles' ? 'Style' :
-            addTagCategory === 'moods' ? 'Mood' : 'Element'
+            vocabConfig.structure.categories.find(cat => cat.key === addTagCategory)?.label || addTagCategory
           }
           newTagValue={newTagValue}
           similarTags={similarTags}
@@ -1068,6 +1110,7 @@ export default function ImageTaggerClient() {
         {/* Tag Form - 30% */}
         <div className="w-[30%]">
           <TagForm
+            vocabConfig={vocabConfig}
             vocabulary={vocabulary}
             currentTags={getCurrentImageTags()}
             onUpdateTags={updateCurrentImageTags}
@@ -1460,32 +1503,37 @@ function TagCheckbox({ label, checked, onChange, aiSuggested = false }: TagCheck
   )
 }
 
-// Tag Form Component
+// Tag Form Component (Dynamic)
 interface TagFormProps {
+  vocabConfig: VocabularyConfig | null
   vocabulary: TagVocabulary
   currentTags: ImageTags
   onUpdateTags: (tags: Partial<ImageTags>) => void
-  onOpenAddTagModal: (category: keyof Omit<ImageTags, 'notes'>) => void
-  aiSuggestions?: {
-    industries: string[]
-    projectTypes: string[]
-    styles: string[]
-    moods: string[]
-    elements: string[]
-    confidence: 'high' | 'medium' | 'low'
-    reasoning: string
-  }
+  onOpenAddTagModal: (categoryKey: string) => void
+  aiSuggestions?: AISuggestion
   isLoadingAI?: boolean
 }
 
-function TagForm({ vocabulary, currentTags, onUpdateTags, onOpenAddTagModal, aiSuggestions, isLoadingAI = false }: TagFormProps) {
-  const handleTagToggle = (category: keyof Omit<ImageTags, 'notes'>, tagValue: string) => {
-    const currentValues = currentTags[category]
+function TagForm({ vocabConfig, vocabulary, currentTags, onUpdateTags, onOpenAddTagModal, aiSuggestions, isLoadingAI = false }: TagFormProps) {
+  const handleTagToggle = (categoryKey: string, tagValue: string) => {
+    const currentValues = currentTags[categoryKey] as string[]
     const newValues = currentValues.includes(tagValue)
       ? currentValues.filter(v => v !== tagValue)
       : [...currentValues, tagValue]
 
-    onUpdateTags({ [category]: newValues })
+    onUpdateTags({ [categoryKey]: newValues })
+  }
+
+  const handleTextChange = (categoryKey: string, value: string) => {
+    onUpdateTags({ [categoryKey]: value })
+  }
+
+  if (!vocabConfig) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <p className="text-gray-500">Loading configuration...</p>
+      </div>
+    )
   }
 
   return (
@@ -1522,151 +1570,73 @@ function TagForm({ vocabulary, currentTags, onUpdateTags, onOpenAddTagModal, aiS
         </div>
       )}
 
-      {/* Industries */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-900 mb-3">
-          Industries ({currentTags.industries.length})
-          {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
-        </label>
-        <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
-          {vocabulary.industries.map((tag) => (
-            <TagCheckbox
-              key={tag}
-              label={tag}
-              checked={currentTags.industries.includes(tag)}
-              onChange={() => handleTagToggle('industries', tag)}
-              aiSuggested={aiSuggestions?.industries.includes(tag)}
-            />
-          ))}
-        </div>
-        <button
-          onClick={() => onOpenAddTagModal('industries')}
-          className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          + Add custom industry
-        </button>
-      </div>
+      {/* Dynamic Form Sections */}
+      {vocabConfig.structure.categories.map((category) => (
+        <div key={category.key}>
+          {/* Multi-select categories (checkboxes) */}
+          {(category.storage_type === 'array' || category.storage_type === 'jsonb_array') && (
+            <>
+              <label className="block text-sm font-semibold text-gray-900 mb-3">
+                {category.label} ({(currentTags[category.key] as string[])?.length || 0})
+                {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
+              </label>
+              {category.description && (
+                <p className="text-xs text-gray-600 mb-2">{category.description}</p>
+              )}
+              <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                {(vocabulary[category.key] || []).map((tagValue: string) => {
+                  const currentValues = (currentTags[category.key] || []) as string[]
+                  const aiSuggestedValues = (aiSuggestions?.[category.key] || []) as string[]
+                  const isSelected = currentValues.includes(tagValue)
+                  const wasAiSuggested = aiSuggestedValues.includes(tagValue)
 
-      {/* Project Types */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-900 mb-3">
-          Project Types ({currentTags.projectTypes.length})
-          {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
-        </label>
-        <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
-          {vocabulary.projectTypes.map((tag) => (
-            <TagCheckbox
-              key={tag}
-              label={tag}
-              checked={currentTags.projectTypes.includes(tag)}
-              onChange={() => handleTagToggle('projectTypes', tag)}
-              aiSuggested={aiSuggestions?.projectTypes.includes(tag)}
-            />
-          ))}
-        </div>
-        <button
-          onClick={() => onOpenAddTagModal('projectTypes')}
-          className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          + Add custom project type
-        </button>
-      </div>
+                  return (
+                    <TagCheckbox
+                      key={tagValue}
+                      label={tagValue}
+                      checked={isSelected}
+                      onChange={() => handleTagToggle(category.key, tagValue)}
+                      aiSuggested={wasAiSuggested}
+                    />
+                  )
+                })}
+              </div>
+              <button
+                onClick={() => onOpenAddTagModal(category.key)}
+                className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                + Add custom {category.label.toLowerCase()}
+              </button>
+            </>
+          )}
 
-      {/* Styles */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-900 mb-3">
-          Style ({currentTags.styles.length})
-          {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
-        </label>
-        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-          {vocabulary.styles.map((tag) => (
-            <TagCheckbox
-              key={tag}
-              label={tag}
-              checked={currentTags.styles.includes(tag)}
-              onChange={() => handleTagToggle('styles', tag)}
-              aiSuggested={aiSuggestions?.styles.includes(tag)}
-            />
-          ))}
+          {/* Text field categories (textarea) */}
+          {category.storage_type === 'text' && (
+            <>
+              <label className="block text-sm font-semibold text-gray-900 mb-3">
+                {category.label} {!category.label.includes('Optional') && '(Optional)'}
+              </label>
+              {category.description && (
+                <p className="text-xs text-gray-600 mb-2">{category.description}</p>
+              )}
+              <textarea
+                value={(currentTags[category.key] || '') as string}
+                onChange={(e) => handleTextChange(category.key, e.target.value)}
+                placeholder={category.placeholder || `Enter ${category.label.toLowerCase()}...`}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent resize-none"
+              />
+            </>
+          )}
         </div>
-        <button
-          onClick={() => onOpenAddTagModal('styles')}
-          className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          + Add custom style
-        </button>
-      </div>
-
-      {/* Moods */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-900 mb-3">
-          Mood ({currentTags.moods.length})
-          {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
-        </label>
-        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-          {vocabulary.moods.map((tag) => (
-            <TagCheckbox
-              key={tag}
-              label={tag}
-              checked={currentTags.moods.includes(tag)}
-              onChange={() => handleTagToggle('moods', tag)}
-              aiSuggested={aiSuggestions?.moods.includes(tag)}
-            />
-          ))}
-        </div>
-        <button
-          onClick={() => onOpenAddTagModal('moods')}
-          className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          + Add custom mood
-        </button>
-      </div>
-
-      {/* Elements */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-900 mb-3">
-          Elements ({currentTags.elements.length})
-          {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
-        </label>
-        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-          {vocabulary.elements.map((tag) => (
-            <TagCheckbox
-              key={tag}
-              label={tag}
-              checked={currentTags.elements.includes(tag)}
-              onChange={() => handleTagToggle('elements', tag)}
-              aiSuggested={aiSuggestions?.elements.includes(tag)}
-            />
-          ))}
-        </div>
-        <button
-          onClick={() => onOpenAddTagModal('elements')}
-          className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          + Add custom element
-        </button>
-      </div>
-
-      {/* Notes */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-900 mb-3">
-          Notes (Optional)
-        </label>
-        <textarea
-          value={currentTags.notes}
-          onChange={(e) => onUpdateTags({ notes: e.target.value })}
-          placeholder="e.g., 'Great for high-end restaurant projects'..."
-          rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent resize-none"
-        />
-      </div>
+      ))}
     </div>
   )
 }
 
 // Add Tag Modal Component
 interface AddTagModalProps {
-  category: keyof Omit<ImageTags, 'notes'>
+  category: string
   categoryLabel: string
   newTagValue: string
   similarTags: string[]

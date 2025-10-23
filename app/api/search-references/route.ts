@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@/lib/supabase';
 import type { SearchReferencesRequest, SearchReferencesResponse, ReferenceImage } from '@/lib/types';
 
 // Note: This API route won't work with output: 'export' in production
 // For static export, vocabulary config should be fetched client-side from Supabase
 export const dynamic = 'force-dynamic';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,8 +17,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Initialize Supabase client
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Initialize Supabase client with service role key
+    const supabase = createServerClient();
 
     // 1. Get active vocabulary config
     const { data: config, error: configError } = await supabase
