@@ -68,8 +68,11 @@ export default function VocabularyConfigClient() {
   if (loading) {
     return (
       <div className="container mx-auto p-8">
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="flex items-center justify-center py-16">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Loading configuration...</p>
+          </div>
         </div>
       </div>
     );
@@ -78,79 +81,97 @@ export default function VocabularyConfigClient() {
   if (error) {
     return (
       <div className="container mx-auto p-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <p className="text-red-800">{error}</p>
+        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-8 text-center">
+          <div className="text-6xl mb-4">⚠️</div>
+          <p className="text-red-800 font-semibold text-lg">{error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-8 max-w-6xl">
+    <div className="container mx-auto p-8 max-w-7xl space-y-10">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Vocabulary Configuration</h1>
-          <p className="text-gray-600">
+          <h1 className="text-4xl font-bold text-gray-50 mb-2">Vocabulary Configuration</h1>
+          <p className="text-gray-600 text-lg">
             Manage the structure of your tagging system
           </p>
         </div>
         <Link
           href="/tagger/dashboard"
-          className="text-blue-600 hover:underline"
+          className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors font-semibold"
         >
-          ← Back to Dashboard
+          <span>←</span>
+          <span>Back to Dashboard</span>
         </Link>
       </div>
 
       {/* Current Config */}
       {currentConfig && (
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-          <h2 className="text-2xl font-semibold mb-6">Current Configuration</h2>
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-10">
+          <h2 className="text-3xl font-bold text-gray-50 mb-8">Current Configuration</h2>
 
-          <div className="space-y-4 mb-8">
-            <div>
-              <span className="font-semibold text-gray-700">Name:</span>
-              <span className="ml-3 text-gray-900">{currentConfig.config_name}</span>
+          <div className="space-y-6 mb-10">
+            <div className="flex items-baseline">
+              <span className="font-semibold text-gray-700 w-40">Name:</span>
+              <span className="text-gray-900 font-medium text-lg">{currentConfig.config_name}</span>
             </div>
             {currentConfig.description && (
-              <div>
-                <span className="font-semibold text-gray-700">Description:</span>
-                <p className="mt-1 text-gray-600">{currentConfig.description}</p>
+              <div className="flex items-start">
+                <span className="font-semibold text-gray-700 w-40 pt-1">Description:</span>
+                <p className="flex-1 text-gray-600 leading-relaxed">{currentConfig.description}</p>
               </div>
             )}
-            <div className="text-sm text-gray-500">
-              <div>Created: {new Date(currentConfig.created_at).toLocaleString()}</div>
-              <div>Last Updated: {new Date(currentConfig.updated_at).toLocaleString()}</div>
+            <div className="flex items-baseline text-sm">
+              <span className="font-semibold text-gray-700 w-40">Created:</span>
+              <span className="text-gray-500">{new Date(currentConfig.created_at).toLocaleString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+              })}</span>
+            </div>
+            <div className="flex items-baseline text-sm">
+              <span className="font-semibold text-gray-700 w-40">Last Updated:</span>
+              <span className="text-gray-500">{new Date(currentConfig.updated_at).toLocaleString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+              })}</span>
             </div>
           </div>
 
-          <h3 className="font-semibold text-lg mb-4">Category Structure:</h3>
-          <div className="overflow-x-auto">
+          <h3 className="text-2xl font-bold text-gray-50 mb-6">Category Structure</h3>
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="border-b-2 border-gray-300 bg-gray-50">
-                  <th className="text-left py-3 px-4 font-semibold">Category</th>
-                  <th className="text-left py-3 px-4 font-semibold">Storage Path</th>
-                  <th className="text-left py-3 px-4 font-semibold">Type</th>
-                  <th className="text-left py-3 px-4 font-semibold">Weight</th>
-                  <th className="text-left py-3 px-4 font-semibold">Description</th>
+                <tr className="bg-gray-100 border-b-2 border-gray-200">
+                  <th className="text-left py-4 px-6 font-semibold text-xs uppercase tracking-wide text-gray-700">Category</th>
+                  <th className="text-left py-4 px-6 font-semibold text-xs uppercase tracking-wide text-gray-700">Storage Path</th>
+                  <th className="text-center py-4 px-6 font-semibold text-xs uppercase tracking-wide text-gray-700">Type</th>
+                  <th className="text-center py-4 px-6 font-semibold text-xs uppercase tracking-wide text-gray-700">Weight</th>
+                  <th className="text-left py-4 px-6 font-semibold text-xs uppercase tracking-wide text-gray-700">Description</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-200">
                 {currentConfig.structure.categories.map((cat) => (
-                  <tr key={cat.key} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium">{cat.label}</td>
-                    <td className="py-3 px-4 font-mono text-sm text-blue-600">{cat.storage_path}</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  <tr key={cat.key} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-4 px-6 font-semibold text-gray-900">{cat.label}</td>
+                    <td className="py-4 px-6 font-mono text-sm text-blue-600 bg-blue-50 rounded">{cat.storage_path}</td>
+                    <td className="py-4 px-6 text-center">
+                      <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-200">
                         {cat.storage_type}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
-                      <span className="font-semibold text-green-600">{cat.search_weight}</span>
+                    <td className="py-4 px-6 text-center">
+                      <span className="inline-flex px-3 py-1 rounded-full text-sm font-bold bg-green-100 text-green-800 border border-green-200">{cat.search_weight}</span>
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{cat.description || '—'}</td>
+                    <td className="py-4 px-6 text-sm text-gray-600">{cat.description || <span className="text-gray-400 italic">No description</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -160,39 +181,51 @@ export default function VocabularyConfigClient() {
       )}
 
       {/* Replace Configuration */}
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <h2 className="text-2xl font-semibold mb-6">Replace Vocabulary</h2>
+      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-10">
+        <h2 className="text-3xl font-bold text-gray-50 mb-8">Replace Vocabulary</h2>
 
-        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-6 mb-6">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-xl p-8 mb-8 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 text-4xl">
+              ⚠️
             </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-yellow-800 mb-2">⚠️ Warning: Destructive Action</h3>
-              <p className="text-sm text-yellow-800 mb-3">
+            <div className="flex-1">
+              <h3 className="text-2xl font-bold text-yellow-900 mb-4">Warning: Destructive Action</h3>
+              <p className="text-sm font-semibold text-yellow-900 mb-4">
                 Replacing the vocabulary will permanently:
               </p>
-              <ul className="text-sm text-yellow-800 ml-6 space-y-1 list-disc">
-                <li><strong>Delete ALL existing images</strong> from the database and storage</li>
-                <li><strong>Delete ALL existing tags</strong> from the vocabulary</li>
-                <li><strong>Delete ALL tag corrections</strong> and AI training data</li>
-                <li><strong>Reset the entire system</strong> for fresh tagging with new structure</li>
+              <ul className="text-sm text-yellow-900 space-y-2 mb-6">
+                <li className="flex items-start gap-2">
+                  <span className="text-red-600 font-bold">✗</span>
+                  <span><strong>Delete ALL existing images</strong> from the database and storage</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-600 font-bold">✗</span>
+                  <span><strong>Delete ALL existing tags</strong> from the vocabulary</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-600 font-bold">✗</span>
+                  <span><strong>Delete ALL tag corrections</strong> and AI training data</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-600 font-bold">✗</span>
+                  <span><strong>Reset the entire system</strong> for fresh tagging with new structure</span>
+                </li>
               </ul>
-              <p className="text-sm text-yellow-800 mt-3 font-semibold">
-                This action cannot be undone. Only use during test phase.
-              </p>
+              <div className="bg-red-50 border-2 border-red-400 rounded-lg p-4">
+                <p className="text-sm text-red-900 font-bold">
+                  ⛔ This action cannot be undone. Only use during test phase.
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
         <button
           onClick={() => setShowReplaceModal(true)}
-          className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold shadow-md"
+          className="bg-red-600 text-white px-8 py-4 rounded-xl hover:bg-red-700 hover:shadow-lg transition-all duration-200 font-bold text-lg"
         >
-          Replace with New Vocabulary
+          🔄 Replace with New Vocabulary
         </button>
       </div>
 
@@ -420,10 +453,10 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-8">
-          <h2 className="text-2xl font-bold mb-6">Replace Vocabulary Configuration</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-10">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">Replace Vocabulary Configuration</h2>
 
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -455,7 +488,7 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
 
             <button
               onClick={downloadTemplate}
-              className="text-sm text-blue-600 hover:underline"
+              className="text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors font-semibold"
             >
               📥 Download Template
             </button>
@@ -509,20 +542,20 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+          <div className="flex justify-end gap-4 pt-6 border-t-2 border-gray-200 mt-8">
             <button
               onClick={onClose}
               disabled={uploading}
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 font-semibold"
             >
               Cancel
             </button>
             <button
               onClick={handleReplace}
               disabled={!newStructure || !configName.trim() || uploading}
-              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-8 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 hover:shadow-lg transition-all duration-200 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {uploading ? 'Replacing...' : 'Replace & Delete All Data'}
+              {uploading ? 'Replacing...' : '⚠️ Replace & Delete All Data'}
             </button>
           </div>
         </div>

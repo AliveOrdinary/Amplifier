@@ -381,104 +381,110 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
   const estimatedStorage = stats.images.total * 2.5 // Rough estimate: 2.5MB per image (original + thumbnail)
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       {/* Overview Stats */}
       <div>
-        <h2 className="text-2xl font-semibold mb-4">Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <h2 className="text-3xl font-bold text-gray-50 mb-6">Overview</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Images */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="text-sm text-gray-600 mb-1">Total Images</div>
-            <div className="text-4xl font-bold text-gray-900 mb-2">{stats.images.total}</div>
-            <div className="space-y-1 text-xs text-gray-500">
-              <div className="flex justify-between">
-                <span>Pending:</span>
-                <span className="font-medium">{stats.images.pending}</span>
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Total Images</div>
+            <div className="text-5xl font-bold text-gray-900 mb-4">{stats.images.total}</div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Pending:</span>
+                <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{stats.images.pending}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Tagged:</span>
-                <span className="font-medium text-green-600">{stats.images.tagged}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Tagged:</span>
+                <span className="font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded">{stats.images.tagged}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Approved:</span>
-                <span className="font-medium text-blue-600">{stats.images.approved}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Approved:</span>
+                <span className="font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">{stats.images.approved}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Skipped:</span>
-                <span className="font-medium text-orange-600">{stats.images.skipped}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Skipped:</span>
+                <span className="font-semibold text-orange-700 bg-orange-100 px-2 py-0.5 rounded">{stats.images.skipped}</span>
               </div>
             </div>
           </div>
 
           {/* Vocabulary */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="text-sm text-gray-600 mb-1">Tag Vocabulary</div>
-            <div className="text-4xl font-bold text-gray-900 mb-2">{stats.vocabulary.total}</div>
-            <div className="space-y-1 text-xs text-gray-500">
-              <div className="flex justify-between">
-                <span>Industries:</span>
-                <span className="font-medium">{stats.vocabulary.byCategory.industry}</span>
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Tag Vocabulary</div>
+            <div className="text-5xl font-bold text-gray-900 mb-4">{stats.vocabulary.total}</div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Industries:</span>
+                <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{stats.vocabulary.byCategory.industry}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Project Types:</span>
-                <span className="font-medium">{stats.vocabulary.byCategory.project_type}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Project Types:</span>
+                <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{stats.vocabulary.byCategory.project_type}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Styles:</span>
-                <span className="font-medium">{stats.vocabulary.byCategory.style}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Styles:</span>
+                <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{stats.vocabulary.byCategory.style}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Never Used:</span>
-                <span className="font-medium text-gray-400">{stats.vocabulary.neverUsed}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Never Used:</span>
+                <span className="font-semibold text-gray-400 bg-gray-50 px-2 py-0.5 rounded">{stats.vocabulary.neverUsed}</span>
               </div>
             </div>
           </div>
 
           {/* AI Accuracy */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="text-sm text-gray-600 mb-1">AI Accuracy</div>
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">AI Accuracy</div>
             {stats.aiAccuracy ? (
               <>
-                <div className="text-4xl font-bold text-blue-600 mb-2">
+                <div className="text-5xl font-bold text-blue-600 mb-4">
                   {((1 - (stats.aiAccuracy.averageTagsRemoved / 5)) * 100).toFixed(0)}%
                 </div>
-                <div className="space-y-1 text-xs text-gray-500">
-                  <div className="flex justify-between">
-                    <span>Corrections:</span>
-                    <span className="font-medium">{stats.aiAccuracy.totalCorrections}</span>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Corrections:</span>
+                    <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{stats.aiAccuracy.totalCorrections}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Avg Added:</span>
-                    <span className="font-medium text-green-600">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Avg Added:</span>
+                    <span className="font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded">
                       {stats.aiAccuracy.averageTagsAdded.toFixed(1)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Avg Removed:</span>
-                    <span className="font-medium text-red-600">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Avg Removed:</span>
+                    <span className="font-semibold text-red-700 bg-red-100 px-2 py-0.5 rounded">
                       {stats.aiAccuracy.averageTagsRemoved.toFixed(1)}
                     </span>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="text-sm text-gray-400 pt-4">No AI data yet</div>
+              <div className="text-sm text-gray-400 italic pt-4">No AI data yet</div>
             )}
           </div>
 
           {/* Storage & Activity */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="text-sm text-gray-600 mb-1">Storage Used</div>
-            <div className="text-4xl font-bold text-gray-900 mb-2">
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Storage Used</div>
+            <div className="text-5xl font-bold text-gray-900 mb-1">
               {estimatedStorage.toFixed(0)}
-              <span className="text-lg text-gray-500 ml-1">MB</span>
+              <span className="text-2xl text-gray-500 ml-2">MB</span>
             </div>
-            <div className="space-y-1 text-xs text-gray-500 mt-4">
-              <div className="font-medium text-gray-600">Last Tagged:</div>
-              <div>
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Last Tagged</div>
+              <div className="text-sm text-gray-700">
                 {stats.lastTaggedAt
-                  ? new Date(stats.lastTaggedAt).toLocaleString()
-                  : 'No images tagged yet'}
+                  ? new Date(stats.lastTaggedAt).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit'
+                    })
+                  : <span className="text-gray-400 italic">No images tagged yet</span>}
               </div>
             </div>
           </div>
@@ -487,51 +493,60 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-2xl font-semibold mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <h2 className="text-3xl font-bold text-gray-50 mb-6">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Link
             href="/tagger"
-            className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all p-6 group"
+            className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 p-8 group"
           >
-            <div className="text-3xl mb-3">🏷️</div>
-            <div className="font-semibold text-lg mb-1">Start Tagging</div>
-            <div className="text-sm text-blue-100">Tag new reference images</div>
+            <div className="text-4xl mb-4">🏷️</div>
+            <div className="font-bold text-xl mb-2">Start Tagging</div>
+            <div className="text-sm text-blue-50 opacity-90">Tag new reference images with AI assistance</div>
           </Link>
 
           <Link
             href="/tagger/gallery"
-            className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all p-6 group"
+            className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 p-8 group"
           >
-            <div className="text-3xl mb-3">🖼️</div>
-            <div className="font-semibold text-lg mb-1">View Gallery</div>
-            <div className="text-sm text-green-100">Browse {stats.images.tagged + stats.images.approved} tagged images</div>
+            <div className="text-4xl mb-4">🖼️</div>
+            <div className="font-bold text-xl mb-2">View Gallery</div>
+            <div className="text-sm text-green-50 opacity-90">Browse {stats.images.tagged + stats.images.approved} tagged images</div>
           </Link>
 
           <Link
             href="/tagger/vocabulary"
-            className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all p-6 group"
+            className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 p-8 group"
           >
-            <div className="text-3xl mb-3">📚</div>
-            <div className="font-semibold text-lg mb-1">Manage Vocabulary</div>
-            <div className="text-sm text-purple-100">Edit tags and categories</div>
+            <div className="text-4xl mb-4">📚</div>
+            <div className="font-bold text-xl mb-2">Manage Vocabulary</div>
+            <div className="text-sm text-purple-50 opacity-90">Edit tags and categories</div>
           </Link>
 
           <Link
             href="/tagger/vocabulary-config"
-            className="bg-gradient-to-br from-pink-500 to-pink-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all p-6 group"
+            className="bg-gradient-to-br from-pink-500 to-pink-600 text-white rounded-xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 p-8 group"
           >
-            <div className="text-3xl mb-3">⚙️</div>
-            <div className="font-semibold text-lg mb-1">Vocabulary Config</div>
-            <div className="text-sm text-pink-100">Manage vocabulary structure</div>
+            <div className="text-4xl mb-4">⚙️</div>
+            <div className="font-bold text-xl mb-2">Vocabulary Config</div>
+            <div className="text-sm text-pink-50 opacity-90">Manage vocabulary structure</div>
           </Link>
 
           <Link
             href="/tagger/ai-analytics"
-            className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all p-6 group"
+            className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 p-8 group"
           >
-            <div className="text-3xl mb-3">🤖</div>
-            <div className="font-semibold text-lg mb-1">AI Analytics</div>
-            <div className="text-sm text-orange-100">View AI performance</div>
+            <div className="text-4xl mb-4">🤖</div>
+            <div className="font-bold text-xl mb-2">AI Analytics</div>
+            <div className="text-sm text-orange-50 opacity-90">View AI learning and performance</div>
+          </Link>
+
+          <Link
+            href="/tagger/bulk-upload"
+            className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 p-8 group"
+          >
+            <div className="text-4xl mb-4">📤</div>
+            <div className="font-bold text-xl mb-2">Bulk Upload</div>
+            <div className="text-sm text-indigo-50 opacity-90">Upload multiple images at once</div>
           </Link>
         </div>
       </div>
@@ -539,25 +554,29 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
       {/* Recent Activity */}
       {stats.recentImages.length > 0 && (
         <div>
-          <h2 className="text-2xl font-semibold mb-4">Recent Activity</h2>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <h2 className="text-3xl font-bold text-gray-50 mb-6">Recent Activity</h2>
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
               {stats.recentImages.map(image => (
                 <Link
                   key={image.id}
                   href="/tagger/gallery"
                   className="group"
                 >
-                  <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-2">
+                  <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-3 shadow-sm group-hover:shadow-md transition-shadow">
                     <img
                       src={image.thumbnail_path}
                       alt={image.original_filename}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
                     />
                   </div>
-                  <div className="text-xs text-gray-600 truncate">{image.original_filename}</div>
-                  <div className="text-xs text-gray-400">
-                    {new Date(image.tagged_at).toLocaleDateString()}
+                  <div className="text-sm font-medium text-gray-800 truncate mb-1">{image.original_filename}</div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(image.tagged_at).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
                   </div>
                 </Link>
               ))}

@@ -18,13 +18,6 @@ interface ReferenceImage {
   storage_path: string
   thumbnail_path: string
   original_filename: string
-  industries: string[]
-  project_types: string[]
-  tags: {
-    style: string[]
-    mood: string[]
-    elements: string[]
-  }
   notes: string | null
   status: string
   tagged_at: string
@@ -32,6 +25,8 @@ interface ReferenceImage {
   ai_suggested_tags: any
   ai_confidence_score: number | null
   ai_reasoning: string | null
+  // Dynamic category fields from vocabulary config
+  [key: string]: any
 }
 
 async function getTaggedImages(): Promise<ReferenceImage[]> {
@@ -54,19 +49,29 @@ export default async function GalleryPage() {
 
   return (
     <div className="min-h-screen bg-custom-bg">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+      <div className="container mx-auto px-4 py-10">
+        {/* Enhanced Header */}
+        <div className="mb-10">
           <Link
             href="/tagger/dashboard"
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors font-semibold mb-6"
           >
             <span>←</span>
             <span>Back to Dashboard</span>
           </Link>
-          <h1 className="text-4xl font-bold mb-2">Reference Image Gallery</h1>
-          <p className="text-gray-600">
-            {images.length} tagged images in your collection
-          </p>
+          <div className="flex items-end justify-between">
+            <div>
+              <h1 className="text-5xl font-bold text-gray-50 mb-3">🖼️ Reference Image Gallery</h1>
+              <div className="flex items-center gap-4">
+                <p className="text-lg text-gray-600">
+                  Your complete collection of tagged reference images
+                </p>
+                <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border-2 border-blue-200">
+                  {images.length} Total Images
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <GalleryClient images={images} />

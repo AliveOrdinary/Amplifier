@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -19,6 +19,22 @@ interface VocabularyTag {
   created_at: string
 }
 
+interface VocabularyCategory {
+  key: string
+  label: string
+  description: string
+  placeholder: string
+  storage_path: string
+  storage_type: 'array' | 'jsonb_array' | 'text'
+  search_weight: number
+}
+
+interface VocabularyConfig {
+  structure: {
+    categories: VocabularyCategory[]
+  }
+}
+
 interface VocabularyClientProps {
   tags: VocabularyTag[]
 }
@@ -29,18 +45,68 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
   const [showEditModal, setShowEditModal] = useState(false)
   const [showMergeModal, setShowMergeModal] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [activeView, setActiveView] = useState<'all' | 'analytics'>('all')
+  const [activeView, setActiveView] = useState<'all' | 'analytics' | 'categories'>('all')
 
-  // Group tags by category
-  const tagsByCategory = useMemo(() => {
-    const groups: Record<string, VocabularyTag[]> = {
-      industry: [],
-      project_type: [],
-      style: [],
-      mood: [],
-      element: []
+  // Vocabulary config state
+  const [vocabConfig, setVocabConfig] = useState<VocabularyConfig | null>(null)
+  const [configLoading, setConfigLoading] = useState(true)
+  const [configError, setConfigError] = useState<string | null>(null)
+
+  // Category management state
+  const [categories, setCategories] = useState<VocabularyCategory[]>([])
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false)
+  const [showEditCategoryModal, setShowEditCategoryModal] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<VocabularyCategory | null>(null)
+  const [newCategory, setNewCategory] = useState({
+    key: '',
+    label: '',
+    storage_type: 'jsonb_array' as 'array' | 'jsonb_array' | 'text',
+    storage_path: '',
+    search_weight: 2,
+    description: '',
+    placeholder: ''
+  })
+
+  // Load vocabulary config from API on mount
+  useEffect(() => {
+    loadVocabularyConfig()
+  }, [])
+
+  const loadVocabularyConfig = async () => {
+    try {
+      setConfigLoading(true)
+      setConfigError(null)
+
+      const response = await fetch('/api/vocabulary-config')
+      if (!response.ok) {
+        throw new Error('Failed to load vocabulary config')
+      }
+
+      const { config } = await response.json()
+      setVocabConfig(config)
+      setCategories(config.structure.categories)
+
+      console.log('✅ Vocabulary config loaded:', config.structure.categories.length, 'categories')
+    } catch (error) {
+      console.error('❌ Error loading vocabulary config:', error)
+      setConfigError(error instanceof Error ? error.message : 'Failed to load vocabulary config')
+    } finally {
+      setConfigLoading(false)
     }
+  }
 
+  // Group tags by category dynamically
+  const tagsByCategory = useMemo(() => {
+    if (!vocabConfig) return {}
+
+    const groups: Record<string, VocabularyTag[]> = {}
+
+    // Initialize groups for all categories from config
+    vocabConfig.structure.categories.forEach(category => {
+      groups[category.key] = []
+    })
+
+    // Group tags into their respective categories
     tags.forEach(tag => {
       if (groups[tag.category]) {
         groups[tag.category].push(tag)
@@ -48,7 +114,19 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
     })
 
     return groups
-  }, [tags])
+  }, [tags, vocabConfig])
+
+  // Category labels from config
+  const categoryLabels = useMemo(() => {
+    if (!vocabConfig) return {}
+
+    const labels: Record<string, string> = {}
+    vocabConfig.structure.categories.forEach(category => {
+      labels[category.key] = category.label
+    })
+
+    return labels
+  }, [vocabConfig])
 
   // Analytics data
   const analytics = useMemo(() => {
@@ -135,12 +213,218 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
     }))
   }
 
-  const categoryLabels = {
-    industry: 'Industries',
-    project_type: 'Project Types',
-    style: 'Styles',
-    mood: 'Moods',
-    element: 'Elements'
+  // Category Management Functions
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    try {
+      // Validation
+      if (!newCategory.key || !newCategory.label || !newCategory.storage_path) {
+        alert('Please fill in all required fields')
+        return
+      }
+
+      // Check for duplicate keys
+      if (categories.some(cat => cat.key === newCategory.key)) {
+        alert('Category key already exists. Please use a unique key.')
+        return
+      }
+
+      // Check for duplicate storage paths
+      if (categories.some(cat => cat.storage_path === newCategory.storage_path)) {
+        alert('Storage path already in use. Please use a unique path.')
+        return
+      }
+
+      // Get current vocabulary config
+      const { data: config, error: fetchError } = await supabase
+        .from('vocabulary_config')
+        .select('*')
+        .eq('is_active', true)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      if (!config) {
+        alert('No active vocabulary configuration found')
+        return
+      }
+
+      // Add new category to structure
+      const updatedStructure = {
+        ...config.structure,
+        categories: [
+          ...config.structure.categories,
+          {
+            key: newCategory.key,
+            label: newCategory.label,
+            storage_type: newCategory.storage_type,
+            storage_path: newCategory.storage_path,
+            search_weight: newCategory.search_weight,
+            description: newCategory.description || undefined,
+            placeholder: newCategory.placeholder || undefined
+          }
+        ]
+      }
+
+      // Update vocabulary config
+      const { error } = await supabase
+        .from('vocabulary_config')
+        .update({
+          structure: updatedStructure,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', config.id)
+
+      if (error) throw error
+
+      alert(`Category "${newCategory.label}" added successfully!`)
+
+      // Reset form and close modal
+      setNewCategory({
+        key: '',
+        label: '',
+        storage_type: 'jsonb_array',
+        storage_path: '',
+        search_weight: 2,
+        description: '',
+        placeholder: ''
+      })
+      setShowAddCategoryModal(false)
+
+      // Reload categories
+      loadVocabularyConfig()
+
+    } catch (error: any) {
+      console.error('Error adding category:', error)
+      alert(`Failed to add category: ${error.message}`)
+    }
+  }
+
+  const handleEditCategory = (category: VocabularyCategory) => {
+    setEditingCategory(category)
+    setShowEditCategoryModal(true)
+  }
+
+  const handleUpdateCategory = async (categoryKey: string, updates: Partial<VocabularyCategory>) => {
+    try {
+      const { data: config, error: fetchError } = await supabase
+        .from('vocabulary_config')
+        .select('*')
+        .eq('is_active', true)
+        .single()
+
+      if (fetchError) throw fetchError
+      if (!config) throw new Error('No active config')
+
+      // Update the specific category
+      const updatedCategories = config.structure.categories.map((cat: any) =>
+        cat.key === categoryKey ? { ...cat, ...updates } : cat
+      )
+
+      const { error } = await supabase
+        .from('vocabulary_config')
+        .update({
+          structure: { ...config.structure, categories: updatedCategories },
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', config.id)
+
+      if (error) throw error
+
+      alert('Category updated successfully!')
+      setShowEditCategoryModal(false)
+      setEditingCategory(null)
+      loadVocabularyConfig()
+
+    } catch (error: any) {
+      console.error('Error updating category:', error)
+      alert(`Failed to update category: ${error.message}`)
+    }
+  }
+
+  const handleDeleteCategory = async (categoryKey: string) => {
+    // Check if category has tags
+    const tagCount = tags.filter(t => t.category === categoryKey).length
+
+    const confirmMessage = tagCount > 0
+      ? `Are you sure you want to delete "${categoryKey}"? This will also delete ${tagCount} tag(s) in this category. This cannot be undone.`
+      : `Are you sure you want to delete "${categoryKey}"?`
+
+    if (!confirm(confirmMessage)) return
+
+    try {
+      // Get current config
+      const { data: config, error: fetchError } = await supabase
+        .from('vocabulary_config')
+        .select('*')
+        .eq('is_active', true)
+        .single()
+
+      if (fetchError) throw fetchError
+      if (!config) throw new Error('No active config')
+
+      // Remove category from structure
+      const updatedCategories = config.structure.categories.filter(
+        (cat: any) => cat.key !== categoryKey
+      )
+
+      // Update config
+      const { error: configError } = await supabase
+        .from('vocabulary_config')
+        .update({
+          structure: { ...config.structure, categories: updatedCategories },
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', config.id)
+
+      if (configError) throw configError
+
+      // Delete all tags in this category
+      if (tagCount > 0) {
+        const { error: tagsError } = await supabase
+          .from('tag_vocabulary')
+          .delete()
+          .eq('category', categoryKey)
+
+        if (tagsError) throw tagsError
+      }
+
+      alert(`Category "${categoryKey}" deleted successfully!`)
+      
+      // Update local state
+      setTags(prev => prev.filter(t => t.category !== categoryKey))
+      loadVocabularyConfig()
+
+    } catch (error: any) {
+      console.error('Error deleting category:', error)
+      alert(`Failed to delete category: ${error.message}`)
+    }
+  }
+
+  // Show loading state while config is loading
+  if (configLoading) {
+    return (
+      <div className="bg-white rounded-lg p-12 text-center border border-gray-200">
+        <div className="text-4xl mb-4">⏳</div>
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Loading vocabulary...</h3>
+        <p className="text-gray-600">Fetching vocabulary configuration</p>
+      </div>
+    )
+  }
+
+  if (configError) {
+    return (
+      <div className="bg-white rounded-lg p-12 text-center border border-red-200">
+        <div className="text-4xl mb-4">❌</div>
+        <h3 className="text-xl font-semibold text-red-900 mb-2">Configuration Error</h3>
+        <p className="text-red-600">{configError}</p>
+      </div>
+    )
+  }
+
+  if (!vocabConfig) {
+    return null
   }
 
   return (
@@ -148,6 +432,16 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       {/* View Toggle and Add Button */}
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
+          <button
+            onClick={() => setActiveView('categories')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeView === 'categories'
+                ? 'bg-black text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            Categories ({categories.length})
+          </button>
           <button
             onClick={() => setActiveView('all')}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -170,92 +464,215 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
           </button>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-        >
-          + Add New Tag
-        </button>
+        {activeView === 'categories' ? (
+          <button
+            onClick={() => setShowAddCategoryModal(true)}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+          >
+            + Add New Category
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            + Add New Tag
+          </button>
+        )}
       </div>
+
+      {/* Categories View */}
+      {activeView === 'categories' && (
+        <div className="space-y-6">
+          {categories.length === 0 ? (
+            <div className="bg-white rounded-lg p-12 text-center border border-gray-200">
+              <div className="text-4xl mb-4">📂</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No categories yet</h3>
+              <p className="text-gray-600 mb-6">Get started by adding your first category</p>
+              <button
+                onClick={() => setShowAddCategoryModal(true)}
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+              >
+                + Add Your First Category
+              </button>
+            </div>
+          ) : (
+            categories.map(category => {
+              const categoryTagCount = tags.filter(t => t.category === category.key).length
+              
+              return (
+                <div key={category.key} className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-xl font-bold text-gray-900">{category.label}</h3>
+                          <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded font-mono">
+                            {category.key}
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded font-medium ${
+                            category.storage_type === 'array' 
+                              ? 'bg-blue-100 text-blue-700'
+                              : category.storage_type === 'jsonb_array'
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'bg-green-100 text-green-700'
+                          }`}>
+                            {category.storage_type}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 text-sm text-gray-600 mb-3">
+                          <div>
+                            <span className="font-medium text-gray-700">Storage Path:</span>
+                            <span className="ml-2 font-mono bg-gray-50 px-2 py-0.5 rounded">{category.storage_path}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700">Search Weight:</span>
+                            <span className="ml-2 font-semibold">{category.search_weight}/10</span>
+                          </div>
+                        </div>
+                        
+                        {category.description && (
+                          <p className="text-sm text-gray-600 mb-2">
+                            <span className="font-medium text-gray-700">Description:</span> {category.description}
+                          </p>
+                        )}
+                        
+                        {category.placeholder && (
+                          <p className="text-sm text-gray-600 mb-2">
+                            <span className="font-medium text-gray-700">Placeholder:</span> 
+                            <span className="ml-2 italic">{category.placeholder}</span>
+                          </p>
+                        )}
+                        
+                        <div className="mt-3 flex items-center gap-4">
+                          <span className="inline-flex items-center text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1.5 rounded-full">
+                            📝 {categoryTagCount} {categoryTagCount === 1 ? 'tag' : 'tags'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditCategory(category)}
+                          className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCategory(category.key)}
+                          className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
 
       {/* All Tags View */}
       {activeView === 'all' && (
         <div className="space-y-6">
-          {Object.entries(tagsByCategory).map(([category, categoryTags]) => (
-            <div key={category} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                <h2 className="text-xl font-semibold">
-                  {categoryLabels[category as keyof typeof categoryLabels]} ({categoryTags.length})
+          {Object.entries(tagsByCategory).filter(([_, categoryTags]) => categoryTags.length > 0).length === 0 ? (
+            <div className="bg-white rounded-lg p-12 text-center border border-gray-200">
+              <div className="text-4xl mb-4">📝</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No tags yet</h3>
+              <p className="text-gray-600 mb-6">Get started by adding your first tag</p>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                + Add Your First Tag
+              </button>
+            </div>
+          ) : (
+            Object.entries(tagsByCategory)
+              .filter(([_, categoryTags]) => categoryTags.length > 0) // Only show categories with tags
+              .map(([category, categoryTags]) => (
+            <div key={category} className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
+                <h2 className="text-xl font-bold text-gray-50">
+                  {categoryLabels[category as keyof typeof categoryLabels]} 
+                  <span className="ml-2 text-sm font-normal text-gray-500">({categoryTags.length} tags)</span>
                 </h2>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-gray-100 border-b-2 border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
                         Tag Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
                         Description
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">
                         Times Used
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">
                         Last Used
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-gray-100">
                     {categoryTags.map(tag => (
-                      <tr key={tag.id} className={!tag.is_active ? 'bg-gray-50 opacity-60' : ''}>
+                      <tr key={tag.id} className={!tag.is_active ? 'bg-gray-50 opacity-60' : 'hover:bg-gray-50 transition-colors'}>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{tag.tag_value}</div>
+                          <div className="text-sm font-semibold text-gray-900">{tag.tag_value}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-600 max-w-xs truncate">
-                            {tag.description || '-'}
+                            {tag.description || <span className="text-gray-400 italic">No description</span>}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{tag.times_used}</div>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="text-sm font-medium text-gray-900">{tag.times_used}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
                           <div className="text-sm text-gray-600">
                             {tag.last_used_at
-                              ? new Date(tag.last_used_at).toLocaleDateString()
-                              : 'Never'
+                              ? new Date(tag.last_used_at).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })
+                              : <span className="text-gray-400 italic">Never</span>
                             }
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs rounded-full ${
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
                             tag.is_active
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
+                              ? 'bg-green-100 text-green-800 border border-green-200'
+                              : 'bg-gray-100 text-gray-600 border border-gray-200'
                           }`}>
                             {tag.is_active ? 'Active' : 'Archived'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex gap-2 justify-end">
+                          <div className="flex gap-2 justify-end items-center">
                             <button
                               onClick={() => handleEditTag(tag)}
-                              className="text-blue-600 hover:text-blue-900"
+                              className="px-3 py-1.5 text-xs font-medium text-blue-700 hover:text-blue-900 hover:bg-blue-50 rounded-md transition-colors"
                             >
                               Edit
                             </button>
                             {tag.times_used > 0 && (
                               <button
                                 onClick={() => handleMergeTag(tag)}
-                                className="text-purple-600 hover:text-purple-900"
+                                className="px-3 py-1.5 text-xs font-medium text-purple-700 hover:text-purple-900 hover:bg-purple-50 rounded-md transition-colors"
                               >
                                 Merge
                               </button>
@@ -263,7 +680,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
                             {tag.is_active ? (
                               <button
                                 onClick={() => handleArchiveTag(tag)}
-                                className="text-yellow-600 hover:text-yellow-900"
+                                className="px-3 py-1.5 text-xs font-medium text-yellow-700 hover:text-yellow-900 hover:bg-yellow-50 rounded-md transition-colors"
                               >
                                 Archive
                               </button>
@@ -281,7 +698,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
                                     ))
                                   }
                                 }}
-                                className="text-green-600 hover:text-green-900"
+                                className="px-3 py-1.5 text-xs font-medium text-green-700 hover:text-green-900 hover:bg-green-50 rounded-md transition-colors"
                               >
                                 Activate
                               </button>
@@ -289,7 +706,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
                             {tag.times_used === 0 && (
                               <button
                                 onClick={() => handleDeleteTag(tag)}
-                                className="text-red-600 hover:text-red-900"
+                                className="px-3 py-1.5 text-xs font-medium text-red-700 hover:text-red-900 hover:bg-red-50 rounded-md transition-colors"
                               >
                                 Delete
                               </button>
@@ -302,7 +719,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
                 </table>
               </div>
             </div>
-          ))}
+          )))}
         </div>
       )}
 
@@ -409,10 +826,11 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       )}
 
       {/* Merge Tag Modal */}
-      {showMergeModal && selectedTag && (
+      {showMergeModal && selectedTag && vocabConfig && (
         <MergeTagModal
           sourceTag={selectedTag}
           allTags={tags.filter(t => t.category === selectedTag.category && t.id !== selectedTag.id && t.is_active)}
+          vocabConfig={vocabConfig}
           onClose={() => {
             setShowMergeModal(false)
             setSelectedTag(null)
@@ -422,10 +840,44 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       )}
 
       {/* Add Tag Modal */}
-      {showAddModal && (
+      {showAddModal && vocabConfig && (
         <AddTagModal
+          vocabConfig={vocabConfig}
           onClose={() => setShowAddModal(false)}
           onAdd={handleTagAdd}
+        />
+      )}
+
+      {/* Add Category Modal */}
+      {showAddCategoryModal && (
+        <AddCategoryModal
+          newCategory={newCategory}
+          setNewCategory={setNewCategory}
+          onSubmit={handleAddCategory}
+          onClose={() => {
+            setShowAddCategoryModal(false)
+            setNewCategory({
+              key: '',
+              label: '',
+              storage_type: 'jsonb_array',
+              storage_path: '',
+              search_weight: 2,
+              description: '',
+              placeholder: ''
+            })
+          }}
+        />
+      )}
+
+      {/* Edit Category Modal */}
+      {showEditCategoryModal && editingCategory && (
+        <EditCategoryModal
+          category={editingCategory}
+          onClose={() => {
+            setShowEditCategoryModal(false)
+            setEditingCategory(null)
+          }}
+          onSave={handleUpdateCategory}
         />
       )}
     </div>
@@ -524,11 +976,12 @@ function EditTagModal({ tag, onClose, onSave }: EditTagModalProps) {
 interface MergeTagModalProps {
   sourceTag: VocabularyTag
   allTags: VocabularyTag[]
+  vocabConfig: VocabularyConfig
   onClose: () => void
   onMerge: (sourceId: string, targetId: string) => void
 }
 
-function MergeTagModal({ sourceTag, allTags, onClose, onMerge }: MergeTagModalProps) {
+function MergeTagModal({ sourceTag, allTags, vocabConfig, onClose, onMerge }: MergeTagModalProps) {
   const [targetTagId, setTargetTagId] = useState('')
   const [isMerging, setIsMerging] = useState(false)
 
@@ -545,7 +998,13 @@ function MergeTagModal({ sourceTag, allTags, onClose, onMerge }: MergeTagModalPr
     setIsMerging(true)
 
     try {
-      // Get all reference images using the source tag
+      // Find the category config for the source tag
+      const categoryConfig = vocabConfig.structure.categories.find(cat => cat.key === sourceTag.category)
+      if (!categoryConfig) {
+        throw new Error(`Category configuration not found for ${sourceTag.category}`)
+      }
+
+      // Get all reference images
       const { data: images, error: fetchError } = await supabase
         .from('reference_images')
         .select('*')
@@ -555,54 +1014,67 @@ function MergeTagModal({ sourceTag, allTags, onClose, onMerge }: MergeTagModalPr
       const targetTag = allTags.find(t => t.id === targetTagId)
       if (!targetTag) throw new Error('Target tag not found')
 
+      // Helper function to get value from image based on storage_path
+      const getImageValue = (image: any, storagePath: string): any => {
+        if (storagePath.includes('.')) {
+          const parts = storagePath.split('.')
+          let value: any = image
+          for (const part of parts) {
+            value = value?.[part]
+          }
+          return value
+        } else {
+          return image[storagePath]
+        }
+      }
+
       // Update each image that uses the source tag
       for (const image of images || []) {
+        const currentValue = getImageValue(image, categoryConfig.storage_path)
+        
         let needsUpdate = false
         const updates: any = {}
 
-        // Check and update each category
-        if (sourceTag.category === 'industry' && image.industries?.includes(sourceTag.tag_value)) {
-          updates.industries = image.industries
-            .filter((t: string) => t !== sourceTag.tag_value)
-            .concat(targetTag.tag_value)
-          needsUpdate = true
-        }
-
-        if (sourceTag.category === 'project_type' && image.project_types?.includes(sourceTag.tag_value)) {
-          updates.project_types = image.project_types
-            .filter((t: string) => t !== sourceTag.tag_value)
-            .concat(targetTag.tag_value)
-          needsUpdate = true
-        }
-
-        if (sourceTag.category === 'style' && image.tags?.style?.includes(sourceTag.tag_value)) {
-          updates.tags = {
-            ...image.tags,
-            style: image.tags.style
+        if (categoryConfig.storage_type === 'array' || categoryConfig.storage_type === 'jsonb_array') {
+          // For array types, check if the source tag is in the array
+          if (Array.isArray(currentValue) && currentValue.includes(sourceTag.tag_value)) {
+            // Remove source tag and add target tag
+            const newValue = currentValue
               .filter((t: string) => t !== sourceTag.tag_value)
               .concat(targetTag.tag_value)
+            
+            // Build update object dynamically based on storage_path
+            if (categoryConfig.storage_path.includes('.')) {
+              const parts = categoryConfig.storage_path.split('.')
+              const topLevel = parts[0]
+              const nested = parts[1]
+              updates[topLevel] = {
+                ...image[topLevel],
+                [nested]: newValue
+              }
+            } else {
+              updates[categoryConfig.storage_path] = newValue
+            }
+            
+            needsUpdate = true
           }
-          needsUpdate = true
-        }
-
-        if (sourceTag.category === 'mood' && image.tags?.mood?.includes(sourceTag.tag_value)) {
-          updates.tags = {
-            ...image.tags,
-            mood: image.tags.mood
-              .filter((t: string) => t !== sourceTag.tag_value)
-              .concat(targetTag.tag_value)
+        } else if (categoryConfig.storage_type === 'text') {
+          // For text types, check if it matches exactly
+          if (currentValue === sourceTag.tag_value) {
+            if (categoryConfig.storage_path.includes('.')) {
+              const parts = categoryConfig.storage_path.split('.')
+              const topLevel = parts[0]
+              const nested = parts[1]
+              updates[topLevel] = {
+                ...image[topLevel],
+                [nested]: targetTag.tag_value
+              }
+            } else {
+              updates[categoryConfig.storage_path] = targetTag.tag_value
+            }
+            
+            needsUpdate = true
           }
-          needsUpdate = true
-        }
-
-        if (sourceTag.category === 'element' && image.tags?.elements?.includes(sourceTag.tag_value)) {
-          updates.tags = {
-            ...image.tags,
-            elements: image.tags.elements
-              .filter((t: string) => t !== sourceTag.tag_value)
-              .concat(targetTag.tag_value)
-          }
-          needsUpdate = true
         }
 
         if (needsUpdate) {
@@ -687,12 +1159,14 @@ function MergeTagModal({ sourceTag, allTags, onClose, onMerge }: MergeTagModalPr
 
 // Add Tag Modal
 interface AddTagModalProps {
+  vocabConfig: VocabularyConfig
   onClose: () => void
   onAdd: (newTag: VocabularyTag) => void
 }
 
-function AddTagModal({ onClose, onAdd }: AddTagModalProps) {
-  const [category, setCategory] = useState('industry')
+function AddTagModal({ vocabConfig, onClose, onAdd }: AddTagModalProps) {
+  // Initialize with the first category from config
+  const [category, setCategory] = useState(vocabConfig.structure.categories[0]?.key || '')
   const [tagValue, setTagValue] = useState('')
   const [description, setDescription] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -742,67 +1216,420 @@ function AddTagModal({ onClose, onAdd }: AddTagModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <h2 className="text-xl font-bold mb-4">Add New Tag</h2>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border-2 border-gray-200">
+        {/* Header */}
+        <div className="px-8 py-6 border-b-2 border-gray-100">
+          <h2 className="text-3xl font-bold text-gray-900">✨ Add New Tag</h2>
+          <p className="text-gray-600 mt-2">Create a new tag for your vocabulary</p>
+        </div>
 
-        <div className="space-y-4">
+        {/* Content */}
+        <div className="px-8 py-6 space-y-6">
+          {/* Category Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Category *
             </label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 font-semibold transition-all hover:border-gray-400 cursor-pointer"
             >
-              <option value="industry">Industry</option>
-              <option value="project_type">Project Type</option>
-              <option value="style">Style</option>
-              <option value="mood">Mood</option>
-              <option value="element">Element</option>
+              {vocabConfig.structure.categories.map(cat => (
+                <option key={cat.key} value={cat.key}>
+                  {cat.label}
+                </option>
+              ))}
             </select>
           </div>
 
+          {/* Tag Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tag Name
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Tag Name *
             </label>
             <input
               type="text"
               value={tagValue}
               onChange={(e) => setTagValue(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="e.g., minimalist, luxury, etc."
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400"
+              placeholder="e.g., minimalist, luxury, modern..."
+              autoFocus
             />
           </div>
 
+          {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description (optional)
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Description
+              <span className="text-gray-500 text-xs font-normal ml-2 lowercase">(optional)</span>
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="Add a description for this tag..."
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400 resize-none"
+              placeholder="Add a helpful description for this tag..."
             />
           </div>
+        </div>
 
-          <div className="flex gap-3 pt-4">
+        {/* Footer */}
+        <div className="px-8 py-6 bg-gray-50 rounded-b-2xl border-t-2 border-gray-100 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-6 py-3 bg-white border-2 border-gray-300 text-gray-900 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleAdd}
+            disabled={isAdding || !tagValue.trim()}
+            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:shadow-lg transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isAdding ? '⏳ Adding...' : '✓ Add Tag'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Add Category Modal
+interface AddCategoryModalProps {
+  newCategory: {
+    key: string
+    label: string
+    storage_type: 'array' | 'jsonb_array' | 'text'
+    storage_path: string
+    search_weight: number
+    description: string
+    placeholder: string
+  }
+  setNewCategory: (category: any) => void
+  onSubmit: (e: React.FormEvent) => void
+  onClose: () => void
+}
+
+function AddCategoryModal({ newCategory, setNewCategory, onSubmit, onClose }: AddCategoryModalProps) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border-2 border-gray-200 max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="px-8 py-6 border-b-2 border-gray-100">
+          <h2 className="text-3xl font-bold text-gray-900">📂 Add New Category</h2>
+          <p className="text-gray-600 mt-2">Configure a new category for organizing your tags</p>
+        </div>
+        
+        {/* Scrollable Content */}
+        <div className="overflow-y-auto flex-1">
+          <form id="add-category-form" onSubmit={onSubmit} className="px-8 py-6 space-y-6">
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Category Key *
+            </label>
+            <p className="text-xs text-gray-600 mb-2">
+              💡 Lowercase with underscores only (e.g., "color_palette")
+            </p>
+            <input
+              type="text"
+              value={newCategory.key}
+              onChange={(e) => setNewCategory({
+                ...newCategory, 
+                key: e.target.value.toLowerCase().replace(/[^a-z_]/g, '')
+              })}
+              placeholder="color_palette"
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-mono bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400"
+              required
+              autoFocus
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Display Label *
+            </label>
+            <input
+              type="text"
+              value={newCategory.label}
+              onChange={(e) => setNewCategory({...newCategory, label: e.target.value})}
+              placeholder="Color Palette"
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Storage Type *
+            </label>
+            <select
+              value={newCategory.storage_type}
+              onChange={(e) => setNewCategory({
+                ...newCategory, 
+                storage_type: e.target.value as 'array' | 'jsonb_array' | 'text'
+              })}
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900 font-semibold transition-all hover:border-gray-400 cursor-pointer"
+              required
+            >
+              <option value="jsonb_array">JSONB Array (for nested in tags.*)</option>
+              <option value="array">Array (for direct fields)</option>
+              <option value="text">Text (for notes/descriptions)</option>
+            </select>
+            <div className="mt-3 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-900 leading-relaxed">
+                <span className="font-bold">Array:</span> Direct database field (e.g., industries)<br/>
+                <span className="font-bold">JSONB Array:</span> Nested in tags field (e.g., tags.style)<br/>
+                <span className="font-bold">Text:</span> Single text field (e.g., notes)
+              </p>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Storage Path *
+            </label>
+            <p className="text-xs text-gray-600 mb-2">
+              {newCategory.storage_type === 'jsonb_array' 
+                ? '💡 Use format: tags.your_category_key' 
+                : '💡 Use format: your_category_key'}
+            </p>
+            <input
+              type="text"
+              value={newCategory.storage_path}
+              onChange={(e) => setNewCategory({...newCategory, storage_path: e.target.value})}
+              placeholder={
+                newCategory.storage_type === 'jsonb_array' 
+                  ? 'tags.color_palette' 
+                  : 'color_palette'
+              }
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-mono bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Search Weight *
+            </label>
+            <p className="text-xs text-gray-600 mb-2">
+              🔍 1-10, higher = more important in search
+            </p>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={newCategory.search_weight}
+              onChange={(e) => setNewCategory({
+                ...newCategory, 
+                search_weight: parseInt(e.target.value)
+              })}
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Description
+              <span className="text-gray-500 text-xs font-normal ml-2 lowercase">(optional)</span>
+            </label>
+            <textarea
+              value={newCategory.description}
+              onChange={(e) => setNewCategory({...newCategory, description: e.target.value})}
+              placeholder="What this category is for..."
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400 resize-none"
+              rows={2}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Placeholder
+              <span className="text-gray-500 text-xs font-normal ml-2 lowercase">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={newCategory.placeholder}
+              onChange={(e) => setNewCategory({...newCategory, placeholder: e.target.value})}
+              placeholder="e.g., warm, cool, vibrant..."
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400"
+            />
+          </div>
+          </form>
+        </div>
+          
+        {/* Footer */}
+        <div className="px-8 py-6 bg-gray-50 rounded-b-2xl border-t-2 border-gray-100">
+          <div className="flex gap-3">
             <button
+              type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition-colors"
+              className="flex-1 px-6 py-3 bg-white border-2 border-gray-300 text-gray-900 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-all font-semibold"
             >
               Cancel
             </button>
             <button
-              onClick={handleAdd}
-              disabled={isAdding || !tagValue.trim()}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              type="submit"
+              form="add-category-form"
+              className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 hover:shadow-lg transition-all font-semibold"
             >
-              {isAdding ? 'Adding...' : 'Add Tag'}
+              ✓ Add Category
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Edit Category Modal
+interface EditCategoryModalProps {
+  category: VocabularyCategory
+  onClose: () => void
+  onSave: (categoryKey: string, updates: Partial<VocabularyCategory>) => void
+}
+
+function EditCategoryModal({ category, onClose, onSave }: EditCategoryModalProps) {
+  const [label, setLabel] = useState(category.label)
+  const [description, setDescription] = useState(category.description || '')
+  const [placeholder, setPlaceholder] = useState(category.placeholder || '')
+  const [searchWeight, setSearchWeight] = useState(category.search_weight)
+
+  const handleSave = async () => {
+    await onSave(category.key, {
+      label,
+      description: description || undefined,
+      placeholder: placeholder || undefined,
+      search_weight: searchWeight
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border-2 border-gray-200 max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="px-8 py-6 border-b-2 border-gray-100">
+          <h2 className="text-3xl font-bold text-gray-900">✏️ Edit Category</h2>
+          <p className="text-gray-600 mt-2">Update properties for "{category.label}"</p>
+        </div>
+
+        {/* Info Banner */}
+        <div className="px-8 pt-6">
+          <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-900 font-medium">
+              <span className="font-bold">⚠️ Note:</span> Key, storage type, and storage path are read-only to protect existing data integrity.
+            </p>
+          </div>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="overflow-y-auto flex-1 px-8 py-6 space-y-6">
+          {/* Read-only Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-6 border-b-2 border-gray-100">
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">
+                Category Key
+              </label>
+              <div className="px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-lg text-gray-600 font-mono text-sm">
+                {category.key}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">
+                Storage Type
+              </label>
+              <div className="px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-lg text-gray-600 text-sm">
+                {category.storage_type}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">
+                Storage Path
+              </label>
+              <div className="px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-lg text-gray-600 font-mono text-sm">
+                {category.storage_path}
+              </div>
+            </div>
+          </div>
+
+          {/* Editable Fields */}
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Display Label *
+            </label>
+            <input
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400"
+              required
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Search Weight *
+            </label>
+            <p className="text-xs text-gray-600 mb-2">
+              🔍 1-10, higher = more important in search
+            </p>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={searchWeight}
+              onChange={(e) => setSearchWeight(parseInt(e.target.value))}
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900 transition-all hover:border-gray-400"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Description
+              <span className="text-gray-500 text-xs font-normal ml-2 lowercase">(optional)</span>
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What this category is for..."
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400 resize-none"
+              rows={2}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
+              Placeholder
+              <span className="text-gray-500 text-xs font-normal ml-2 lowercase">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={placeholder}
+              onChange={(e) => setPlaceholder(e.target.value)}
+              placeholder="e.g., warm, cool, vibrant..."
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-8 py-6 bg-gray-50 rounded-b-2xl border-t-2 border-gray-100">
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-6 py-3 bg-white border-2 border-gray-300 text-gray-900 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-all font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 hover:shadow-lg transition-all font-semibold"
+            >
+              ✓ Save Changes
             </button>
           </div>
         </div>

@@ -199,7 +199,7 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       {/* Prompt Monitoring & Controls */}
       <section>
         <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg shadow-lg p-6">
@@ -301,44 +301,44 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
 
       {/* Overall Performance Metrics */}
       <section>
-        <h2 className="text-2xl font-bold mb-4">Overall Performance</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <h2 className="text-3xl font-bold text-gray-50 mb-6">Overall Performance</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Images */}
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="text-sm text-gray-600 mb-1">Images Analyzed</div>
-            <div className="text-3xl font-bold text-gray-900">
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Images Analyzed</div>
+            <div className="text-5xl font-bold text-gray-900 mb-2">
               {analytics.overallMetrics.totalImagesAnalyzed}
             </div>
             <div className="text-xs text-gray-500 mt-1">with AI suggestions</div>
           </div>
 
           {/* Average Confidence */}
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="text-sm text-gray-600 mb-1">Avg AI Confidence</div>
-            <div className="text-3xl font-bold text-blue-600">
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Avg AI Confidence</div>
+            <div className="text-5xl font-bold text-blue-600 mb-3">
               {analytics.overallMetrics.averageConfidence}%
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+            <div className="w-full bg-gray-200 rounded-full h-3 mt-2">
               <div
-                className="bg-blue-600 h-2 rounded-full transition-all"
+                className="bg-blue-600 h-3 rounded-full transition-all duration-300"
                 style={{ width: `${analytics.overallMetrics.averageConfidence}%` }}
               />
             </div>
           </div>
 
           {/* Overall Accuracy */}
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="text-sm text-gray-600 mb-1">Overall Accuracy</div>
-            <div className={`text-3xl font-bold ${
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Overall Accuracy</div>
+            <div className={`text-5xl font-bold mb-3 ${
               analytics.overallMetrics.overallAccuracy >= 80 ? 'text-green-600' :
               analytics.overallMetrics.overallAccuracy >= 60 ? 'text-yellow-600' :
               'text-red-600'
             }`}>
               {analytics.overallMetrics.overallAccuracy}%
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+            <div className="w-full bg-gray-200 rounded-full h-3 mt-2">
               <div
-                className={`h-2 rounded-full transition-all ${
+                className={`h-3 rounded-full transition-all duration-300 ${
                   analytics.overallMetrics.overallAccuracy >= 80 ? 'bg-green-600' :
                   analytics.overallMetrics.overallAccuracy >= 60 ? 'bg-yellow-600' :
                   'bg-red-600'
@@ -349,9 +349,9 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
           </div>
 
           {/* Accuracy Trend */}
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="text-sm text-gray-600 mb-1">Accuracy Trend</div>
-            <div className={`text-3xl font-bold ${
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Accuracy Trend</div>
+            <div className={`text-5xl font-bold mb-3 ${
               analytics.overallMetrics.accuracyTrend === 'improving' ? 'text-green-600' :
               analytics.overallMetrics.accuracyTrend === 'declining' ? 'text-red-600' :
               'text-gray-600'
@@ -361,7 +361,7 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
                '➡️'}
             </div>
             <div className="text-sm mt-1">
-              <span className={`font-semibold ${
+              <span className={`font-bold ${
                 analytics.overallMetrics.trendPercentage > 0 ? 'text-green-600' :
                 analytics.overallMetrics.trendPercentage < 0 ? 'text-red-600' :
                 'text-gray-600'
@@ -377,8 +377,8 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
 
       {/* Category Breakdown */}
       <section>
-        <h2 className="text-2xl font-bold mb-4">Tag Category Performance</h2>
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+        <h2 className="text-3xl font-bold text-gray-50 mb-6">Tag Category Performance</h2>
+        <div className="bg-white rounded-xl shadow-md p-8 border border-gray-200">
           <div className="space-y-6">
             {analytics.categoryBreakdown.map(cat => {
               const maxValue = Math.max(cat.avgSuggestedByAI, cat.avgSelectedByDesigner, 5)
@@ -434,42 +434,43 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
       </section>
 
       {/* Missed Tags & Wrong Suggestions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Missed Tags */}
         <section>
-          <h2 className="text-2xl font-bold mb-4">Tags AI Frequently Misses</h2>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <h2 className="text-3xl font-bold text-gray-50 mb-6">Tags AI Frequently Misses</h2>
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             {analytics.missedTags.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                No missed tags data available yet
+              <div className="p-12 text-center">
+                <div className="text-6xl mb-4">📊</div>
+                <p className="text-gray-500 font-medium">No missed tags data available yet</p>
               </div>
             ) : (
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-gray-100 border-b-2 border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tag</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Category</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Count</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">%</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">Rank</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Tag</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Category</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">Count</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">Rate</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {analytics.missedTags.map((tag, index) => (
-                    <tr key={tag.tag} className={tag.percentage > 30 ? 'bg-red-50' : ''}>
-                      <td className="px-4 py-3 text-sm text-gray-500">{index + 1}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{tag.tag}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 capitalize">
+                    <tr key={tag.tag} className={`transition-colors ${tag.percentage > 30 ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
+                      <td className="px-6 py-4 text-sm text-gray-500 text-center font-medium">{index + 1}</td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">{tag.tag}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 capitalize">
                         {tag.category.replace('_', ' ')}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
+                      <td className="px-6 py-4 text-sm text-gray-900 text-center font-semibold">
                         {tag.count}
                       </td>
-                      <td className="px-4 py-3 text-sm text-right">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          tag.percentage > 30 ? 'bg-red-100 text-red-800' :
-                          tag.percentage > 20 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
+                      <td className="px-6 py-4 text-center">
+                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                          tag.percentage > 30 ? 'bg-red-100 text-red-800 border border-red-200' :
+                          tag.percentage > 20 ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                          'bg-gray-100 text-gray-800 border border-gray-200'
                         }`}>
                           {tag.percentage}%
                         </span>
@@ -484,39 +485,40 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
 
         {/* Wrong Suggestions */}
         <section>
-          <h2 className="text-2xl font-bold mb-4">Tags AI Wrongly Suggests</h2>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <h2 className="text-3xl font-bold text-gray-50 mb-6">Tags AI Wrongly Suggests</h2>
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             {analytics.wrongTags.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                No wrong suggestions data available yet
+              <div className="p-12 text-center">
+                <div className="text-6xl mb-4">📊</div>
+                <p className="text-gray-500 font-medium">No wrong suggestions data available yet</p>
               </div>
             ) : (
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-gray-100 border-b-2 border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tag</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Category</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Count</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">%</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">Rank</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Tag</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Category</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">Count</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">Rate</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {analytics.wrongTags.map((tag, index) => (
-                    <tr key={tag.tag} className={tag.percentage > 40 ? 'bg-orange-50' : ''}>
-                      <td className="px-4 py-3 text-sm text-gray-500">{index + 1}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{tag.tag}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 capitalize">
+                    <tr key={tag.tag} className={`transition-colors ${tag.percentage > 40 ? 'bg-orange-50 hover:bg-orange-100' : 'hover:bg-gray-50'}`}>
+                      <td className="px-6 py-4 text-sm text-gray-500 text-center font-medium">{index + 1}</td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">{tag.tag}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 capitalize">
                         {tag.category.replace('_', ' ')}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
+                      <td className="px-6 py-4 text-sm text-gray-900 text-center font-semibold">
                         {tag.count}
                       </td>
-                      <td className="px-4 py-3 text-sm text-right">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          tag.percentage > 40 ? 'bg-orange-100 text-orange-800' :
-                          tag.percentage > 30 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
+                      <td className="px-6 py-4 text-center">
+                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                          tag.percentage > 40 ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+                          tag.percentage > 30 ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                          'bg-gray-100 text-gray-800 border border-gray-200'
                         }`}>
                           {tag.percentage}%
                         </span>
@@ -532,8 +534,8 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
 
       {/* Confidence vs Accuracy Correlation */}
       <section>
-        <h2 className="text-2xl font-bold mb-4">Confidence vs Accuracy Correlation</h2>
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+        <h2 className="text-3xl font-bold text-gray-50 mb-6">Confidence vs Accuracy Correlation</h2>
+        <div className="bg-white rounded-xl shadow-md p-8 border border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {analytics.confidenceBuckets.map(bucket => (
               <div key={bucket.range} className="text-center">
@@ -576,8 +578,8 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
 
       {/* Actionable Insights */}
       <section>
-        <h2 className="text-2xl font-bold mb-4">Actionable Insights</h2>
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+        <h2 className="text-3xl font-bold text-gray-50 mb-6">Actionable Insights</h2>
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-md p-8 border-2 border-blue-200">
           <div className="space-y-3">
             {analytics.insights.map((insight, index) => (
               <div key={index} className="flex gap-3 items-start">
@@ -593,93 +595,94 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
 
       {/* Image-Level Analysis */}
       <section>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Image-Level Analysis</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-3xl font-bold text-gray-50">Image-Level Analysis</h2>
           <button
             onClick={handleExportPDF}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:shadow-md transition-all duration-200 text-sm font-semibold"
           >
-            Export Report
+            📊 Export Report
           </button>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
           {analytics.imageAnalysis.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No image analysis data available yet
+            <div className="p-12 text-center">
+              <div className="text-6xl mb-4">📊</div>
+              <p className="text-gray-500 font-medium">No image analysis data available yet</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-gray-100 border-b-2 border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Image</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Filename</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">AI Confidence</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Corrections</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Correction %</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Image</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Filename</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">AI Confidence</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">Corrections</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">Correction %</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {analytics.imageAnalysis.slice(0, 20).map(img => (
-                    <tr key={img.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
+                    <tr key={img.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
                         <Image
                           src={img.thumbnail_path}
                           alt={img.original_filename}
-                          width={60}
-                          height={60}
-                          className="rounded object-cover"
+                          width={64}
+                          height={64}
+                          className="rounded-lg object-cover shadow-sm"
                         />
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900 max-w-xs truncate">
                         {img.original_filename}
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          (img.ai_confidence_score || 0) >= 0.85 ? 'bg-green-100 text-green-800' :
-                          (img.ai_confidence_score || 0) >= 0.70 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
+                      <td className="px-6 py-4 text-center">
+                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                          (img.ai_confidence_score || 0) >= 0.85 ? 'bg-green-100 text-green-800 border border-green-200' :
+                          (img.ai_confidence_score || 0) >= 0.70 ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                          'bg-red-100 text-red-800 border border-red-200'
                         }`}>
                           {((img.ai_confidence_score || 0) * 100).toFixed(0)}%
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm">
+                      <td className="px-6 py-4 text-sm">
                         {img.corrections ? (
                           <div className="space-y-1">
                             {img.corrections.tags_added.length > 0 && (
-                              <div className="text-green-600">
-                                +{img.corrections.tags_added.length} added
+                              <div className="text-green-700 font-medium">
+                                ✓ {img.corrections.tags_added.length} added
                               </div>
                             )}
                             {img.corrections.tags_removed.length > 0 && (
-                              <div className="text-red-600">
-                                -{img.corrections.tags_removed.length} removed
+                              <div className="text-red-700 font-medium">
+                                ✗ {img.corrections.tags_removed.length} removed
                               </div>
                             )}
                             {img.corrections.tags_added.length === 0 &&
                              img.corrections.tags_removed.length === 0 && (
-                              <div className="text-gray-400">None</div>
+                              <div className="text-gray-400 italic">None</div>
                             )}
                           </div>
                         ) : (
-                          <div className="text-gray-400">No data</div>
+                          <div className="text-gray-400 italic">No data</div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          img.correctionPercentage === 0 ? 'bg-green-100 text-green-800' :
-                          img.correctionPercentage < 30 ? 'bg-blue-100 text-blue-800' :
-                          img.correctionPercentage < 60 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
+                      <td className="px-6 py-4 text-center">
+                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                          img.correctionPercentage === 0 ? 'bg-green-100 text-green-800 border border-green-200' :
+                          img.correctionPercentage < 30 ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                          img.correctionPercentage < 60 ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                          'bg-red-100 text-red-800 border border-red-200'
                         }`}>
                           {img.correctionPercentage}%
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => setSelectedImage(img)}
-                          className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                          className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg font-semibold transition-colors"
                         >
                           View Details
                         </button>

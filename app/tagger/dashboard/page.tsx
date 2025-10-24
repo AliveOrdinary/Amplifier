@@ -140,7 +140,7 @@ export default async function DashboardPage() {
         {/* Header with Sign Out Button */}
         <div className="mb-8 flex justify-between items-start">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Reference Image Tagger</h1>
+            <h1 className="text-4xl font-bold text-gray-50 mb-2">Reference Image Tagger</h1>
             <p className="text-gray-600">
               Manage your design reference library with AI-powered tagging
             </p>
