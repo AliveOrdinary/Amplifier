@@ -299,34 +299,12 @@ export default function ImageTaggerClient() {
       // Convert resized image to base64
       const base64Image = await blobToBase64(resizedBlob)
 
-      // Transform vocabulary keys to match API schema (snake_case to camelCase)
-      // API requires: industries, projectTypes, styles, moods, elements
-      const transformedVocabulary: Record<string, string[]> = {
-        industries: [],
-        projectTypes: [],
-        styles: [],
-        moods: [],
-        elements: []
-      }
-
-      // Map vocabulary config keys to API schema keys
-      Object.entries(vocabulary).forEach(([key, value]) => {
-        let apiKey = key
-        // Handle known mappings
-        if (key === 'project_types') apiKey = 'projectTypes'
-        // Populate if the key matches one of the required API keys
-        if (apiKey in transformedVocabulary) {
-          transformedVocabulary[apiKey] = value || []
-        }
-      })
-
       console.log('📤 Sending vocabulary to API:', {
-        originalKeys: Object.keys(vocabulary),
-        transformedKeys: Object.keys(transformedVocabulary),
-        sizes: Object.entries(transformedVocabulary).map(([k, v]) => `${k}: ${v.length}`)
+        categories: Object.keys(vocabulary),
+        sizes: Object.entries(vocabulary).map(([k, v]) => `${k}: ${v.length}`)
       })
 
-      // Call API
+      // Call API with dynamic vocabulary structure
       const response = await fetch('/api/suggest-tags', {
         method: 'POST',
         headers: {
@@ -334,7 +312,7 @@ export default function ImageTaggerClient() {
         },
         body: JSON.stringify({
           image: base64Image,
-          vocabulary: transformedVocabulary,
+          vocabulary,
         }),
       })
 
@@ -345,20 +323,11 @@ export default function ImageTaggerClient() {
         throw new Error(errorMessage)
       }
 
-      const apiSuggestions: AISuggestion = await response.json()
+      const suggestions: AISuggestion = await response.json()
 
-      console.log('✨ AI suggestions received:', apiSuggestions)
+      console.log('✨ AI suggestions received:', suggestions)
 
-      // Transform suggestions keys from camelCase back to snake_case for config compatibility
-      const suggestions: AISuggestion = { ...apiSuggestions }
-      
-      // Map API response keys back to vocabulary config keys
-      if (apiSuggestions.projectTypes) {
-        suggestions.project_types = apiSuggestions.projectTypes
-        delete suggestions.projectTypes
-      }
-      
-      // Ensure all config keys exist in suggestions
+      // Ensure all vocabulary categories have entries (even if empty)
       Object.keys(vocabulary).forEach(key => {
         if (!(key in suggestions)) {
           suggestions[key] = []

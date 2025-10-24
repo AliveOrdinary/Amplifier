@@ -62,13 +62,7 @@ export async function POST(request: NextRequest) {
     const scoredImages = images.map(image => {
       let score = 0;
       const matchedKeywords: string[] = [];
-      const matchedOn = {
-        industries: [] as string[],
-        project_types: [] as string[],
-        styles: [] as string[],
-        moods: [] as string[],
-        elements: [] as string[]
-      };
+      const matchedOn: Record<string, string[]> = {};
 
       keywords.forEach(keyword => {
         const keywordLower = keyword.toLowerCase();
@@ -98,16 +92,12 @@ export async function POST(request: NextRequest) {
                   score += weight;
                   if (!matchedKeywords.includes(keyword)) matchedKeywords.push(keyword);
 
-                  // Map category key to matchedOn structure
-                  let matchedOnKey = categoryKey;
-                  if (categoryKey === 'style') matchedOnKey = 'styles';
-                  if (categoryKey === 'mood') matchedOnKey = 'moods';
-
-                  if (!matchedOn[matchedOnKey as keyof typeof matchedOn]) {
-                    (matchedOn as any)[matchedOnKey] = [];
+                  // Store matched items by category key
+                  if (!matchedOn[categoryKey]) {
+                    matchedOn[categoryKey] = [];
                   }
-                  if (!(matchedOn[matchedOnKey as keyof typeof matchedOn] as string[]).includes(item)) {
-                    (matchedOn[matchedOnKey as keyof typeof matchedOn] as string[]).push(item);
+                  if (!matchedOn[categoryKey].includes(item)) {
+                    matchedOn[categoryKey].push(item);
                   }
                 }
               });
@@ -121,28 +111,43 @@ export async function POST(request: NextRequest) {
         });
       });
 
-      // Build matched_on for display (map to expected structure for backward compatibility)
-      const displayMatchedOn = {
-        industries: matchedOn.industries || [],
-        project_types: matchedOn.project_types || [],
-        styles: matchedOn.style || [],
-        moods: matchedOn.mood || [],
-        elements: matchedOn.elements || []
-      };
-
-      return {
+      // Build result with dynamic category fields from the image
+      const result: ReferenceImage = {
         id: image.id,
         thumbnail_path: image.thumbnail_path,
         storage_path: image.storage_path,
         original_filename: image.original_filename,
-        industries: image.industries || [],
-        project_types: image.project_types || [],
-        tags: image.tags || { style: [], mood: [], elements: [] },
         notes: image.notes,
         match_score: score,
         matched_keywords: matchedKeywords,
-        matched_on: displayMatchedOn
-      } as ReferenceImage;
+        matched_on: matchedOn
+      };
+
+      // Copy all dynamic category fields from image based on vocabulary config
+      categories.forEach((category: any) => {
+        const path = category.storage_path;
+        let value;
+        
+        if (path.includes('.')) {
+          // Nested path like "tags.style"
+          const parts = path.split('.');
+          if (!result[parts[0]]) {
+            result[parts[0]] = {};
+          }
+          value = image[parts[0]]?.[parts[1]];
+          if (value !== undefined) {
+            result[parts[0]][parts[1]] = value;
+          }
+        } else {
+          // Direct path like "industries"
+          value = image[path];
+          if (value !== undefined) {
+            result[path] = value;
+          }
+        }
+      });
+
+      return result;
     });
 
     // Filter by minimum score and sort

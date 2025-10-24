@@ -12,13 +12,6 @@ interface ReferenceImage {
   storage_path: string
   thumbnail_path: string
   original_filename: string
-  industries: string[]
-  project_types: string[]
-  tags: {
-    style: string[]
-    mood: string[]
-    elements: string[]
-  }
   notes: string | null
   status: string
   tagged_at: string
@@ -26,71 +19,92 @@ interface ReferenceImage {
   ai_suggested_tags: any
   ai_confidence_score: number | null
   ai_reasoning: string | null
+  // Dynamic category fields from vocabulary config
+  [key: string]: any
 }
 
 interface GalleryClientProps {
   images: ReferenceImage[]
 }
 
-interface TagVocabulary {
-  industries: string[]
-  projectTypes: string[]
-  styles: string[]
-  moods: string[]
-  elements: string[]
+interface VocabularyCategory {
+  key: string
+  label: string
+  description: string
+  placeholder: string
+  storage_path: string
+  storage_type: 'array' | 'jsonb_array' | 'text'
+  search_weight: number
 }
 
-// Helper function to update tag usage counts when tags change
+interface VocabularyConfig {
+  structure: {
+    categories: VocabularyCategory[]
+  }
+}
+
+interface TagVocabulary {
+  [categoryKey: string]: string[]
+}
+
+interface TagVocabularyRow {
+  category: string
+  tag_value: string
+  sort_order: number
+}
+
+// Helper function to update tag usage counts when tags change (dynamic)
 async function updateTagUsageForChanges(
-  oldTags: { industries: string[], projectTypes: string[], styles: string[], moods: string[], elements: string[] },
-  newTags: { industries: string[], projectTypes: string[], styles: string[], moods: string[], elements: string[] }
+  oldTags: Record<string, string[]>,
+  newTags: Record<string, string[]>,
+  vocabularyConfig: any
 ) {
   try {
     const now = new Date().toISOString()
 
-    // Map frontend categories to database categories
-    const categoryMap = {
-      industries: 'industry',
-      projectTypes: 'project_type',
-      styles: 'style',
-      moods: 'mood',
-      elements: 'elements'
-    }
+    // Fetch vocabulary config to get category mappings
+    if (!vocabularyConfig) return
 
-    // Track added and removed tags
-    const categories: Array<keyof typeof categoryMap> = ['industries', 'projectTypes', 'styles', 'moods', 'elements']
+    const categories = vocabularyConfig.structure?.categories || []
 
     for (const category of categories) {
-      const dbCategory = categoryMap[category]
-      const oldSet = new Set(oldTags[category] || [])
-      const newSet = new Set(newTags[category] || [])
+      const categoryKey = category.key
+      const dbCategory = category.storage_path.includes('.') 
+        ? category.storage_path.split('.')[1]  // e.g., "tags.style" -> "style"
+        : category.storage_path  // e.g., "industries" -> "industries"
 
-      // Find added tags (in new but not in old)
-      const added = Array.from(newSet).filter(tag => !oldSet.has(tag))
+      // For array-type categories only
+      if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+        const oldSet = new Set(oldTags[categoryKey] || [])
+        const newSet = new Set(newTags[categoryKey] || [])
 
-      // Find removed tags (in old but not in new)
-      const removed = Array.from(oldSet).filter(tag => !newSet.has(tag))
+        // Find added tags (in new but not in old)
+        const added = Array.from(newSet).filter(tag => !oldSet.has(tag))
 
-      // Increment counts for added tags
-      for (const tag of added) {
-        const { error } = await supabase.rpc('increment_tag_usage', {
-          p_category: dbCategory,
-          p_tag_value: tag,
-          p_last_used_at: now
-        })
-        if (error) {
-          console.error(`⚠️ Error incrementing usage for ${dbCategory}:${tag}:`, error)
+        // Find removed tags (in old but not in new)
+        const removed = Array.from(oldSet).filter(tag => !newSet.has(tag))
+
+        // Increment counts for added tags
+        for (const tag of added) {
+          const { error } = await supabase.rpc('increment_tag_usage', {
+            p_category: dbCategory,
+            p_tag_value: tag,
+            p_last_used_at: now
+          })
+          if (error) {
+            console.error(`⚠️ Error incrementing usage for ${dbCategory}:${tag}:`, error)
+          }
         }
-      }
 
-      // Decrement counts for removed tags
-      for (const tag of removed) {
-        const { error } = await supabase.rpc('decrement_tag_usage', {
-          p_category: dbCategory,
-          p_tag_value: tag
-        })
-        if (error) {
-          console.error(`⚠️ Error decrementing usage for ${dbCategory}:${tag}:`, error)
+        // Decrement counts for removed tags
+        for (const tag of removed) {
+          const { error } = await supabase.rpc('decrement_tag_usage', {
+            p_category: dbCategory,
+            p_tag_value: tag
+          })
+          if (error) {
+            console.error(`⚠️ Error decrementing usage for ${dbCategory}:${tag}:`, error)
+          }
         }
       }
     }
@@ -106,68 +120,149 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
   const [selectedImage, setSelectedImage] = useState<ReferenceImage | null>(null)
   const [editingImage, setEditingImage] = useState<ReferenceImage | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedIndustry, setSelectedIndustry] = useState<string>('all')
-  const [selectedProjectType, setSelectedProjectType] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'updated'>('newest')
 
   // Bulk selection
   const [selectedImageIds, setSelectedImageIds] = useState<Set<string>>(new Set())
   const [showBulkEdit, setShowBulkEdit] = useState(false)
 
+  // Vocabulary config state
+  const [vocabConfig, setVocabConfig] = useState<VocabularyConfig | null>(null)
+  const [configLoading, setConfigLoading] = useState(true)
+  const [configError, setConfigError] = useState<string | null>(null)
+
   // Vocabulary for editing
   const [vocabulary, setVocabulary] = useState<TagVocabulary | null>(null)
 
-  // Load vocabulary on mount
+  // Dynamic filter state - one filter per category
+  const [categoryFilters, setCategoryFilters] = useState<Record<string, string>>({})
+
+  // Load vocabulary config from API on mount
   useEffect(() => {
-    loadVocabulary()
+    const loadVocabularyConfig = async () => {
+      try {
+        setConfigLoading(true)
+        setConfigError(null)
+
+        const response = await fetch('/api/vocabulary-config')
+        if (!response.ok) {
+          throw new Error('Failed to load vocabulary config')
+        }
+
+        const { config } = await response.json()
+        setVocabConfig(config)
+
+        // Initialize filters with 'all' for each category
+        const initialFilters: Record<string, string> = {}
+        config.structure.categories.forEach((cat: VocabularyCategory) => {
+          initialFilters[cat.key] = 'all'
+        })
+        setCategoryFilters(initialFilters)
+
+        console.log('✅ Vocabulary config loaded:', config.structure.categories.length, 'categories')
+      } catch (error) {
+        console.error('❌ Error loading vocabulary config:', error)
+        setConfigError(error instanceof Error ? error.message : 'Failed to load vocabulary config')
+      } finally {
+        setConfigLoading(false)
+      }
+    }
+
+    loadVocabularyConfig()
   }, [])
 
-  const loadVocabulary = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('tag_vocabulary')
-        .select('*')
-        .order('category', { ascending: true })
+  // Load vocabulary from Supabase when config is ready
+  useEffect(() => {
+    if (!vocabConfig) return
 
-      if (error) throw error
+    const loadVocabulary = async () => {
+      try {
+        // Fetch all active tags, sorted by category and sort_order
+        const { data, error } = await supabase
+          .from('tag_vocabulary')
+          .select('category, tag_value, sort_order')
+          .eq('is_active', true)
+          .order('category', { ascending: true })
+          .order('sort_order', { ascending: true })
 
-      const vocab: TagVocabulary = {
-        industries: [],
-        projectTypes: [],
-        styles: [],
-        moods: [],
-        elements: []
+        if (error) throw error
+
+        if (!data) {
+          throw new Error('No vocabulary data returned')
+        }
+
+        // Group tags by category
+        const groupedVocabulary = data.reduce((acc, row: TagVocabularyRow) => {
+          const category = row.category
+          if (!acc[category]) {
+            acc[category] = []
+          }
+          acc[category].push(row.tag_value)
+          return acc
+        }, {} as TagVocabulary)
+
+        setVocabulary(groupedVocabulary)
+
+        console.log('✅ Vocabulary loaded:', Object.keys(groupedVocabulary).length, 'categories')
+      } catch (error) {
+        console.error('❌ Error loading vocabulary:', error)
       }
+    }
 
-      data?.forEach((item: any) => {
-        if (item.category === 'industry') vocab.industries.push(item.tag_value)
-        else if (item.category === 'project_type') vocab.projectTypes.push(item.tag_value)
-        else if (item.category === 'style') vocab.styles.push(item.tag_value)
-        else if (item.category === 'mood') vocab.moods.push(item.tag_value)
-        else if (item.category === 'element') vocab.elements.push(item.tag_value)
-      })
+    loadVocabulary()
+  }, [vocabConfig])
 
-      setVocabulary(vocab)
-    } catch (error) {
-      console.error('Error loading vocabulary:', error)
+  // Helper function to get value from image based on storage_path
+  const getImageValue = (image: ReferenceImage, storagePath: string): any => {
+    if (storagePath.includes('.')) {
+      // Nested path like "tags.style"
+      const parts = storagePath.split('.')
+      let value: any = image
+      for (const part of parts) {
+        value = value?.[part]
+      }
+      return value
+    } else {
+      // Direct path like "industries"
+      return image[storagePath]
     }
   }
 
-  // Extract unique values for filters
-  const allIndustries = useMemo(() => {
-    const industries = new Set<string>()
-    images.forEach(img => img.industries?.forEach(ind => industries.add(ind)))
-    return Array.from(industries).sort()
-  }, [images])
+  // Extract unique values for each category filter
+  const categoryFilterOptions = useMemo(() => {
+    if (!vocabConfig) return {}
 
-  const allProjectTypes = useMemo(() => {
-    const types = new Set<string>()
-    images.forEach(img => img.project_types?.forEach(type => types.add(type)))
-    return Array.from(types).sort()
-  }, [images])
+    const options: Record<string, string[]> = {}
+
+    vocabConfig.structure.categories.forEach(category => {
+      const values = new Set<string>()
+      
+      images.forEach(img => {
+        const value = getImageValue(img, category.storage_path)
+        
+        if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+          // For array types, add each item
+          if (Array.isArray(value)) {
+            value.forEach(v => values.add(v))
+          }
+        } else if (category.storage_type === 'text') {
+          // For text types, add the single value
+          if (value) {
+            values.add(value)
+          }
+        }
+      })
+
+      options[category.key] = Array.from(values).sort()
+    })
+
+    return options
+  }, [images, vocabConfig])
 
   // Filter and sort images
   const filteredImages = useMemo(() => {
+    if (!vocabConfig) return images
+
     let filtered = images.filter(img => {
       // Search filter
       const matchesSearch = searchQuery === '' ||
@@ -175,17 +270,25 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
         img.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         false
 
-      // Industry filter
-      const matchesIndustry = selectedIndustry === 'all' ||
-        img.industries?.includes(selectedIndustry) ||
-        false
+      // Dynamic category filters
+      const matchesAllFilters = vocabConfig.structure.categories.every(category => {
+        const filterValue = categoryFilters[category.key]
+        if (filterValue === 'all') return true
 
-      // Project type filter
-      const matchesProjectType = selectedProjectType === 'all' ||
-        img.project_types?.includes(selectedProjectType) ||
-        false
+        const imageValue = getImageValue(img, category.storage_path)
 
-      return matchesSearch && matchesIndustry && matchesProjectType
+        if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+          // For array types, check if the filter value is in the array
+          return Array.isArray(imageValue) && imageValue.includes(filterValue)
+        } else if (category.storage_type === 'text') {
+          // For text types, check exact match
+          return imageValue === filterValue
+        }
+
+        return false
+      })
+
+      return matchesSearch && matchesAllFilters
     })
 
     // Sort
@@ -200,7 +303,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
     })
 
     return filtered
-  }, [images, searchQuery, selectedIndustry, selectedProjectType, sortBy])
+  }, [images, searchQuery, categoryFilters, sortBy, vocabConfig])
 
   // Handle image update after edit
   const handleImageUpdate = (updatedImage: ReferenceImage) => {
@@ -240,6 +343,31 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
     setSelectedImageIds(new Set())
   }
 
+  // Show loading state while config is loading
+  if (configLoading) {
+    return (
+      <div className="bg-white rounded-lg p-12 text-center border border-gray-200">
+        <div className="text-4xl mb-4">⏳</div>
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Loading gallery...</h3>
+        <p className="text-gray-600">Fetching vocabulary configuration</p>
+      </div>
+    )
+  }
+
+  if (configError) {
+    return (
+      <div className="bg-white rounded-lg p-12 text-center border border-red-200">
+        <div className="text-4xl mb-4">❌</div>
+        <h3 className="text-xl font-semibold text-red-900 mb-2">Configuration Error</h3>
+        <p className="text-red-600">{configError}</p>
+      </div>
+    )
+  }
+
+  if (!vocabConfig) {
+    return null
+  }
+
   return (
     <div className="space-y-6">
       {/* Filters and Controls */}
@@ -266,43 +394,40 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
           </select>
         </div>
 
-        {/* Filter Row */}
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Industry
-            </label>
-            <select
-              value={selectedIndustry}
-              onChange={(e) => setSelectedIndustry(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-            >
-              <option value="all">All Industries ({images.length})</option>
-              {allIndustries.map(industry => (
-                <option key={industry} value={industry}>
-                  {industry} ({images.filter(img => img.industries?.includes(industry)).length})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Project Type
-            </label>
-            <select
-              value={selectedProjectType}
-              onChange={(e) => setSelectedProjectType(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-            >
-              <option value="all">All Types ({images.length})</option>
-              {allProjectTypes.map(type => (
-                <option key={type} value={type}>
-                  {type} ({images.filter(img => img.project_types?.includes(type)).length})
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Dynamic Filter Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {vocabConfig.structure.categories.map(category => (
+            <div key={category.key}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {category.label}
+              </label>
+              <select
+                value={categoryFilters[category.key] || 'all'}
+                onChange={(e) => setCategoryFilters(prev => ({
+                  ...prev,
+                  [category.key]: e.target.value
+                }))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              >
+                <option value="all">All {category.label} ({images.length})</option>
+                {(categoryFilterOptions[category.key] || []).map(value => {
+                  const count = images.filter(img => {
+                    const imgValue = getImageValue(img, category.storage_path)
+                    if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+                      return Array.isArray(imgValue) && imgValue.includes(value)
+                    } else {
+                      return imgValue === value
+                    }
+                  }).length
+                  return (
+                    <option key={value} value={value}>
+                      {value} ({count})
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+          ))}
         </div>
 
         {/* Results count and bulk actions */}
@@ -355,6 +480,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
             <ImageCard
               key={image.id}
               image={image}
+              vocabConfig={vocabConfig}
               isSelected={selectedImageIds.has(image.id)}
               onToggleSelect={() => toggleSelection(image.id)}
               onClick={() => setSelectedImage(image)}
@@ -364,9 +490,10 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
       )}
 
       {/* Image Detail Modal */}
-      {selectedImage && !editingImage && (
+      {selectedImage && !editingImage && vocabConfig && (
         <ImageDetailModal
           image={selectedImage}
+          vocabConfig={vocabConfig}
           onClose={() => setSelectedImage(null)}
           onEdit={() => {
             setEditingImage(selectedImage)
@@ -375,10 +502,11 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
       )}
 
       {/* Edit Image Modal */}
-      {editingImage && vocabulary && (
+      {editingImage && vocabulary && vocabConfig && (
         <EditImageModal
           image={editingImage}
           vocabulary={vocabulary}
+          vocabConfig={vocabConfig}
           onClose={() => {
             setEditingImage(null)
             setSelectedImage(null)
@@ -388,10 +516,11 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
       )}
 
       {/* Bulk Edit Modal */}
-      {showBulkEdit && vocabulary && (
+      {showBulkEdit && vocabulary && vocabConfig && (
         <BulkEditModal
           images={images.filter(img => selectedImageIds.has(img.id))}
           vocabulary={vocabulary}
+          vocabConfig={vocabConfig}
           onClose={() => setShowBulkEdit(false)}
           onSave={handleBulkUpdate}
         />
@@ -403,19 +532,39 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
 // Image Card Component
 interface ImageCardProps {
   image: ReferenceImage
+  vocabConfig: VocabularyConfig
   isSelected: boolean
   onToggleSelect: () => void
   onClick: () => void
 }
 
-function ImageCard({ image, isSelected, onToggleSelect, onClick }: ImageCardProps) {
-  const allTags = [
-    ...(image.industries || []),
-    ...(image.project_types || []),
-    ...(image.tags?.style || []),
-    ...(image.tags?.mood || []),
-    ...(image.tags?.elements || [])
-  ]
+function ImageCard({ image, vocabConfig, isSelected, onToggleSelect, onClick }: ImageCardProps) {
+  // Helper function to get value from image based on storage_path
+  const getImageValue = (storagePath: string): any => {
+    if (storagePath.includes('.')) {
+      const parts = storagePath.split('.')
+      let value: any = image
+      for (const part of parts) {
+        value = value?.[part]
+      }
+      return value
+    } else {
+      return image[storagePath]
+    }
+  }
+
+  // Collect all tags from all categories dynamically
+  const allTags: string[] = []
+  vocabConfig.structure.categories.forEach(category => {
+    const value = getImageValue(category.storage_path)
+    if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+      if (Array.isArray(value)) {
+        allTags.push(...value)
+      }
+    } else if (category.storage_type === 'text' && value) {
+      allTags.push(value)
+    }
+  })
 
   return (
     <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200 hover:shadow-lg transition-shadow group relative">
@@ -483,45 +632,65 @@ function ImageCard({ image, isSelected, onToggleSelect, onClick }: ImageCardProp
 // Image Detail Modal Component
 interface ImageDetailModalProps {
   image: ReferenceImage
+  vocabConfig: VocabularyConfig
   onClose: () => void
   onEdit: () => void
 }
 
-function ImageDetailModal({ image, onClose, onEdit }: ImageDetailModalProps) {
-  // Compare AI suggestions with actual tags
-  const aiSuggested = image.ai_suggested_tags
-  const actualTags = {
-    industries: image.industries || [],
-    projectTypes: image.project_types || [],
-    styles: image.tags?.style || [],
-    moods: image.tags?.mood || [],
-    elements: image.tags?.elements || []
+function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailModalProps) {
+  // Helper function to get value from image based on storage_path
+  const getImageValue = (storagePath: string): any => {
+    if (storagePath.includes('.')) {
+      const parts = storagePath.split('.')
+      let value: any = image
+      for (const part of parts) {
+        value = value?.[part]
+      }
+      return value
+    } else {
+      return image[storagePath]
+    }
   }
 
+  // Collect actual tags dynamically
+  const actualTags: Record<string, string[]> = {}
+  vocabConfig.structure.categories.forEach(category => {
+    const value = getImageValue(category.storage_path)
+    if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+      actualTags[category.key] = Array.isArray(value) ? value : []
+    } else if (category.storage_type === 'text') {
+      actualTags[category.key] = value ? [value] : []
+    }
+  })
+
   const corrections = useMemo(() => {
+    const aiSuggested = image.ai_suggested_tags
     if (!aiSuggested) return null
 
-    const aiFlat = [
-      ...(aiSuggested.industries || []),
-      ...(aiSuggested.projectTypes || []),
-      ...(aiSuggested.styles || []),
-      ...(aiSuggested.moods || []),
-      ...(aiSuggested.elements || [])
-    ]
+    // Flatten AI suggestions
+    const aiFlat: string[] = []
+    Object.keys(aiSuggested).forEach(key => {
+      if (key !== 'confidence' && key !== 'reasoning' && key !== 'promptVersion') {
+        const val = aiSuggested[key]
+        if (Array.isArray(val)) {
+          aiFlat.push(...val)
+        } else if (typeof val === 'string') {
+          aiFlat.push(val)
+        }
+      }
+    })
 
-    const actualFlat = [
-      ...actualTags.industries,
-      ...actualTags.projectTypes,
-      ...actualTags.styles,
-      ...actualTags.moods,
-      ...actualTags.elements
-    ]
+    // Flatten actual tags
+    const actualFlat: string[] = []
+    Object.values(actualTags).forEach(arr => {
+      actualFlat.push(...arr)
+    })
 
     const added = actualFlat.filter(tag => !aiFlat.includes(tag))
     const removed = aiFlat.filter(tag => !actualFlat.includes(tag))
 
     return { added, removed, hadSuggestions: aiFlat.length > 0 }
-  }, [aiSuggested, actualTags])
+  }, [image.ai_suggested_tags, actualTags])
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -572,75 +741,37 @@ function ImageDetailModal({ image, onClose, onEdit }: ImageDetailModalProps) {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Tags</h3>
 
                 <div className="space-y-4">
-                  {/* Industries */}
-                  {actualTags.industries.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">Industries</p>
-                      <div className="flex flex-wrap gap-2">
-                        {actualTags.industries.map((tag, idx) => (
-                          <span key={idx} className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {/* Dynamically render all categories */}
+                  {vocabConfig.structure.categories.map((category, catIdx) => {
+                    const tags = actualTags[category.key] || []
+                    if (tags.length === 0) return null
 
-                  {/* Project Types */}
-                  {actualTags.projectTypes.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">Project Types</p>
-                      <div className="flex flex-wrap gap-2">
-                        {actualTags.projectTypes.map((tag, idx) => (
-                          <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    // Color rotation for visual variety
+                    const colors = [
+                      'bg-gray-100 text-gray-800',
+                      'bg-blue-100 text-blue-800',
+                      'bg-purple-100 text-purple-800',
+                      'bg-green-100 text-green-800',
+                      'bg-orange-100 text-orange-800',
+                      'bg-pink-100 text-pink-800',
+                      'bg-indigo-100 text-indigo-800',
+                      'bg-yellow-100 text-yellow-800'
+                    ]
+                    const colorClass = colors[catIdx % colors.length]
 
-                  {/* Styles */}
-                  {actualTags.styles.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">Styles</p>
-                      <div className="flex flex-wrap gap-2">
-                        {actualTags.styles.map((tag, idx) => (
-                          <span key={idx} className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
-                            {tag}
-                          </span>
-                        ))}
+                    return (
+                      <div key={category.key}>
+                        <p className="text-sm font-medium text-gray-700 mb-2">{category.label}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {tags.map((tag, idx) => (
+                            <span key={idx} className={`px-3 py-1 text-sm rounded-full ${colorClass}`}>
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Moods */}
-                  {actualTags.moods.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">Moods</p>
-                      <div className="flex flex-wrap gap-2">
-                        {actualTags.moods.map((tag, idx) => (
-                          <span key={idx} className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Elements */}
-                  {actualTags.elements.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">Elements</p>
-                      <div className="flex flex-wrap gap-2">
-                        {actualTags.elements.map((tag, idx) => (
-                          <span key={idx} className="px-3 py-1 bg-orange-100 text-orange-800 text-sm rounded-full">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    )
+                  })}
                 </div>
               </div>
 
@@ -767,68 +898,112 @@ function ImageDetailModal({ image, onClose, onEdit }: ImageDetailModalProps) {
 interface EditImageModalProps {
   image: ReferenceImage
   vocabulary: TagVocabulary
+  vocabConfig: VocabularyConfig
   onClose: () => void
   onSave: (updatedImage: ReferenceImage) => void
 }
 
-function EditImageModal({ image, vocabulary, onClose, onSave }: EditImageModalProps) {
-  const [industries, setIndustries] = useState<string[]>(image.industries || [])
-  const [projectTypes, setProjectTypes] = useState<string[]>(image.project_types || [])
-  const [styles, setStyles] = useState<string[]>(image.tags?.style || [])
-  const [moods, setMoods] = useState<string[]>(image.tags?.mood || [])
-  const [elements, setElements] = useState<string[]>(image.tags?.elements || [])
+function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave }: EditImageModalProps) {
+  // Helper function to get value from image based on storage_path
+  const getImageValue = (storagePath: string): any => {
+    if (storagePath.includes('.')) {
+      const parts = storagePath.split('.')
+      let value: any = image
+      for (const part of parts) {
+        value = value?.[part]
+      }
+      return value
+    } else {
+      return image[storagePath]
+    }
+  }
+
+  // Initialize dynamic tag state based on vocabulary config
+  const [categoryTags, setCategoryTags] = useState<Record<string, string[] | string>>(() => {
+    const initialTags: Record<string, string[] | string> = {}
+    vocabConfig.structure.categories.forEach(category => {
+      const value = getImageValue(category.storage_path)
+      if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+        initialTags[category.key] = Array.isArray(value) ? value : []
+      } else if (category.storage_type === 'text') {
+        initialTags[category.key] = value || ''
+      }
+    })
+    return initialTags
+  })
+
   const [notes, setNotes] = useState<string>(image.notes || '')
   const [isSaving, setIsSaving] = useState(false)
 
-  const toggleTag = (category: 'industries' | 'projectTypes' | 'styles' | 'moods' | 'elements', tag: string) => {
-    const setters = { industries: setIndustries, projectTypes: setProjectTypes, styles: setStyles, moods: setMoods, elements: setElements }
-    const values = { industries, projectTypes, styles, moods, elements }
-
-    const current = values[category]
-    const setter = setters[category]
-
-    if (current.includes(tag)) {
-      setter(current.filter(t => t !== tag))
-    } else {
-      setter([...current, tag])
-    }
+  const toggleTag = (categoryKey: string, tag: string) => {
+    setCategoryTags(prev => {
+      const current = prev[categoryKey]
+      if (Array.isArray(current)) {
+        if (current.includes(tag)) {
+          return { ...prev, [categoryKey]: current.filter(t => t !== tag) }
+        } else {
+          return { ...prev, [categoryKey]: [...current, tag] }
+        }
+      }
+      return prev
+    })
   }
 
   const handleSave = async () => {
     setIsSaving(true)
 
     try {
-      // Update tag usage counts (compare old vs new)
-      await updateTagUsageForChanges(
-        {
-          industries: image.industries || [],
-          projectTypes: image.project_types || [],
-          styles: image.tags?.style || [],
-          moods: image.tags?.mood || [],
-          elements: image.tags?.elements || []
-        },
-        {
-          industries,
-          projectTypes,
-          styles,
-          moods,
-          elements
+      // Prepare old tags for usage count updates
+      const oldTags: Record<string, string[]> = {}
+      vocabConfig.structure.categories.forEach(category => {
+        const value = getImageValue(category.storage_path)
+        if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+          oldTags[category.key] = Array.isArray(value) ? value : []
         }
-      )
+      })
+
+      // Prepare new tags for usage count updates
+      const newTags: Record<string, string[]> = {}
+      vocabConfig.structure.categories.forEach(category => {
+        const value = categoryTags[category.key]
+        if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+          newTags[category.key] = Array.isArray(value) ? value : []
+        }
+      })
+
+      // Update tag usage counts
+      await updateTagUsageForChanges(oldTags, newTags, vocabConfig)
+
+      // Build update object dynamically
+      const updateData: any = {
+        notes: notes || null,
+        updated_at: new Date().toISOString()
+      }
+
+      // Map category tags to database fields
+      vocabConfig.structure.categories.forEach(category => {
+        const value = categoryTags[category.key]
+        const storagePath = category.storage_path
+
+        if (storagePath.includes('.')) {
+          // Nested path like "tags.style"
+          const parts = storagePath.split('.')
+          const topLevel = parts[0]
+          const nested = parts[1]
+
+          if (!updateData[topLevel]) {
+            updateData[topLevel] = {}
+          }
+          updateData[topLevel][nested] = value
+        } else {
+          // Direct path like "industries"
+          updateData[storagePath] = value
+        }
+      })
 
       const { data, error } = await supabase
         .from('reference_images')
-        .update({
-          industries,
-          project_types: projectTypes,
-          tags: {
-            style: styles,
-            mood: moods,
-            elements: elements
-          },
-          notes: notes || null,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', image.id)
         .select()
         .single()
@@ -877,115 +1052,56 @@ function EditImageModal({ image, vocabulary, onClose, onSave }: EditImageModalPr
 
             {/* Tag Selection */}
             <div className="space-y-6">
-              {/* Industries */}
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Industries ({industries.length} selected)
-                </label>
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
-                  {vocabulary.industries.map(tag => (
-                    <button
-                      key={`edit-industry-${tag}`}
-                      onClick={() => toggleTag('industries', tag)}
-                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                        industries.includes(tag)
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Dynamic category sections */}
+              {vocabConfig.structure.categories.map((category, catIdx) => {
+                const categoryVocab = vocabulary[category.key] || []
+                const selectedTags = categoryTags[category.key]
+                const selectedCount = Array.isArray(selectedTags) ? selectedTags.length : 0
 
-              {/* Project Types */}
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Project Types ({projectTypes.length} selected)
-                </label>
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
-                  {vocabulary.projectTypes.map(tag => (
-                    <button
-                      key={`edit-projectType-${tag}`}
-                      onClick={() => toggleTag('projectTypes', tag)}
-                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                        projectTypes.includes(tag)
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                // Skip if not array type (we don't support editing text types in this UI)
+                if (category.storage_type !== 'array' && category.storage_type !== 'jsonb_array') {
+                  return null
+                }
 
-              {/* Styles */}
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Styles ({styles.length} selected)
-                </label>
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
-                  {vocabulary.styles.map(tag => (
-                    <button
-                      key={`edit-style-${tag}`}
-                      onClick={() => toggleTag('styles', tag)}
-                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                        styles.includes(tag)
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                // Color schemes for visual variety
+                const colorSchemes = [
+                  { bg: 'bg-gray-100', hover: 'hover:bg-gray-200', text: 'text-gray-800', selected: 'bg-gray-800 text-white' },
+                  { bg: 'bg-blue-100', hover: 'hover:bg-blue-200', text: 'text-blue-800', selected: 'bg-blue-600 text-white' },
+                  { bg: 'bg-purple-100', hover: 'hover:bg-purple-200', text: 'text-purple-800', selected: 'bg-purple-600 text-white' },
+                  { bg: 'bg-green-100', hover: 'hover:bg-green-200', text: 'text-green-800', selected: 'bg-green-600 text-white' },
+                  { bg: 'bg-orange-100', hover: 'hover:bg-orange-200', text: 'text-orange-800', selected: 'bg-orange-600 text-white' },
+                  { bg: 'bg-pink-100', hover: 'hover:bg-pink-200', text: 'text-pink-800', selected: 'bg-pink-600 text-white' },
+                  { bg: 'bg-indigo-100', hover: 'hover:bg-indigo-200', text: 'text-indigo-800', selected: 'bg-indigo-600 text-white' },
+                  { bg: 'bg-yellow-100', hover: 'hover:bg-yellow-200', text: 'text-yellow-800', selected: 'bg-yellow-600 text-white' }
+                ]
+                const colors = colorSchemes[catIdx % colorSchemes.length]
 
-              {/* Moods */}
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Moods ({moods.length} selected)
-                </label>
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
-                  {vocabulary.moods.map(tag => (
-                    <button
-                      key={`edit-mood-${tag}`}
-                      onClick={() => toggleTag('moods', tag)}
-                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                        moods.includes(tag)
-                          ? 'bg-green-600 text-white'
-                          : 'bg-green-100 text-green-800 hover:bg-green-200'
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Elements */}
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Elements ({elements.length} selected)
-                </label>
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
-                  {vocabulary.elements.map(tag => (
-                    <button
-                      key={`edit-element-${tag}`}
-                      onClick={() => toggleTag('elements', tag)}
-                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                        elements.includes(tag)
-                          ? 'bg-orange-600 text-white'
-                          : 'bg-orange-100 text-orange-800 hover:bg-orange-200'
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                return (
+                  <div key={category.key}>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      {category.label} ({selectedCount} selected)
+                    </label>
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
+                      {categoryVocab.map(tag => {
+                        const isSelected = Array.isArray(selectedTags) && selectedTags.includes(tag)
+                        return (
+                          <button
+                            key={`edit-${category.key}-${tag}`}
+                            onClick={() => toggleTag(category.key, tag)}
+                            className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                              isSelected
+                                ? colors.selected
+                                : `${colors.bg} ${colors.text} ${colors.hover}`
+                            }`}
+                          >
+                            {tag}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
 
               {/* Notes */}
               <div>
@@ -1029,31 +1145,35 @@ function EditImageModal({ image, vocabulary, onClose, onSave }: EditImageModalPr
 interface BulkEditModalProps {
   images: ReferenceImage[]
   vocabulary: TagVocabulary
+  vocabConfig: VocabularyConfig
   onClose: () => void
   onSave: (updatedImages: ReferenceImage[]) => void
 }
 
-function BulkEditModal({ images, vocabulary, onClose, onSave }: BulkEditModalProps) {
+function BulkEditModal({ images, vocabulary, vocabConfig, onClose, onSave }: BulkEditModalProps) {
   const [mode, setMode] = useState<'add' | 'remove'>('add')
-  const [industries, setIndustries] = useState<string[]>([])
-  const [projectTypes, setProjectTypes] = useState<string[]>([])
-  const [styles, setStyles] = useState<string[]>([])
-  const [moods, setMoods] = useState<string[]>([])
-  const [elements, setElements] = useState<string[]>([])
   const [isSaving, setIsSaving] = useState(false)
 
-  const toggleTag = (category: 'industries' | 'projectTypes' | 'styles' | 'moods' | 'elements', tag: string) => {
-    const setters = { industries: setIndustries, projectTypes: setProjectTypes, styles: setStyles, moods: setMoods, elements: setElements }
-    const values = { industries, projectTypes, styles, moods, elements }
+  // Initialize dynamic tag state - start with empty selections
+  const [categoryTags, setCategoryTags] = useState<Record<string, string[]>>(() => {
+    const initialTags: Record<string, string[]> = {}
+    vocabConfig.structure.categories.forEach(category => {
+      if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+        initialTags[category.key] = []
+      }
+    })
+    return initialTags
+  })
 
-    const current = values[category]
-    const setter = setters[category]
-
-    if (current.includes(tag)) {
-      setter(current.filter(t => t !== tag))
-    } else {
-      setter([...current, tag])
-    }
+  const toggleTag = (categoryKey: string, tag: string) => {
+    setCategoryTags(prev => {
+      const current = prev[categoryKey] || []
+      if (current.includes(tag)) {
+        return { ...prev, [categoryKey]: current.filter(t => t !== tag) }
+      } else {
+        return { ...prev, [categoryKey]: [...current, tag] }
+      }
+    })
   }
 
   const handleSave = async () => {
@@ -1063,58 +1183,86 @@ function BulkEditModal({ images, vocabulary, onClose, onSave }: BulkEditModalPro
       const updatedImages: ReferenceImage[] = []
 
       for (const image of images) {
-        let newIndustries = [...(image.industries || [])]
-        let newProjectTypes = [...(image.project_types || [])]
-        let newStyles = [...(image.tags?.style || [])]
-        let newMoods = [...(image.tags?.mood || [])]
-        let newElements = [...(image.tags?.elements || [])]
-
-        if (mode === 'add') {
-          // Add selected tags
-          industries.forEach(tag => { if (!newIndustries.includes(tag)) newIndustries.push(tag) })
-          projectTypes.forEach(tag => { if (!newProjectTypes.includes(tag)) newProjectTypes.push(tag) })
-          styles.forEach(tag => { if (!newStyles.includes(tag)) newStyles.push(tag) })
-          moods.forEach(tag => { if (!newMoods.includes(tag)) newMoods.push(tag) })
-          elements.forEach(tag => { if (!newElements.includes(tag)) newElements.push(tag) })
-        } else {
-          // Remove selected tags
-          newIndustries = newIndustries.filter(tag => !industries.includes(tag))
-          newProjectTypes = newProjectTypes.filter(tag => !projectTypes.includes(tag))
-          newStyles = newStyles.filter(tag => !styles.includes(tag))
-          newMoods = newMoods.filter(tag => !moods.includes(tag))
-          newElements = newElements.filter(tag => !elements.includes(tag))
+        // Helper to get current value from image
+        const getImageValue = (storagePath: string): any => {
+          if (storagePath.includes('.')) {
+            const parts = storagePath.split('.')
+            let value: any = image
+            for (const part of parts) {
+              value = value?.[part]
+            }
+            return value
+          } else {
+            return image[storagePath]
+          }
         }
 
-        // Update tag usage counts for this image
-        await updateTagUsageForChanges(
-          {
-            industries: image.industries || [],
-            projectTypes: image.project_types || [],
-            styles: image.tags?.style || [],
-            moods: image.tags?.mood || [],
-            elements: image.tags?.elements || []
-          },
-          {
-            industries: newIndustries,
-            projectTypes: newProjectTypes,
-            styles: newStyles,
-            moods: newMoods,
-            elements: newElements
+        // Build new tag values dynamically
+        const newCategoryValues: Record<string, any> = {}
+        
+        vocabConfig.structure.categories.forEach(category => {
+          if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+            const currentValue = getImageValue(category.storage_path)
+            let newValue = Array.isArray(currentValue) ? [...currentValue] : []
+            const selectedTags = categoryTags[category.key] || []
+
+            if (mode === 'add') {
+              // Add selected tags if not already present
+              selectedTags.forEach(tag => {
+                if (!newValue.includes(tag)) {
+                  newValue.push(tag)
+                }
+              })
+            } else {
+              // Remove selected tags
+              newValue = newValue.filter(tag => !selectedTags.includes(tag))
+            }
+
+            newCategoryValues[category.key] = newValue
           }
-        )
+        })
+
+        // Prepare old/new tags for usage count updates
+        const oldTags: Record<string, string[]> = {}
+        const newTags: Record<string, string[]> = {}
+        
+        vocabConfig.structure.categories.forEach(category => {
+          if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+            const currentValue = getImageValue(category.storage_path)
+            oldTags[category.key] = Array.isArray(currentValue) ? currentValue : []
+            newTags[category.key] = newCategoryValues[category.key]
+          }
+        })
+
+        // Update tag usage counts
+        await updateTagUsageForChanges(oldTags, newTags, vocabConfig)
+
+        // Build update object
+        const updateData: any = {
+          updated_at: new Date().toISOString()
+        }
+
+        vocabConfig.structure.categories.forEach(category => {
+          const value = newCategoryValues[category.key]
+          if (value === undefined) return
+
+          const storagePath = category.storage_path
+          if (storagePath.includes('.')) {
+            const parts = storagePath.split('.')
+            const topLevel = parts[0]
+            const nested = parts[1]
+            if (!updateData[topLevel]) {
+              updateData[topLevel] = {}
+            }
+            updateData[topLevel][nested] = value
+          } else {
+            updateData[storagePath] = value
+          }
+        })
 
         const { data, error } = await supabase
           .from('reference_images')
-          .update({
-            industries: newIndustries,
-            project_types: newProjectTypes,
-            tags: {
-              style: newStyles,
-              mood: newMoods,
-              elements: newElements
-            },
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', image.id)
           .select()
           .single()
@@ -1132,7 +1280,7 @@ function BulkEditModal({ images, vocabulary, onClose, onSave }: BulkEditModalPro
     }
   }
 
-  const hasSelections = industries.length > 0 || projectTypes.length > 0 || styles.length > 0 || moods.length > 0 || elements.length > 0
+  const hasSelections = Object.values(categoryTags).some(tags => tags.length > 0)
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -1184,115 +1332,55 @@ function BulkEditModal({ images, vocabulary, onClose, onSave }: BulkEditModalPro
               : 'Select tags to remove from all selected images.'}
           </p>
 
-          {/* Industries */}
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              Industries ({industries.length} selected)
-            </label>
-            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
-              {vocabulary.industries.map(tag => (
-                <button
-                  key={`industry-${tag}`}
-                  onClick={() => toggleTag('industries', tag)}
-                  className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                    industries.includes(tag)
-                      ? 'bg-gray-800 text-white'
-                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Dynamic category sections */}
+          {vocabConfig.structure.categories.map((category, catIdx) => {
+            const categoryVocab = vocabulary[category.key] || []
+            const selectedTags = categoryTags[category.key] || []
 
-          {/* Project Types */}
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              Project Types ({projectTypes.length} selected)
-            </label>
-            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
-              {vocabulary.projectTypes.map(tag => (
-                <button
-                  key={`projectType-${tag}`}
-                  onClick={() => toggleTag('projectTypes', tag)}
-                  className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                    projectTypes.includes(tag)
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
+            // Skip if not array type
+            if (category.storage_type !== 'array' && category.storage_type !== 'jsonb_array') {
+              return null
+            }
 
-          {/* Styles */}
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              Styles ({styles.length} selected)
-            </label>
-            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
-              {vocabulary.styles.map(tag => (
-                <button
-                  key={`style-${tag}`}
-                  onClick={() => toggleTag('styles', tag)}
-                  className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                    styles.includes(tag)
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
+            // Color schemes for visual variety
+            const colorSchemes = [
+              { bg: 'bg-gray-100', hover: 'hover:bg-gray-200', text: 'text-gray-800', selected: 'bg-gray-800 text-white' },
+              { bg: 'bg-blue-100', hover: 'hover:bg-blue-200', text: 'text-blue-800', selected: 'bg-blue-600 text-white' },
+              { bg: 'bg-purple-100', hover: 'hover:bg-purple-200', text: 'text-purple-800', selected: 'bg-purple-600 text-white' },
+              { bg: 'bg-green-100', hover: 'hover:bg-green-200', text: 'text-green-800', selected: 'bg-green-600 text-white' },
+              { bg: 'bg-orange-100', hover: 'hover:bg-orange-200', text: 'text-orange-800', selected: 'bg-orange-600 text-white' },
+              { bg: 'bg-pink-100', hover: 'hover:bg-pink-200', text: 'text-pink-800', selected: 'bg-pink-600 text-white' },
+              { bg: 'bg-indigo-100', hover: 'hover:bg-indigo-200', text: 'text-indigo-800', selected: 'bg-indigo-600 text-white' },
+              { bg: 'bg-yellow-100', hover: 'hover:bg-yellow-200', text: 'text-yellow-800', selected: 'bg-yellow-600 text-white' }
+            ]
+            const colors = colorSchemes[catIdx % colorSchemes.length]
 
-          {/* Moods */}
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              Moods ({moods.length} selected)
-            </label>
-            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
-              {vocabulary.moods.map(tag => (
-                <button
-                  key={`mood-${tag}`}
-                  onClick={() => toggleTag('moods', tag)}
-                  className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                    moods.includes(tag)
-                      ? 'bg-green-600 text-white'
-                      : 'bg-green-100 text-green-800 hover:bg-green-200'
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Elements */}
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              Elements ({elements.length} selected)
-            </label>
-            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
-              {vocabulary.elements.map(tag => (
-                <button
-                  key={`element-${tag}`}
-                  onClick={() => toggleTag('elements', tag)}
-                  className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                    elements.includes(tag)
-                      ? 'bg-orange-600 text-white'
-                      : 'bg-orange-100 text-orange-800 hover:bg-orange-200'
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
+            return (
+              <div key={category.key}>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  {category.label} ({selectedTags.length} selected)
+                </label>
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
+                  {categoryVocab.map(tag => {
+                    const isSelected = selectedTags.includes(tag)
+                    return (
+                      <button
+                        key={`bulk-${category.key}-${tag}`}
+                        onClick={() => toggleTag(category.key, tag)}
+                        className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                          isSelected
+                            ? colors.selected
+                            : `${colors.bg} ${colors.text} ${colors.hover}`
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t border-gray-200">

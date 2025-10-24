@@ -10,13 +10,11 @@ const anthropic = new Anthropic({
 
 // ========== VALIDATION SCHEMAS ==========
 
-const tagVocabularySchema = z.object({
-  industries: tagArraySchema,
-  projectTypes: tagArraySchema,
-  styles: tagArraySchema,
-  moods: tagArraySchema,
-  elements: tagArraySchema,
-})
+// Dynamic vocabulary schema - accepts any category structure
+const tagVocabularySchema = z.record(
+  z.string(), // category key (any string)
+  tagArraySchema // array of tag strings
+)
 
 const suggestTagsRequestSchema = z.object({
   image: base64ImageSchema,
@@ -26,19 +24,11 @@ const suggestTagsRequestSchema = z.object({
 // ========== INTERFACES ==========
 
 interface TagVocabulary {
-  industries: string[]
-  projectTypes: string[]
-  styles: string[]
-  moods: string[]
-  elements: string[]
+  [categoryKey: string]: string[]
 }
 
 interface SuggestTagsResponse {
-  industries: string[]
-  projectTypes: string[]
-  styles: string[]
-  moods: string[]
-  elements: string[]
+  [categoryKey: string]: string[] | string | undefined
   confidence: 'high' | 'medium' | 'low'
   reasoning: string
   promptVersion?: 'baseline' | 'enhanced'
@@ -68,6 +58,29 @@ let cacheTimestamp: number = 0
 let lastImageCount: number = 0
 const CACHE_DURATION = 60 * 60 * 1000 // 1 hour
 const CACHE_IMAGE_THRESHOLD = 5 // Invalidate cache after 5 new images
+
+// Helper function to create empty response with dynamic categories
+function createEmptyResponse(
+  vocabulary: TagVocabulary | null,
+  confidence: 'high' | 'medium' | 'low',
+  reasoning: string,
+  error?: string
+): SuggestTagsResponse {
+  const response: SuggestTagsResponse = {
+    confidence,
+    reasoning,
+    error
+  }
+  
+  // Add empty arrays for each category
+  if (vocabulary) {
+    Object.keys(vocabulary).forEach(key => {
+      response[key] = []
+    })
+  }
+  
+  return response
+}
 
 // Helper function to get enhanced prompt setting from database
 async function getEnhancedPromptSetting(): Promise<boolean> {
@@ -108,19 +121,21 @@ export async function POST(request: NextRequest) {
       console.error('Tag suggestion validation failed:', errors)
       console.error('Validation error details:', validationResult.error)
 
-      return NextResponse.json(
-        {
-          industries: [],
-          projectTypes: [],
-          styles: [],
-          moods: [],
-          elements: [],
-          confidence: 'low' as const,
-          reasoning: 'Invalid request data',
-          error: `Validation failed: ${errors.slice(0, 2).join(', ')}${errors.length > 2 ? '...' : ''}`
-        } as SuggestTagsResponse,
-        { status: 400 }
-      )
+      // Return empty response with dynamic categories
+      const emptyResponse: SuggestTagsResponse = {
+        confidence: 'low' as const,
+        reasoning: 'Invalid request data',
+        error: `Validation failed: ${errors.slice(0, 2).join(', ')}${errors.length > 2 ? '...' : ''}`
+      }
+      
+      // Add empty arrays for each category in the request
+      if (body.vocabulary && typeof body.vocabulary === 'object') {
+        Object.keys(body.vocabulary).forEach(key => {
+          emptyResponse[key] = []
+        })
+      }
+
+      return NextResponse.json(emptyResponse, { status: 400 })
     }
 
     // Use validated data
@@ -130,16 +145,7 @@ export async function POST(request: NextRequest) {
     if (!process.env.ANTHROPIC_API_KEY) {
       console.error('ANTHROPIC_API_KEY is not set')
       return NextResponse.json(
-        {
-          industries: [],
-          projectTypes: [],
-          styles: [],
-          moods: [],
-          elements: [],
-          confidence: 'low' as const,
-          reasoning: 'AI service unavailable',
-          error: 'AI service unavailable'
-        } as SuggestTagsResponse,
+        createEmptyResponse(vocabulary, 'low', 'AI service unavailable', 'AI service unavailable'),
         { status: 200 }
       )
     }
@@ -197,17 +203,21 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error suggesting tags:', error)
+    
+    // Try to get vocabulary from body for error response
+    let vocab: TagVocabulary | null = null
+    try {
+      const body = await request.json()
+      vocab = body.vocabulary || null
+    } catch {}
+    
     return NextResponse.json(
-      {
-        industries: [],
-        projectTypes: [],
-        styles: [],
-        moods: [],
-        elements: [],
-        confidence: 'low' as const,
-        reasoning: 'Failed to analyze image',
-        error: error instanceof Error ? error.message : 'Failed to suggest tags'
-      } as SuggestTagsResponse,
+      createEmptyResponse(
+        vocab,
+        'low',
+        'Failed to analyze image',
+        error instanceof Error ? error.message : 'Failed to suggest tags'
+      ),
       { status: 500 }
     )
   }
@@ -387,23 +397,22 @@ async function buildTagSuggestionPrompt(
 
 **AVAILABLE TAG VOCABULARY:**
 
-**Industries** (${vocabulary.industries.length} tags):
-${vocabulary.industries.map(tag => `- ${tag}`).join('\n')}
-
-**Project Types** (${vocabulary.projectTypes.length} tags):
-${vocabulary.projectTypes.map(tag => `- ${tag}`).join('\n')}
-
-**Styles** (${vocabulary.styles.length} tags):
-${vocabulary.styles.map(tag => `- ${tag}`).join('\n')}
-
-**Moods** (${vocabulary.moods.length} tags):
-${vocabulary.moods.map(tag => `- ${tag}`).join('\n')}
-
-**Elements** (${vocabulary.elements.length} tags):
-${vocabulary.elements.map(tag => `- ${tag}`).join('\n')}
-
----
 `
+
+  // Dynamically build category sections based on vocabulary
+  Object.entries(vocabulary).forEach(([categoryKey, tags]) => {
+    // Convert key to readable label (e.g., project_types -> Project Types)
+    const label = categoryKey
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+    
+    prompt += `**${label}** (${tags.length} tags):\n`
+    prompt += tags.map(tag => `- ${tag}`).join('\n')
+    prompt += '\n\n'
+  })
+
+  prompt += '---\n'
 
   // Add enhanced learning section if enabled
   if (version === 'enhanced') {
@@ -466,13 +475,9 @@ ${generateActionableGuidance(corrections)}
 Return your response as a JSON object with this exact structure:
 
 {
-  "industries": ["tag1", "tag2"],
-  "projectTypes": ["tag1"],
-  "styles": ["tag1", "tag2", "tag3"],
-  "moods": ["tag1", "tag2"],
-  "elements": ["tag1", "tag2"],
+${Object.keys(vocabulary).map(key => `  "${key}": ["tag1", "tag2"],`).join('\n')}
   "confidence": "high",
-  "reasoning": "This appears to be a minimalist restaurant branding project featuring clean typography and a sophisticated color palette. The geometric layouts and contemporary aesthetic suggest a high-end hospitality industry focus."
+  "reasoning": "Brief explanation of your tag selections and what you observed in the image."
 }
 
 **Confidence levels:**
@@ -589,13 +594,8 @@ function parseTagSuggestions(responseText: string): SuggestTagsResponse {
     // Parse JSON
     const parsed = JSON.parse(cleanedText)
 
-    // Validate structure
-    return {
-      industries: Array.isArray(parsed.industries) ? parsed.industries : [],
-      projectTypes: Array.isArray(parsed.projectTypes) ? parsed.projectTypes : [],
-      styles: Array.isArray(parsed.styles) ? parsed.styles : [],
-      moods: Array.isArray(parsed.moods) ? parsed.moods : [],
-      elements: Array.isArray(parsed.elements) ? parsed.elements : [],
+    // Build response dynamically from parsed data
+    const response: SuggestTagsResponse = {
       confidence: ['high', 'medium', 'low'].includes(parsed.confidence)
         ? parsed.confidence
         : 'medium',
@@ -603,15 +603,19 @@ function parseTagSuggestions(responseText: string): SuggestTagsResponse {
         ? parsed.reasoning
         : 'AI analysis completed',
     }
+
+    // Add all category arrays from parsed response
+    Object.keys(parsed).forEach(key => {
+      if (key !== 'confidence' && key !== 'reasoning') {
+        response[key] = Array.isArray(parsed[key]) ? parsed[key] : []
+      }
+    })
+
+    return response
   } catch (error) {
     console.error('Failed to parse tag suggestions:', error)
     console.error('Response text:', responseText)
     return {
-      industries: [],
-      projectTypes: [],
-      styles: [],
-      moods: [],
-      elements: [],
       confidence: 'low',
       reasoning: 'Failed to parse AI response',
       error: 'Failed to parse response'

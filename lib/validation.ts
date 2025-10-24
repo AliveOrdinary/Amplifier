@@ -158,6 +158,9 @@ export const tagArraySchema = z
   .array(tagValueSchema)
   .max(20, 'Cannot have more than 20 tags in a category');
 
+// ⚠️ DEPRECATED: Hardcoded category schema - not currently used
+// The ImageTaggerClient uses dynamic vocabulary config instead
+// Keeping for backward compatibility but should not be used for new code
 export const imageTagsSchema = z.object({
   industries: tagArraySchema,
   project_types: tagArraySchema,

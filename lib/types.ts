@@ -172,23 +172,12 @@ export interface ReferenceImage {
   thumbnail_path: string;
   storage_path: string;
   original_filename: string;
-  industries: string[];
-  project_types: string[];
-  tags: {
-    style: string[];
-    mood: string[];
-    elements: string[];
-  };
   notes?: string;
   match_score?: number;
   matched_keywords?: string[];
-  matched_on?: {
-    industries: string[];
-    project_types: string[];
-    styles: string[];
-    moods: string[];
-    elements: string[];
-  };
+  matched_on?: Record<string, string[]>; // Dynamic category matches
+  // Dynamic category fields - any array or object fields from vocabulary config
+  [key: string]: any;
 }
 
 export interface SearchReferencesRequest {

@@ -330,9 +330,11 @@ A comprehensive image tagging system for managing design reference libraries wit
 **Process:**
 1. Client resizes image to max 1200px (keeps under 5MB API limit)
 2. Converts to base64 data URI
-3. Sends image + vocabulary to API
+3. Sends image + dynamic vocabulary to API (supports any category structure)
 4. Claude analyzes image and suggests tags from vocabulary
-5. Returns JSON: `{ industries[], projectTypes[], styles[], moods[], elements[], confidence, reasoning }`
+5. Returns JSON with dynamic categories: `{ [categoryKey]: string[], confidence, reasoning }`
+   - Example: `{ industries: [], project_types: [], styles: [], moods: [], elements: [], confidence: "high", reasoning: "..." }`
+   - Categories are fully dynamic based on vocabulary configuration
 6. Client auto-applies suggestions (merges with any existing manual selections)
 7. Designer can adjust before saving
 
