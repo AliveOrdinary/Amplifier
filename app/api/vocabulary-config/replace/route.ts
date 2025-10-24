@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { vocabularyConfigSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,46 +22,25 @@ interface ReplaceVocabularyRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    const { structure, config_name, description }: ReplaceVocabularyRequest = await request.json();
+    const body = await request.json();
 
-    // Validate structure
-    if (!structure?.categories || !Array.isArray(structure.categories)) {
+    // Validate with Zod schema
+    const validationResult = vocabularyConfigSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      const errors = validationResult.error?.issues?.map((err) => `${err.path.join('.')}: ${err.message}`) || ['Unknown validation error'];
+      console.error('Vocabulary config validation failed:', errors);
+      console.error('Validation error details:', validationResult.error);
+
       return NextResponse.json({
         success: false,
-        error: 'Invalid structure: categories array is required'
+        error: 'Validation failed',
+        details: errors.slice(0, 5).join('; ')
       }, { status: 400 });
     }
 
-    // Validate each category
-    for (const category of structure.categories) {
-      if (!category.key || !category.label || !category.storage_type || !category.storage_path) {
-        return NextResponse.json({
-          success: false,
-          error: `Invalid category: missing required fields (key, label, storage_type, storage_path)`
-        }, { status: 400 });
-      }
-
-      if (!['array', 'jsonb_array', 'text'].includes(category.storage_type)) {
-        return NextResponse.json({
-          success: false,
-          error: `Invalid storage_type: ${category.storage_type}. Must be 'array', 'jsonb_array', or 'text'`
-        }, { status: 400 });
-      }
-
-      if (typeof category.search_weight !== 'number' || category.search_weight < 0) {
-        return NextResponse.json({
-          success: false,
-          error: `Invalid search_weight for ${category.key}: must be a positive number`
-        }, { status: 400 });
-      }
-    }
-
-    if (!config_name || config_name.trim().length === 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'config_name is required'
-      }, { status: 400 });
-    }
+    // Use validated data
+    const { structure, config_name, description } = validationResult.data;
 
     // Initialize Supabase client with service role key
     const supabase = createServerClient();

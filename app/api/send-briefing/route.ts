@@ -1,21 +1,94 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import type { SendBriefingRequest, SendBriefingResponse, BriefingData, ArenaBlock, ReferenceImage } from '@/lib/types';
+import { z } from 'zod';
+
+// Validation schema for briefing responses
+const briefingResponsesSchema = z.object({
+  clientName: z.string().min(1, 'Client name is required').max(200, 'Client name too long').trim(),
+  clientEmail: z.string().email('Invalid email address').max(100, 'Email too long').trim().toLowerCase(),
+  projectName: z.string().max(200, 'Project name too long').trim().optional(),
+  visualApproach: z.string().max(5000, 'Response too long').trim(),
+  creativeDocuments: z.string().max(5000, 'Response too long').trim(),
+  problemSolved: z.string().max(5000, 'Response too long').trim(),
+  deeperReason: z.string().max(5000, 'Response too long').trim(),
+  customerWords: z.string().max(500, 'Response too long').trim(),
+  differentiators: z.string().max(5000, 'Response too long').trim(),
+  strategicThoughts: z.string().max(5000, 'Response too long').trim().optional(),
+  dinnerPartyBehavior: z.string().max(5000, 'Response too long').trim(),
+  neverFeelLike: z.string().max(5000, 'Response too long').trim(),
+  energyMood: z.string().max(5000, 'Response too long').trim(),
+  soundtrackGenre: z.string().max(500, 'Response too long').trim(),
+  artistsDiversification: z.string().max(5000, 'Response too long').trim(),
+  colorAssociations: z.string().max(5000, 'Response too long').trim(),
+  visualStyle: z.string().max(5000, 'Response too long').trim(),
+  admiredBrands: z.string().max(5000, 'Response too long').trim(),
+  aestheticInspiration: z.string().max(5000, 'Response too long').trim(),
+  decolonizationVisual: z.string().max(5000, 'Response too long').trim(),
+  audienceDescription: z.string().max(5000, 'Response too long').trim(),
+  idealClient: z.string().max(5000, 'Response too long').trim(),
+  desiredFeeling: z.string().max(5000, 'Response too long').trim(),
+  customerFrustrations: z.string().max(5000, 'Response too long').trim(),
+  avoidCustomerTypes: z.string().max(5000, 'Response too long').trim().optional(),
+  brandRole: z.string().max(5000, 'Response too long').trim(),
+  fiveYearVision: z.string().max(5000, 'Response too long').trim(),
+  expansionPlans: z.string().max(5000, 'Response too long').trim(),
+  dreamPartnerships: z.string().max(5000, 'Response too long').trim(),
+  bigDream: z.string().max(5000, 'Response too long').trim(),
+  successBeyondSales: z.string().max(5000, 'Response too long').trim(),
+  longTermFocus: z.string().max(5000, 'Response too long').trim(),
+  existingCollection: z.string().max(5000, 'Response too long').trim(),
+  competitors: z.string().max(5000, 'Response too long').trim(),
+});
+
+const briefingDataSchema = z.object({
+  responses: briefingResponsesSchema,
+  extractedKeywords: z.array(z.string().max(100)).max(50, 'Too many keywords'),
+  editedKeywords: z.array(z.string().max(100)).max(50, 'Too many keywords').optional(),
+  favoritedBlockIds: z.array(z.number()).max(100, 'Too many favorited blocks'),
+  arenaBlocks: z.array(z.any()).max(200, 'Too many arena blocks'),
+  referenceImages: z.array(z.any()).max(200, 'Too many reference images').optional(),
+  favoritedImageIds: z.array(z.string()).max(100, 'Too many favorited images').optional(),
+  timestamp: z.string().or(z.number()),
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const { briefingData }: SendBriefingRequest = await request.json();
+    const body = await request.json();
+    const { briefingData } = body as SendBriefingRequest;
 
-    if (!briefingData || !briefingData.responses) {
+    // Validate briefing data structure
+    if (!briefingData) {
       return NextResponse.json(
         {
           success: false,
           message: 'Invalid briefing data',
-          error: 'Missing required data'
+          error: 'Missing briefing data'
         } as SendBriefingResponse,
         { status: 400 }
       );
     }
+
+    // Validate with Zod
+    const validationResult = briefingDataSchema.safeParse(briefingData);
+
+    if (!validationResult.success) {
+      const errors = validationResult.error?.issues?.map((err) => `${err.path.join('.')}: ${err.message}`) || ['Unknown validation error'];
+      console.error('Briefing validation failed:', errors);
+      console.error('Validation error details:', validationResult.error);
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Validation failed',
+          error: `Invalid data: ${errors.slice(0, 3).join(', ')}${errors.length > 3 ? '...' : ''}`
+        } as SendBriefingResponse,
+        { status: 400 }
+      );
+    }
+
+    // Use validated data
+    const validatedData = validationResult.data;
 
     // Check environment variables
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.STUDIO_EMAIL) {
@@ -24,6 +97,20 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           message: 'Email service not configured',
+          error: 'Server configuration error'
+        } as SendBriefingResponse,
+        { status: 500 }
+      );
+    }
+
+    // Validate studio email from environment
+    const studioEmailValidation = z.string().email().safeParse(process.env.STUDIO_EMAIL);
+    if (!studioEmailValidation.success) {
+      console.error('Invalid STUDIO_EMAIL configuration');
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Email service misconfigured',
           error: 'Server configuration error'
         } as SendBriefingResponse,
         { status: 500 }
@@ -41,16 +128,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Generate email HTML
-    const htmlContent = generateEmailHTML(briefingData);
-    const textContent = generateEmailText(briefingData);
+    // Generate email HTML (cast back to BriefingData for compatibility)
+    const htmlContent = generateEmailHTML(validatedData as unknown as BriefingData);
+    const textContent = generateEmailText(validatedData as unknown as BriefingData);
 
     // Send email
     await transporter.sendMail({
       from: process.env.SMTP_USER,
-      to: process.env.STUDIO_EMAIL,
-      replyTo: briefingData.responses.clientEmail,
-      subject: `Visual Briefing: ${briefingData.responses.clientName} - ${briefingData.responses.projectName || 'New Project'}`,
+      to: studioEmailValidation.data,
+      replyTo: validatedData.responses.clientEmail,
+      subject: `Visual Briefing: ${validatedData.responses.clientName} - ${validatedData.responses.projectName || 'New Project'}`,
       html: htmlContent,
       text: textContent,
     });

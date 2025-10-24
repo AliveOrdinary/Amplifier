@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClientComponentClient } from '@/lib/supabase'
 
 interface UploadedImage {
   id: string
@@ -42,6 +42,9 @@ interface ImageTags {
 }
 
 export default function ImageTaggerClient() {
+  // Initialize Supabase client with proper session handling
+  const supabase = createClientComponentClient()
+
   // Vocabulary config state
   const [vocabConfig, setVocabConfig] = useState<VocabularyConfig | null>(null)
   const [configLoading, setConfigLoading] = useState(true)
@@ -296,6 +299,33 @@ export default function ImageTaggerClient() {
       // Convert resized image to base64
       const base64Image = await blobToBase64(resizedBlob)
 
+      // Transform vocabulary keys to match API schema (snake_case to camelCase)
+      // API requires: industries, projectTypes, styles, moods, elements
+      const transformedVocabulary: Record<string, string[]> = {
+        industries: [],
+        projectTypes: [],
+        styles: [],
+        moods: [],
+        elements: []
+      }
+
+      // Map vocabulary config keys to API schema keys
+      Object.entries(vocabulary).forEach(([key, value]) => {
+        let apiKey = key
+        // Handle known mappings
+        if (key === 'project_types') apiKey = 'projectTypes'
+        // Populate if the key matches one of the required API keys
+        if (apiKey in transformedVocabulary) {
+          transformedVocabulary[apiKey] = value || []
+        }
+      })
+
+      console.log('📤 Sending vocabulary to API:', {
+        originalKeys: Object.keys(vocabulary),
+        transformedKeys: Object.keys(transformedVocabulary),
+        sizes: Object.entries(transformedVocabulary).map(([k, v]) => `${k}: ${v.length}`)
+      })
+
       // Call API
       const response = await fetch('/api/suggest-tags', {
         method: 'POST',
@@ -304,17 +334,36 @@ export default function ImageTaggerClient() {
         },
         body: JSON.stringify({
           image: base64Image,
-          vocabulary,
+          vocabulary: transformedVocabulary,
         }),
       })
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
+        const errorData = await response.json().catch(() => null)
+        const errorMessage = errorData?.error || `API error: ${response.status}`
+        console.error('API error details:', errorData)
+        throw new Error(errorMessage)
       }
 
-      const suggestions: AISuggestion = await response.json()
+      const apiSuggestions: AISuggestion = await response.json()
 
-      console.log('✨ AI suggestions received:', suggestions)
+      console.log('✨ AI suggestions received:', apiSuggestions)
+
+      // Transform suggestions keys from camelCase back to snake_case for config compatibility
+      const suggestions: AISuggestion = { ...apiSuggestions }
+      
+      // Map API response keys back to vocabulary config keys
+      if (apiSuggestions.projectTypes) {
+        suggestions.project_types = apiSuggestions.projectTypes
+        delete suggestions.projectTypes
+      }
+      
+      // Ensure all config keys exist in suggestions
+      Object.keys(vocabulary).forEach(key => {
+        if (!(key in suggestions)) {
+          suggestions[key] = []
+        }
+      })
 
       // Store suggestions
       setAiSuggestions(prev => ({ ...prev, [imageId]: suggestions }))
@@ -355,7 +404,8 @@ export default function ImageTaggerClient() {
 
   // Trigger AI suggestions when entering tagging mode or changing images
   useEffect(() => {
-    if (isTaggingMode && uploadedImages.length > 0 && vocabulary.industries.length > 0) {
+    const hasVocabulary = Object.keys(vocabulary).length > 0
+    if (isTaggingMode && uploadedImages.length > 0 && hasVocabulary) {
       const currentImage = uploadedImages[currentIndex]
       if (currentImage && !aiSuggestions[currentImage.id] && !isLoadingAI[currentImage.id]) {
         getSuggestionsFromAI(currentImage.id, currentImage.file)
@@ -550,9 +600,45 @@ export default function ImageTaggerClient() {
       setSaveError(null)
       setSaveSuccess(false)
 
+      // Check authentication session before upload
+      console.log('[Upload] Checking authentication session...')
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+      console.log('[Upload] Session check:', {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        userEmail: session?.user?.email,
+        error: sessionError?.message
+      })
+
+      if (!session) {
+        const errorMsg = 'Please log in again to upload images'
+        console.error('[Upload] ❌ No active session')
+        alert(errorMsg)
+        window.location.href = '/tagger/login?redirectTo=/tagger'
+        return
+      }
+
+      console.log('[Upload] ✅ Session verified, proceeding with upload')
+
+      // Validate file before upload
+      const { imageFileSchema, sanitizeFilename } = await import('@/lib/validation')
+      const fileValidation = imageFileSchema.safeParse({
+        size: currentImage.file.size,
+        type: currentImage.file.type,
+        name: currentImage.filename
+      })
+
+      if (!fileValidation.success) {
+        const errorMessage = fileValidation.error.errors[0]?.message || 'Invalid file'
+        throw new Error(`File validation failed: ${errorMessage}`)
+      }
+
       // Generate unique ID for storage paths
       const imageId = crypto.randomUUID()
-      const sanitizedFilename = currentImage.filename.replace(/[^a-zA-Z0-9.-]/g, '_')
+
+      // Sanitize filename securely
+      const sanitizedFilename = sanitizeFilename(currentImage.filename)
 
       // 1. Generate thumbnail
       console.log('📸 Generating thumbnail...')
@@ -561,26 +647,65 @@ export default function ImageTaggerClient() {
       // 2. Upload original image to Supabase Storage
       console.log('⬆️ Uploading original image...')
       const originalPath = `originals/${imageId}-${sanitizedFilename}`
-      const { error: uploadOriginalError } = await supabase.storage
+
+      console.log('[Upload] About to upload original:', {
+        bucket: 'reference-images',
+        path: originalPath,
+        fileSize: currentImage.file.size,
+        fileType: currentImage.file.type,
+        fileName: currentImage.filename
+      })
+
+      const { data: uploadData, error: uploadOriginalError } = await supabase.storage
         .from('reference-images')
         .upload(originalPath, currentImage.file, {
           contentType: currentImage.file.type,
           upsert: false
         })
 
-      if (uploadOriginalError) throw uploadOriginalError
+      console.log('[Upload] Original upload result:', {
+        success: !!uploadData,
+        error: uploadOriginalError?.message,
+        errorDetails: uploadOriginalError
+      })
+
+      if (uploadOriginalError) {
+        console.error('[Upload] ❌ Full error object:', JSON.stringify(uploadOriginalError, null, 2))
+        throw uploadOriginalError
+      }
+
+      console.log('[Upload] ✅ Original uploaded successfully')
 
       // 3. Upload thumbnail to Supabase Storage
       console.log('⬆️ Uploading thumbnail...')
       const thumbnailPath = `thumbnails/${imageId}-${sanitizedFilename}`
-      const { error: uploadThumbnailError } = await supabase.storage
+
+      console.log('[Upload] About to upload thumbnail:', {
+        bucket: 'reference-images',
+        path: thumbnailPath,
+        blobSize: thumbnailBlob.size,
+        blobType: thumbnailBlob.type
+      })
+
+      const { data: thumbnailUploadData, error: uploadThumbnailError } = await supabase.storage
         .from('reference-images')
         .upload(thumbnailPath, thumbnailBlob, {
           contentType: currentImage.file.type,
           upsert: false
         })
 
-      if (uploadThumbnailError) throw uploadThumbnailError
+      console.log('[Upload] Thumbnail upload result:', {
+        success: !!thumbnailUploadData,
+        error: uploadThumbnailError?.message,
+        errorDetails: uploadThumbnailError
+      })
+
+      if (uploadThumbnailError) {
+        console.error('[Upload] ❌ Full thumbnail error:', JSON.stringify(uploadThumbnailError, null, 2))
+        throw uploadThumbnailError
+      }
+
+      console.log('[Upload] ✅ Thumbnail uploaded successfully')
 
       // 4. Get public URLs
       const { data: originalUrlData } = supabase.storage
@@ -873,25 +998,38 @@ export default function ImageTaggerClient() {
   const handleAddCustomTag = async () => {
     if (!addTagCategory || !newTagValue.trim() || !vocabConfig) return
 
-    const normalized = newTagValue.toLowerCase().trim()
-
-    // Map config key to database category
-    const keyToDbCategory = (key: string): string => {
-      if (key === 'industries') return 'industry'
-      if (key === 'project_types') return 'project_type'
-      return key
-    }
-
-    const dbCategory = keyToDbCategory(addTagCategory)
-
     try {
       setIsAddingTag(true)
       setAddTagError(null)
 
+      // Validate tag value format using Zod
+      const { tagValueSchema } = await import('@/lib/validation')
+      const validationResult = tagValueSchema.safeParse(newTagValue)
+
+      if (!validationResult.success) {
+        const errorMessage = validationResult.error.errors[0]?.message || 'Invalid tag format'
+        setAddTagError(errorMessage)
+        setIsAddingTag(false)
+        return
+      }
+
+      // Use the validated and normalized tag value
+      const normalized = validationResult.data
+
+      // Map config key to database category
+      const keyToDbCategory = (key: string): string => {
+        if (key === 'industries') return 'industry'
+        if (key === 'project_types') return 'project_type'
+        return key
+      }
+
+      const dbCategory = keyToDbCategory(addTagCategory)
+
       // Check for exact duplicate
       const existingTags = vocabulary[addTagCategory] || []
       if (existingTags.some(tag => tag.toLowerCase() === normalized)) {
-        setAddTagError('This tag already exists')
+        setAddTagError('This tag already exists in the vocabulary')
+        setIsAddingTag(false)
         return
       }
 

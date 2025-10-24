@@ -33,7 +33,7 @@ interface RetrainResponse {
  * - When you want to force the AI to learn from recent corrections
  * - To see updated learning patterns immediately
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     console.log('🔄 Manual retrain triggered...')
 

@@ -1,9 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createServerClient } from '@/lib/supabase'
+import { z } from 'zod'
+import { base64ImageSchema, tagArraySchema } from '@/lib/validation'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
+})
+
+// ========== VALIDATION SCHEMAS ==========
+
+const tagVocabularySchema = z.object({
+  industries: tagArraySchema,
+  projectTypes: tagArraySchema,
+  styles: tagArraySchema,
+  moods: tagArraySchema,
+  elements: tagArraySchema,
+})
+
+const suggestTagsRequestSchema = z.object({
+  image: base64ImageSchema,
+  vocabulary: tagVocabularySchema,
 })
 
 // ========== INTERFACES ==========
@@ -14,11 +31,6 @@ interface TagVocabulary {
   styles: string[]
   moods: string[]
   elements: string[]
-}
-
-interface SuggestTagsRequest {
-  image: string // base64 data URI
-  vocabulary: TagVocabulary
 }
 
 interface SuggestTagsResponse {
@@ -60,6 +72,7 @@ const CACHE_IMAGE_THRESHOLD = 5 // Invalidate cache after 5 new images
 // Helper function to get enhanced prompt setting from database
 async function getEnhancedPromptSetting(): Promise<boolean> {
   try {
+    const supabase = createServerClient()
     const { data, error } = await supabase
       .from('user_settings')
       .select('setting_value')
@@ -85,14 +98,33 @@ async function getEnhancedPromptSetting(): Promise<boolean> {
 export async function POST(request: NextRequest) {
   try {
     // Parse request body
-    const { image, vocabulary }: SuggestTagsRequest = await request.json()
+    const body = await request.json()
 
-    if (!image || !vocabulary) {
+    // Validate request with Zod
+    const validationResult = suggestTagsRequestSchema.safeParse(body)
+
+    if (!validationResult.success) {
+      const errors = validationResult.error?.issues?.map((err) => `${err.path.join('.')}: ${err.message}`) || ['Unknown validation error']
+      console.error('Tag suggestion validation failed:', errors)
+      console.error('Validation error details:', validationResult.error)
+
       return NextResponse.json(
-        { error: 'Missing image or vocabulary' } as SuggestTagsResponse,
+        {
+          industries: [],
+          projectTypes: [],
+          styles: [],
+          moods: [],
+          elements: [],
+          confidence: 'low' as const,
+          reasoning: 'Invalid request data',
+          error: `Validation failed: ${errors.slice(0, 2).join(', ')}${errors.length > 2 ? '...' : ''}`
+        } as SuggestTagsResponse,
         { status: 400 }
       )
     }
+
+    // Use validated data
+    const { image, vocabulary } = validationResult.data
 
     // Check for API key
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -185,6 +217,8 @@ export async function POST(request: NextRequest) {
 
 async function getCorrectionAnalysis(): Promise<CorrectionAnalysis | null> {
   try {
+    const supabase = createServerClient()
+
     // Check if cache is valid
     const now = Date.now()
     const cacheAge = now - cacheTimestamp
