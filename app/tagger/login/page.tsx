@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import LoginClient from '@/components/tagger/LoginClient'
 
 export const metadata = {
@@ -7,8 +8,10 @@ export const metadata = {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <LoginClient />
+    <div className="min-h-screen bg-custom-bg flex items-center justify-center px-4">
+      <Suspense fallback={<div className="text-white">Loading...</div>}>
+        <LoginClient />
+      </Suspense>
     </div>
   )
 }

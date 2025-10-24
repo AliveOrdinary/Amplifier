@@ -52,83 +52,90 @@ export default function LoginClient() {
   }
 
   return (
-    <div className="w-full max-w-md">
-      <div className="bg-white rounded-lg shadow-md p-8">
+    <div className="w-full max-w-lg">
+      <div className="bg-white rounded-2xl shadow-2xl border-2 border-gray-200 overflow-hidden">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Image Tagger Login
+        <div className="px-8 py-8 bg-gradient-to-br from-blue-600 to-blue-700 text-center">
+          <div className="text-6xl mb-4">🔐</div>
+          <h1 className="text-4xl font-bold text-white mb-2">
+            Welcome Back
           </h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-blue-100 text-lg">
             Sign in to access the tagging system
           </p>
         </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-sm text-red-800">{error}</p>
-          </div>
-        )}
+        {/* Content */}
+        <div className="px-8 py-8">
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">⚠️</span>
+                <p className="text-sm text-red-900 font-medium pt-1">{error}</p>
+              </div>
+            </div>
+          )}
 
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Email Input */}
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              placeholder="you@example.com"
+          {/* Login Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email Input */}
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide"
+              >
+                Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400"
+                placeholder="your.email@example.com"
+                disabled={loading}
+              />
+            </div>
+
+            {/* Password Input */}
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide"
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400"
+                placeholder="Enter your password"
+                disabled={loading}
+              />
+            </div>
+
+            {/* Sign In Button */}
+            <button
+              type="submit"
               disabled={loading}
-            />
-          </div>
-
-          {/* Password Input */}
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="w-full bg-blue-600 text-white py-3.5 px-6 rounded-lg hover:bg-blue-700 hover:shadow-lg focus:ring-4 focus:ring-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg mt-8"
             >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              placeholder="••••••••"
-              disabled={loading}
-            />
-          </div>
+              {loading ? '⏳ Signing in...' : '🚀 Sign In'}
+            </button>
+          </form>
+        </div>
 
-          {/* Sign In Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-md hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-
-        {/* Footer Note */}
-        <div className="mt-6 text-center">
-          <p className="text-xs text-gray-500">
-            Protected system - authorized users only
+        {/* Footer */}
+        <div className="px-8 py-6 bg-gray-50 border-t-2 border-gray-100 text-center">
+          <p className="text-sm text-gray-600 font-medium">
+            🔒 Protected system - authorized users only
           </p>
         </div>
       </div>

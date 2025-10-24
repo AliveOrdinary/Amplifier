@@ -41,6 +41,13 @@ interface ImageTags {
   [categoryKey: string]: string[] | string
 }
 
+interface AISuggestion {
+  confidence: 'high' | 'medium' | 'low'
+  reasoning: string
+  promptVersion?: 'baseline' | 'enhanced'
+  [categoryKey: string]: string[] | string | 'high' | 'medium' | 'low' | 'baseline' | 'enhanced' | undefined
+}
+
 export default function ImageTaggerClient() {
   // Initialize Supabase client with proper session handling
   const supabase = createClientComponentClient()
@@ -75,12 +82,6 @@ export default function ImageTaggerClient() {
   const [addTagError, setAddTagError] = useState<string | null>(null)
 
   // AI suggestion state
-  interface AISuggestion {
-    [categoryKey: string]: string[] | string
-    confidence: 'high' | 'medium' | 'low'
-    reasoning: string
-    promptVersion?: 'baseline' | 'enhanced'
-  }
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, AISuggestion>>({})
   const [isLoadingAI, setIsLoadingAI] = useState<Record<string, boolean>>({})
   const [aiError, setAiError] = useState<Record<string, string | null>>({})
@@ -599,7 +600,7 @@ export default function ImageTaggerClient() {
       })
 
       if (!fileValidation.success) {
-        const errorMessage = fileValidation.error.errors[0]?.message || 'Invalid file'
+        const errorMessage = fileValidation.error.issues[0]?.message || 'Invalid file'
         throw new Error(`File validation failed: ${errorMessage}`)
       }
 
@@ -884,11 +885,16 @@ export default function ImageTaggerClient() {
     const currentImage = uploadedImages[currentIndex]
     if (!currentImage) return
 
+    // Filter out undefined values from tags
+    const definedTags = Object.fromEntries(
+      Object.entries(tags).filter(([_, value]) => value !== undefined)
+    ) as ImageTags
+
     setImageTags(prev => ({
       ...prev,
       [currentImage.id]: {
         ...getCurrentImageTags(),
-        ...tags
+        ...definedTags
       }
     }))
   }
@@ -976,7 +982,7 @@ export default function ImageTaggerClient() {
       const validationResult = tagValueSchema.safeParse(newTagValue)
 
       if (!validationResult.success) {
-        const errorMessage = validationResult.error.errors[0]?.message || 'Invalid tag format'
+        const errorMessage = validationResult.error.issues[0]?.message || 'Invalid tag format'
         setAddTagError(errorMessage)
         setIsAddingTag(false)
         return

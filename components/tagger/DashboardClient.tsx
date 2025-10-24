@@ -539,15 +539,6 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
             <div className="font-bold text-xl mb-2">AI Analytics</div>
             <div className="text-sm text-orange-50 opacity-90">View AI learning and performance</div>
           </Link>
-
-          <Link
-            href="/tagger/bulk-upload"
-            className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 p-8 group"
-          >
-            <div className="text-4xl mb-4">📤</div>
-            <div className="font-bold text-xl mb-2">Bulk Upload</div>
-            <div className="text-sm text-indigo-50 opacity-90">Upload multiple images at once</div>
-          </Link>
         </div>
       </div>
 

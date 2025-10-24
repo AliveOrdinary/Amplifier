@@ -73,7 +73,7 @@ export const imageFileSchema = z.object({
     .positive('File size must be positive')
     .max(MAX_FILE_SIZE, 'File must be less than 10MB'),
   type: z.enum(ALLOWED_IMAGE_TYPES, {
-    errorMap: () => ({ message: 'Only JPG, PNG, and WEBP images are allowed' })
+    message: 'Only JPG, PNG, and WEBP images are allowed'
   }),
   name: z
     .string()
@@ -187,7 +187,7 @@ export const vocabularyCategorySchema = z.object({
     .min(1, 'Category label is required')
     .max(100, 'Category label must be less than 100 characters'),
   storage_type: z.enum(['array', 'jsonb_array', 'text'], {
-    errorMap: () => ({ message: 'Storage type must be array, jsonb_array, or text' })
+    message: 'Storage type must be array, jsonb_array, or text'
   }),
   storage_path: z
     .string()
