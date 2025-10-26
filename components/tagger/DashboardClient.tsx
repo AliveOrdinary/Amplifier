@@ -70,92 +70,27 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
     setDeleteProgress('Starting deletion...')
 
     try {
-      // 1. Get all images to delete their storage files
-      setDeleteProgress('Fetching images...')
-      const { data: images, error: fetchError } = await supabase
-        .from('reference_images')
-        .select('id, storage_path, thumbnail_path')
+      console.log('🗑️ Calling delete all images API...')
 
-      if (fetchError) throw fetchError
+      const response = await fetch('/api/admin/delete-all-images', {
+        method: 'DELETE',
+      })
 
-      if (!images || images.length === 0) {
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete images')
+      }
+
+      if (data.deletedCount === 0) {
         alert('No images to delete')
-        setIsDeleting(false)
         setShowDeleteModal(false)
+        setDeleteConfirmation('')
         return
       }
 
-      // 2. Delete storage files
-      setDeleteProgress(`Deleting ${images.length} images from storage...`)
-
-      const originalPaths = images
-        .map(img => {
-          const url = new URL(img.storage_path)
-          const path = url.pathname.split('/reference-images/')[1]
-          return path
-        })
-        .filter(Boolean)
-
-      const thumbnailPaths = images
-        .map(img => {
-          const url = new URL(img.thumbnail_path)
-          const path = url.pathname.split('/reference-images/')[1]
-          return path
-        })
-        .filter(Boolean)
-
-      // Delete originals
-      if (originalPaths.length > 0) {
-        const { error: deleteOriginalsError } = await supabase.storage
-          .from('reference-images')
-          .remove(originalPaths)
-
-        if (deleteOriginalsError) {
-          console.error('Error deleting originals:', deleteOriginalsError)
-        }
-      }
-
-      // Delete thumbnails
-      if (thumbnailPaths.length > 0) {
-        const { error: deleteThumbnailsError } = await supabase.storage
-          .from('reference-images')
-          .remove(thumbnailPaths)
-
-        if (deleteThumbnailsError) {
-          console.error('Error deleting thumbnails:', deleteThumbnailsError)
-        }
-      }
-
-      // 3. Delete tag corrections
-      setDeleteProgress('Deleting tag corrections...')
-      const { error: correctionsError } = await supabase
-        .from('tag_corrections')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all rows
-
-      if (correctionsError) {
-        console.error('Error deleting corrections:', correctionsError)
-      }
-
-      // 4. Delete reference images
-      setDeleteProgress('Deleting database records...')
-      const { error: imagesError } = await supabase
-        .from('reference_images')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all rows
-
-      if (imagesError) throw imagesError
-
-      // 5. Reset tag vocabulary usage counts
-      setDeleteProgress('Resetting vocabulary usage counts...')
-      const { error: resetError } = await supabase
-        .from('tag_vocabulary')
-        .update({ times_used: 0, last_used_at: null })
-        .neq('id', '00000000-0000-0000-0000-000000000000') // Update all rows
-
-      if (resetError) throw resetError
-
-      setDeleteProgress('All test data cleared successfully!')
+      console.log(`✅ Successfully deleted ${data.deletedCount} images`)
+      setDeleteProgress(`Successfully deleted ${data.deletedCount} images!`)
 
       // Wait a moment to show success message
       await new Promise(resolve => setTimeout(resolve, 1500))
@@ -166,7 +101,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
       router.refresh()
 
     } catch (error) {
-      console.error('Error deleting all images:', error)
+      console.error('❌ Error deleting all images:', error)
       alert(`Failed to delete all images: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsDeleting(false)

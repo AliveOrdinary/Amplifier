@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createServerClient } from '@/lib/supabase'
 import { z } from 'zod'
 import { base64ImageSchema, tagArraySchema } from '@/lib/validation'
+import { getEnhancedPromptSetting } from '@/lib/ai-settings'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
@@ -82,29 +83,8 @@ function createEmptyResponse(
   return response
 }
 
-// Helper function to get enhanced prompt setting from database
-async function getEnhancedPromptSetting(): Promise<boolean> {
-  try {
-    const supabase = createServerClient()
-    const { data, error } = await supabase
-      .from('user_settings')
-      .select('setting_value')
-      .eq('setting_key', 'use_enhanced_prompt')
-      .single()
-
-    if (error) {
-      console.error('Error fetching enhanced prompt setting:', error)
-      // Fallback to environment variable if database query fails
-      return process.env.USE_ENHANCED_PROMPT === 'true'
-    }
-
-    return data.setting_value === 'true'
-  } catch (error) {
-    console.error('Error in getEnhancedPromptSetting:', error)
-    // Fallback to environment variable
-    return process.env.USE_ENHANCED_PROMPT === 'true'
-  }
-}
+// Note: getEnhancedPromptSetting is now imported from @/lib/ai-settings
+// This shared utility ensures consistency across all API routes
 
 // ========== MAIN POST HANDLER ==========
 

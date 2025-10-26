@@ -181,9 +181,25 @@ After enabling enhanced mode and with 5+ images:
    - Actionable guidance for improvement
 
 **What this does:**
-- Immediately analyzes all your correction data
-- Refreshes the learning cache
-- Next AI suggestion will use enhanced prompt with these patterns
+- ✅ Analyzes all your correction data
+- ✅ Shows you the patterns AI has learned
+- ✅ Validates that enough training data exists
+- ℹ️ Note: Cache refresh happens automatically (see below)
+
+**Understanding Automatic Cache Refresh:**
+
+The enhanced prompt cache refreshes automatically to optimize performance:
+
+**Cache Refresh Triggers:**
+- After **5 new images** are tagged
+- After **1 hour** has passed
+- When the **server restarts**
+
+**Why Automatic?**
+In serverless environments (like Netlify), each API route runs independently. The enhanced prompt is generated in `/api/suggest-tags`, which maintains its own cache for performance. This prevents excessive database queries on every tag suggestion.
+
+**To Force Cache Refresh:**
+Simply tag 5 new images and the cache will automatically refresh on the next suggestion. You don't need to manually click anything.
 
 ---
 

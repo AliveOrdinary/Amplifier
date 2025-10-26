@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { getEnhancedPromptSetting } from '@/lib/ai-settings'
 
 interface CorrectionPattern {
   tag: string
@@ -201,7 +202,8 @@ export async function GET() {
       .from('tag_corrections')
       .select('*', { count: 'exact', head: true })
 
-    const enhancedPromptEnabled = process.env.USE_ENHANCED_PROMPT === 'true'
+    // Check database setting (source of truth) with fallback to env var
+    const enhancedPromptEnabled = await getEnhancedPromptSetting()
 
     return NextResponse.json({
       success: true,
