@@ -1163,10 +1163,10 @@ export default function ImageTaggerClient() {
         currentStatus={uploadedImages[currentIndex]?.status}
       />
 
-      {/* Main Tagging Interface */}
-      <div className="flex gap-6">
-        {/* Image Preview - 70% */}
-        <div className="w-[70%]">
+      {/* Main Tagging Interface - Full viewport height */}
+      <div className="flex gap-6 h-[calc(100vh-280px)]">
+        {/* Image Preview - 60% */}
+        <div className="w-[60%] flex flex-col">
           <ImagePreview
             image={uploadedImages[currentIndex]}
             currentIndex={currentIndex}
@@ -1179,8 +1179,8 @@ export default function ImageTaggerClient() {
           />
         </div>
 
-        {/* Tag Form - 30% */}
-        <div className="w-[30%]">
+        {/* Tag Form - 40% with single scroll */}
+        <div className="w-[40%] flex flex-col">
           <TagForm
             vocabConfig={vocabConfig}
             vocabulary={vocabulary}
@@ -1463,99 +1463,108 @@ function TagForm({ vocabConfig, vocabulary, currentTags, onUpdateTags, onOpenAdd
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6 max-h-[85vh] overflow-y-auto sticky top-0">
-      <h3 className="text-xl font-semibold text-gray-900 pb-3 border-b sticky top-0 bg-white z-10">
-        Tag Image
-      </h3>
+    <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-gray-200">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
+        <h3 className="text-xl font-semibold text-gray-900">
+          Tag Image
+        </h3>
+      </div>
 
-      {/* AI Insights Panel */}
-      {aiSuggestions && aiSuggestions.reasoning && (
-        <div className={`rounded-lg p-4 border-2 ${
-          aiSuggestions.confidence === 'high' ? 'bg-blue-50 border-blue-200' :
-          aiSuggestions.confidence === 'medium' ? 'bg-yellow-50 border-yellow-200' :
-          'bg-gray-50 border-gray-200'
-        }`}>
-          <div className="flex items-start gap-2 mb-2">
-            <span className="text-lg">✨</span>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-semibold text-gray-900">AI Analysis</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  aiSuggestions.confidence === 'high' ? 'bg-blue-200 text-blue-800' :
-                  aiSuggestions.confidence === 'medium' ? 'bg-yellow-200 text-yellow-800' :
-                  'bg-gray-200 text-gray-800'
-                }`}>
-                  {aiSuggestions.confidence} confidence
-                </span>
+      {/* Scrollable Content - Single scroll container */}
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+        {/* AI Insights Panel */}
+        {aiSuggestions && aiSuggestions.reasoning && (
+          <div className={`rounded-lg p-4 border-2 ${
+            aiSuggestions.confidence === 'high' ? 'bg-blue-50 border-blue-200' :
+            aiSuggestions.confidence === 'medium' ? 'bg-yellow-50 border-yellow-200' :
+            'bg-gray-50 border-gray-200'
+          }`}>
+            <div className="flex items-start gap-2">
+              <span className="text-lg">✨</span>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-semibold text-gray-900">AI Analysis</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    aiSuggestions.confidence === 'high' ? 'bg-blue-200 text-blue-800' :
+                    aiSuggestions.confidence === 'medium' ? 'bg-yellow-200 text-yellow-800' :
+                    'bg-gray-200 text-gray-800'
+                  }`}>
+                    {aiSuggestions.confidence} confidence
+                  </span>
+                </div>
+                <p className="text-xs text-gray-700 leading-relaxed">
+                  {aiSuggestions.reasoning}
+                </p>
               </div>
-              <p className="text-xs text-gray-700 leading-relaxed">
-                {aiSuggestions.reasoning}
-              </p>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Dynamic Form Sections */}
-      {vocabConfig.structure.categories.map((category) => (
-        <div key={category.key}>
-          {/* Multi-select categories (checkboxes) */}
-          {(category.storage_type === 'array' || category.storage_type === 'jsonb_array') && (
-            <>
-              <label className="block text-sm font-semibold text-gray-900 mb-3">
-                {category.label} ({(currentTags[category.key] as string[])?.length || 0})
-                {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
-              </label>
-              {category.description && (
-                <p className="text-xs text-gray-600 mb-2">{category.description}</p>
-              )}
-              <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                {(vocabulary[category.key] || []).map((tagValue: string) => {
-                  const currentValues = (currentTags[category.key] || []) as string[]
-                  const aiSuggestedValues = (aiSuggestions?.[category.key] || []) as string[]
-                  const isSelected = currentValues.includes(tagValue)
-                  const wasAiSuggested = aiSuggestedValues.includes(tagValue)
+        {/* Dynamic Form Sections - NO nested scrolling */}
+        {vocabConfig.structure.categories.map((category) => (
+          <div key={category.key} className="pb-4 border-b border-gray-100 last:border-0">
+            {/* Multi-select categories (checkboxes) */}
+            {(category.storage_type === 'array' || category.storage_type === 'jsonb_array') && (
+              <>
+                <label className="block text-sm font-semibold text-gray-900 mb-3">
+                  {category.label} ({(currentTags[category.key] as string[])?.length || 0})
+                  {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
+                </label>
+                {category.description && (
+                  <p className="text-xs text-gray-600 mb-3">{category.description}</p>
+                )}
 
-                  return (
-                    <TagCheckbox
-                      key={tagValue}
-                      label={tagValue}
-                      checked={isSelected}
-                      onChange={() => handleTagToggle(category.key, tagValue)}
-                      aiSuggested={wasAiSuggested}
-                    />
-                  )
-                })}
-              </div>
-              <button
-                onClick={() => onOpenAddTagModal(category.key)}
-                className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                + Add custom {category.label.toLowerCase()}
-              </button>
-            </>
-          )}
+                {/* REMOVED max-h-40 overflow-y-auto - let it flow naturally */}
+                <div className="space-y-2">
+                  {(vocabulary[category.key] || []).map((tagValue: string) => {
+                    const currentValues = (currentTags[category.key] || []) as string[]
+                    const aiSuggestedValues = (aiSuggestions?.[category.key] || []) as string[]
+                    const isSelected = currentValues.includes(tagValue)
+                    const wasAiSuggested = aiSuggestedValues.includes(tagValue)
 
-          {/* Text field categories (textarea) */}
-          {category.storage_type === 'text' && (
-            <>
-              <label className="block text-sm font-semibold text-gray-900 mb-3">
-                {category.label} {!category.label.includes('Optional') && '(Optional)'}
-              </label>
-              {category.description && (
-                <p className="text-xs text-gray-600 mb-2">{category.description}</p>
-              )}
-              <textarea
-                value={(currentTags[category.key] || '') as string}
-                onChange={(e) => handleTextChange(category.key, e.target.value)}
-                placeholder={category.placeholder || `Enter ${category.label.toLowerCase()}...`}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent resize-none"
-              />
-            </>
-          )}
-        </div>
-      ))}
+                    return (
+                      <TagCheckbox
+                        key={tagValue}
+                        label={tagValue}
+                        checked={isSelected}
+                        onChange={() => handleTagToggle(category.key, tagValue)}
+                        aiSuggested={wasAiSuggested}
+                      />
+                    )
+                  })}
+                </div>
+
+                <button
+                  onClick={() => onOpenAddTagModal(category.key)}
+                  className="mt-3 text-sm text-blue-600 hover:text-blue-800 transition-colors font-medium"
+                >
+                  + Add custom {category.label.toLowerCase()}
+                </button>
+              </>
+            )}
+
+            {/* Text field categories (textarea) */}
+            {category.storage_type === 'text' && (
+              <>
+                <label className="block text-sm font-semibold text-gray-900 mb-3">
+                  {category.label} {!category.label.includes('Optional') && '(Optional)'}
+                </label>
+                {category.description && (
+                  <p className="text-xs text-gray-600 mb-3">{category.description}</p>
+                )}
+                <textarea
+                  value={(currentTags[category.key] || '') as string}
+                  onChange={(e) => handleTextChange(category.key, e.target.value)}
+                  placeholder={category.placeholder || `Enter ${category.label.toLowerCase()}...`}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                />
+              </>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
