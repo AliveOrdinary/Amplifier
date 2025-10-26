@@ -49,8 +49,8 @@ export default function Contact() {
                 <div>
                   <h3 className="text-lg font-medium mb-4">Connect with Me</h3>
                   <ul className="flex flex-wrap gap-4">
-                    {contactData.socialMedia.map((social, index) => (
-                      <li key={index}>
+                    {contactData.socialMedia.map((social) => (
+                      <li key={social.platform}>
                         <Link
                           href={social.url}
                           target="_blank" 

@@ -2,6 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClientComponentClient } from '@/lib/supabase'
+import TagCheckbox from './TagCheckbox'
+import ImagePreview from './ImagePreview'
+
+// Image processing constants
+const MAX_IMAGE_WIDTH = 1200
+const THUMBNAIL_WIDTH = 800
+const THUMBNAIL_HEIGHT = 600
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const AI_IMAGE_MAX_SIZE = 20 * 1024 * 1024 // 20MB
 
 interface UploadedImage {
   id: string
@@ -84,7 +93,6 @@ export default function ImageTaggerClient() {
   // AI suggestion state
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, AISuggestion>>({})
   const [isLoadingAI, setIsLoadingAI] = useState<Record<string, boolean>>({})
-  const [aiError, setAiError] = useState<Record<string, string | null>>({})
 
   // Filter state
   type FilterType = 'all' | 'pending' | 'skipped' | 'tagged'
@@ -238,10 +246,10 @@ export default function ImageTaggerClient() {
       const ctx = canvas.getContext('2d')
 
       img.onload = () => {
-        // Calculate dimensions (max 1200px on longest side)
+        // Calculate dimensions (max width on longest side)
         let width = img.width
         let height = img.height
-        const maxSize = 1200
+        const maxSize = MAX_IMAGE_WIDTH
 
         if (width > height && width > maxSize) {
           height = (height * maxSize) / width
@@ -289,7 +297,6 @@ export default function ImageTaggerClient() {
     try {
       // Mark as loading
       setIsLoadingAI(prev => ({ ...prev, [imageId]: true }))
-      setAiError(prev => ({ ...prev, [imageId]: null }))
 
       console.log(`🤖 Getting AI suggestions for ${file.name}...`)
 
@@ -363,10 +370,6 @@ export default function ImageTaggerClient() {
 
     } catch (error) {
       console.error('❌ Error getting AI suggestions:', error)
-      setAiError(prev => ({
-        ...prev,
-        [imageId]: error instanceof Error ? error.message : 'Failed to get AI suggestions'
-      }))
     } finally {
       setIsLoadingAI(prev => ({ ...prev, [imageId]: false }))
     }
@@ -511,7 +514,7 @@ export default function ImageTaggerClient() {
   }
 
   // Generate thumbnail from image file
-  const generateThumbnail = async (file: File, maxWidth: number = 800): Promise<Blob> => {
+  const generateThumbnail = async (file: File, maxWidth: number = THUMBNAIL_WIDTH): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       const img = new Image()
       const canvas = document.createElement('canvas')
@@ -571,25 +574,14 @@ export default function ImageTaggerClient() {
       setSaveSuccess(false)
 
       // Check authentication session before upload
-      console.log('[Upload] Checking authentication session...')
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-      console.log('[Upload] Session check:', {
-        hasSession: !!session,
-        userId: session?.user?.id,
-        userEmail: session?.user?.email,
-        error: sessionError?.message
-      })
 
       if (!session) {
         const errorMsg = 'Please log in again to upload images'
-        console.error('[Upload] ❌ No active session')
         alert(errorMsg)
         window.location.href = '/tagger/login?redirectTo=/tagger'
         return
       }
-
-      console.log('[Upload] ✅ Session verified, proceeding with upload')
 
       // Validate file before upload
       const { imageFileSchema, sanitizeFilename } = await import('@/lib/validation')
@@ -618,14 +610,6 @@ export default function ImageTaggerClient() {
       console.log('⬆️ Uploading original image...')
       const originalPath = `originals/${imageId}-${sanitizedFilename}`
 
-      console.log('[Upload] About to upload original:', {
-        bucket: 'reference-images',
-        path: originalPath,
-        fileSize: currentImage.file.size,
-        fileType: currentImage.file.type,
-        fileName: currentImage.filename
-      })
-
       const { data: uploadData, error: uploadOriginalError } = await supabase.storage
         .from('reference-images')
         .upload(originalPath, currentImage.file, {
@@ -633,49 +617,24 @@ export default function ImageTaggerClient() {
           upsert: false
         })
 
-      console.log('[Upload] Original upload result:', {
-        success: !!uploadData,
-        error: uploadOriginalError?.message,
-        errorDetails: uploadOriginalError
-      })
-
       if (uploadOriginalError) {
-        console.error('[Upload] ❌ Full error object:', JSON.stringify(uploadOriginalError, null, 2))
         throw uploadOriginalError
       }
-
-      console.log('[Upload] ✅ Original uploaded successfully')
 
       // 3. Upload thumbnail to Supabase Storage
       console.log('⬆️ Uploading thumbnail...')
       const thumbnailPath = `thumbnails/${imageId}-${sanitizedFilename}`
 
-      console.log('[Upload] About to upload thumbnail:', {
-        bucket: 'reference-images',
-        path: thumbnailPath,
-        blobSize: thumbnailBlob.size,
-        blobType: thumbnailBlob.type
-      })
-
-      const { data: thumbnailUploadData, error: uploadThumbnailError } = await supabase.storage
+      const { error: uploadThumbnailError } = await supabase.storage
         .from('reference-images')
         .upload(thumbnailPath, thumbnailBlob, {
           contentType: currentImage.file.type,
           upsert: false
         })
 
-      console.log('[Upload] Thumbnail upload result:', {
-        success: !!thumbnailUploadData,
-        error: uploadThumbnailError?.message,
-        errorDetails: uploadThumbnailError
-      })
-
       if (uploadThumbnailError) {
-        console.error('[Upload] ❌ Full thumbnail error:', JSON.stringify(uploadThumbnailError, null, 2))
         throw uploadThumbnailError
       }
-
-      console.log('[Upload] ✅ Thumbnail uploaded successfully')
 
       // 4. Get public URLs
       const { data: originalUrlData } = supabase.storage
@@ -1467,152 +1426,6 @@ function ProgressIndicator({ current, total, currentStatus }: ProgressIndicatorP
         />
       </div>
     </div>
-  )
-}
-
-// Image Preview Component with Navigation
-interface ImagePreviewProps {
-  image: UploadedImage
-  currentIndex: number
-  totalImages: number
-  onPrevious: () => void
-  onNext: () => void
-  onSkip: () => void
-  onSaveAndNext: () => Promise<void>
-  isSaving: boolean
-}
-
-function ImagePreview({
-  image,
-  currentIndex,
-  totalImages,
-  onPrevious,
-  onNext,
-  onSkip,
-  onSaveAndNext,
-  isSaving
-}: ImagePreviewProps) {
-  const isFirstImage = currentIndex === 0
-  const isLastImage = currentIndex === totalImages - 1
-
-  return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
-      {/* Image Container */}
-      <div className="bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center border border-gray-200" style={{ maxHeight: '70vh' }}>
-        <img
-          src={image.previewUrl}
-          alt={image.filename}
-          className="max-w-full max-h-[70vh] object-contain"
-        />
-      </div>
-
-      {/* Filename */}
-      <div className="border-t border-gray-200 pt-4">
-        <p className="text-sm font-semibold text-gray-900 truncate" title={image.filename}>
-          {image.filename}
-        </p>
-        {image.status === 'skipped' && (
-          <span className="inline-block mt-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded">
-            Skipped
-          </span>
-        )}
-        {image.status === 'tagged' && (
-          <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            Already Tagged
-          </span>
-        )}
-      </div>
-
-      {/* Navigation Buttons */}
-      <div className="flex gap-3 border-t border-gray-200 pt-4">
-        <button
-          onClick={onPrevious}
-          disabled={isFirstImage}
-          className={`flex-1 px-4 py-3 border-2 rounded-lg font-medium transition-all ${
-            isFirstImage
-              ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-100'
-              : 'border-gray-400 text-gray-900 bg-white hover:bg-gray-50 hover:border-gray-500'
-          }`}
-        >
-          ← Previous
-        </button>
-
-        {image.status !== 'tagged' ? (
-          <>
-            <button
-              onClick={onSkip}
-              className="flex-1 px-4 py-3 border-2 border-orange-400 text-orange-700 bg-orange-50 rounded-lg font-medium hover:bg-orange-100 hover:border-orange-500 transition-all"
-            >
-              Skip
-            </button>
-
-            <button
-              onClick={onSaveAndNext}
-              disabled={isSaving}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                isSaving
-                  ? 'bg-gray-400 text-gray-100 cursor-not-allowed'
-                  : 'bg-black text-white hover:bg-gray-800 shadow-sm hover:shadow-md'
-              }`}
-            >
-              {isSaving ? (
-                <span className="flex items-center justify-center space-x-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <span>Saving...</span>
-                </span>
-              ) : (
-                <span>Save & Next →</span>
-              )}
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={onNext}
-            disabled={isLastImage}
-            className={`flex-1 px-4 py-3 border-2 rounded-lg font-medium transition-all ${
-              isLastImage
-                ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-100'
-                : 'border-gray-400 text-gray-900 bg-white hover:bg-gray-50 hover:border-gray-500'
-            }`}
-          >
-            Next →
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// Tag Checkbox Component
-interface TagCheckboxProps {
-  label: string
-  checked: boolean
-  onChange: (checked: boolean) => void
-  aiSuggested?: boolean
-}
-
-function TagCheckbox({ label, checked, onChange, aiSuggested = false }: TagCheckboxProps) {
-  return (
-    <label className="flex items-center space-x-2 cursor-pointer group">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="w-4 h-4 text-black border-gray-300 rounded focus:ring-2 focus:ring-black cursor-pointer"
-      />
-      <span className={`text-sm group-hover:text-gray-900 select-none flex items-center gap-1.5 ${
-        aiSuggested ? 'text-blue-700 font-medium' : 'text-gray-700'
-      }`}>
-        {aiSuggested && <span className="text-xs">✨</span>}
-        {label}
-      </span>
-    </label>
   )
 }
 

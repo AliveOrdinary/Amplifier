@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import type { ReferenceImage } from '@/lib/types';
 
 interface ReferenceImageCardProps {
@@ -10,7 +11,7 @@ interface ReferenceImageCardProps {
   onToggleFavorite: () => void;
 }
 
-export default function ReferenceImageCard({ image, isFavorited, onToggleFavorite }: ReferenceImageCardProps) {
+const ReferenceImageCard = memo(function ReferenceImageCard({ image, isFavorited, onToggleFavorite }: ReferenceImageCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -45,16 +46,18 @@ export default function ReferenceImageCard({ image, isFavorited, onToggleFavorit
         )}
 
         {imageUrl ? (
-          <img
+          <Image
             src={imageUrl}
             alt={filename}
+            width={400}
+            height={400}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className={`w-full h-auto transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             onLoad={() => setImageLoaded(true)}
             onError={() => {
               console.error('Failed to load image:', imageUrl);
               setImageLoaded(true);
             }}
-            loading="lazy"
           />
         ) : (
           <div className="w-full h-48 flex items-center justify-center bg-gray-800 text-gray-500">
@@ -120,4 +123,6 @@ export default function ReferenceImageCard({ image, isFavorited, onToggleFavorit
       </div>
     </motion.div>
   );
-}
+});
+
+export default ReferenceImageCard;

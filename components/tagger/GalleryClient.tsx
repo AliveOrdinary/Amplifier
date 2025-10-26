@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import Image from 'next/image'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -120,8 +121,6 @@ async function updateTagUsageForChanges(
         }
       }
     }
-
-    console.log('✅ Tag usage counts updated')
   } catch (error) {
     console.error('⚠️ Error updating tag usage counts:', error)
   }
@@ -170,8 +169,6 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
           initialFilters[cat.key] = 'all'
         })
         setCategoryFilters(initialFilters)
-
-        console.log('✅ Vocabulary config loaded:', config.structure.categories.length, 'categories')
       } catch (error) {
         console.error('❌ Error loading vocabulary config:', error)
         setConfigError(error instanceof Error ? error.message : 'Failed to load vocabulary config')
@@ -228,8 +225,6 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
         }, {} as TagVocabulary)
 
         setVocabulary(groupedVocabulary)
-
-        console.log('✅ Vocabulary loaded:', Object.keys(groupedVocabulary).length, 'categories')
       } catch (error) {
         console.error('❌ Error loading vocabulary:', error)
       }
@@ -650,10 +645,12 @@ function ImageCard({ image, vocabConfig, isSelected, onToggleSelect, onClick }: 
         onClick={onClick}
         className="aspect-square bg-gray-100 overflow-hidden relative cursor-pointer"
       >
-        <img
+        <Image
           src={image.thumbnail_path || image.storage_path}
           alt={image.original_filename}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          className="object-cover group-hover:scale-110 transition-transform duration-300"
         />
 
         {/* Hover Overlay - Improved Readability */}
@@ -796,10 +793,13 @@ function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailMo
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Image */}
             <div>
-              <div className="bg-gray-100 rounded-lg overflow-hidden">
-                <img
+              <div className="bg-gray-100 rounded-lg overflow-hidden relative">
+                <Image
                   src={image.storage_path}
                   alt={image.original_filename}
+                  width={800}
+                  height={600}
+                  sizes="(max-width: 1024px) 100vw, 800px"
                   className="w-full h-auto"
                 />
               </div>
@@ -1123,10 +1123,13 @@ function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave }: Edi
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Image Preview */}
             <div>
-              <div className="bg-gray-100 rounded-lg overflow-hidden">
-                <img
+              <div className="bg-gray-100 rounded-lg overflow-hidden relative">
+                <Image
                   src={image.storage_path}
                   alt={image.original_filename}
+                  width={800}
+                  height={600}
+                  sizes="(max-width: 1024px) 100vw, 800px"
                   className="w-full h-auto"
                 />
               </div>

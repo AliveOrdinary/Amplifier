@@ -106,8 +106,8 @@ export default async function Project(
                 <div className="grid grid-cols-2 pb-4">
                   <h3 className="text-lg font-normal text-gray-500 mb-2">Services</h3>
                   <div className="text-lg text-gray-500">
-                    {projectData.services.map((service, index) => (
-                      <div key={index}>{service}</div>
+                    {projectData.services.map((service) => (
+                      <div key={service}>{service}</div>
                     ))}
                   </div>
                 </div>
@@ -130,7 +130,7 @@ export default async function Project(
             <div className="w-full">
               {sortedMedia.map((item, index) => (
                 <ProjectMedia
-                  key={index}
+                  key={item.src}
                   type={item.type}
                   src={item.src}
                   caption={item.caption}

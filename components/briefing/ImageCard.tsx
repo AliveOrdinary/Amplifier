@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import type { ArenaBlock } from '@/lib/types';
 
 interface ImageCardProps {
@@ -36,16 +37,18 @@ export default function ImageCard({ block, isFavorited, onToggleFavorite }: Imag
         )}
 
         {imageUrl ? (
-          <img
+          <Image
             src={imageUrl}
             alt={title}
+            width={400}
+            height={400}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className={`w-full h-auto transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             onLoad={() => setImageLoaded(true)}
             onError={() => {
               console.error('Failed to load image:', imageUrl);
               setImageLoaded(true);
             }}
-            loading="lazy"
           />
         ) : (
           <div className="w-full h-48 flex items-center justify-center bg-gray-800 text-gray-500">

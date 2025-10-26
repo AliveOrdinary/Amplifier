@@ -85,8 +85,6 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       const { config } = await response.json()
       setVocabConfig(config)
       setCategories(config.structure.categories)
-
-      console.log('✅ Vocabulary config loaded:', config.structure.categories.length, 'categories')
     } catch (error) {
       console.error('❌ Error loading vocabulary config:', error)
       setConfigError(error instanceof Error ? error.message : 'Failed to load vocabulary config')

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
+import Image from 'next/image'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -554,11 +555,13 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
                   href="/tagger/gallery"
                   className="group"
                 >
-                  <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-3 shadow-sm group-hover:shadow-md transition-shadow">
-                    <img
+                  <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-3 shadow-sm group-hover:shadow-md transition-shadow relative">
+                    <Image
                       src={image.thumbnail_path}
                       alt={image.original_filename}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      className="object-cover group-hover:scale-110 transition-transform duration-200"
                     />
                   </div>
                   <div className="text-sm font-medium text-gray-800 truncate mb-1">{image.original_filename}</div>
@@ -751,11 +754,13 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {dup.images.map((img, idx) => (
                           <div key={img.id} className="bg-white rounded-lg p-3 border border-gray-200">
-                            <div className="aspect-square bg-gray-100 rounded overflow-hidden mb-2">
-                              <img
+                            <div className="aspect-square bg-gray-100 rounded overflow-hidden mb-2 relative">
+                              <Image
                                 src={img.thumbnail_path}
                                 alt={img.original_filename}
-                                className="w-full h-full object-cover"
+                                fill
+                                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                                className="object-cover"
                               />
                             </div>
                             <div className="text-xs text-gray-500 mb-2">

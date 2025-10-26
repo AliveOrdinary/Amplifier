@@ -22,8 +22,6 @@ export default function ProjectMedia({
 }: ProjectMediaProps) {
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
-  // Remove state related to automatic detection
-  // const [hasAudioState, setHasAudioState] = useState(false);
 
   // Remove the useEffect hook for automatic detection
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import type { QuestionnaireResponses, ArenaBlock, ReferenceImage } from '@/lib/types';
 
 interface BriefingSummaryProps {
@@ -117,8 +118,8 @@ export default function BriefingSummary({
       <div className="mb-8 p-6 bg-gray-900 border-2 border-gray-800 rounded-lg">
         <h3 className="text-xl font-bold mb-4 text-white">Visual Keywords</h3>
         <div className="flex flex-wrap gap-2">
-          {keywords.map((keyword, index) => (
-            <span key={index} className="bg-white text-black px-4 py-2 rounded-full text-sm font-medium">
+          {keywords.map((keyword) => (
+            <span key={keyword} className="bg-white text-black px-4 py-2 rounded-full text-sm font-medium">
               {keyword}
             </span>
           ))}
@@ -134,21 +135,27 @@ export default function BriefingSummary({
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
             {favoritedImages.length > 0 ? (
               favoritedImages.map(image => (
-                <img
-                  key={image.id}
-                  src={image.thumbnail_path}
-                  alt={image.original_filename}
-                  className="w-full h-24 object-cover rounded-md border border-gray-700"
-                />
+                <div key={image.id} className="relative w-full h-24">
+                  <Image
+                    src={image.thumbnail_path}
+                    alt={image.original_filename}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-cover rounded-md border border-gray-700"
+                  />
+                </div>
               ))
             ) : (
               favoritedBlocks.map(block => (
-                <img
-                  key={block.id}
-                  src={block.image?.thumb?.url || block.image?.display?.url || ''}
-                  alt={block.title || 'Favorited image'}
-                  className="w-full h-24 object-cover rounded-md border border-gray-700"
-                />
+                <div key={block.id} className="relative w-full h-24">
+                  <Image
+                    src={block.image?.thumb?.url || block.image?.display?.url || ''}
+                    alt={block.title || 'Favorited image'}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-cover rounded-md border border-gray-700"
+                  />
+                </div>
               ))
             )}
           </div>
@@ -157,8 +164,8 @@ export default function BriefingSummary({
 
       {/* Collapsible Sections */}
       <div className="space-y-4 mb-8">
-        {sections.map((section, index) => (
-          <div key={index} className="border-2 border-gray-800 rounded-lg overflow-hidden">
+        {sections.map((section) => (
+          <div key={section.title} className="border-2 border-gray-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleSection(section.title)}
               className="w-full px-6 py-4 bg-gray-900 hover:bg-gray-800 transition-colors flex items-center justify-between"
