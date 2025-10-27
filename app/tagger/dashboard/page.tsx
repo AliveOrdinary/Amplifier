@@ -2,6 +2,10 @@ import { createServerClient } from '@/lib/supabase'
 import DashboardClient from '@/components/tagger/DashboardClient'
 import SignOutButton from '@/components/tagger/SignOutButton'
 
+// Disable caching - always fetch fresh data
+export const revalidate = 0
+export const dynamic = 'force-dynamic'
+
 // Get server-side Supabase client
 const supabaseAdmin = createServerClient()
 

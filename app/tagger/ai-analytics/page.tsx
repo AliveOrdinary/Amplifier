@@ -2,6 +2,10 @@ import { createClient } from '@supabase/supabase-js'
 import AIAnalyticsClient from '@/components/tagger/AIAnalyticsClient'
 import Link from 'next/link'
 
+// Disable caching - always fetch fresh data
+export const revalidate = 0
+export const dynamic = 'force-dynamic'
+
 // Server-side Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
