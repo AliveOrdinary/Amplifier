@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import type { SendBriefingRequest, SendBriefingResponse, BriefingData, ArenaBlock, ReferenceImage } from '@/lib/types';
+import type { SendBriefingRequest, SendBriefingResponse, BriefingData, ReferenceImage } from '@/lib/types';
 import { z } from 'zod';
 
 // Validation schema for briefing responses
@@ -45,10 +45,8 @@ const briefingDataSchema = z.object({
   responses: briefingResponsesSchema,
   extractedKeywords: z.array(z.string().max(100)).max(50, 'Too many keywords'),
   editedKeywords: z.array(z.string().max(100)).max(50, 'Too many keywords').optional(),
-  favoritedBlockIds: z.array(z.number()).max(100, 'Too many favorited blocks'),
-  arenaBlocks: z.array(z.any()).max(200, 'Too many arena blocks'),
-  referenceImages: z.array(z.any()).max(200, 'Too many reference images').optional(),
-  favoritedImageIds: z.array(z.string()).max(100, 'Too many favorited images').optional(),
+  referenceImages: z.array(z.any()).max(200, 'Too many reference images'),
+  favoritedImageIds: z.array(z.string()).max(100, 'Too many favorited images'),
   timestamp: z.string().or(z.number()),
 });
 
@@ -161,11 +159,9 @@ export async function POST(request: NextRequest) {
 }
 
 function generateEmailHTML(data: BriefingData): string {
-  const { responses, extractedKeywords, editedKeywords, favoritedBlockIds, arenaBlocks, referenceImages, favoritedImageIds } = data;
+  const { responses, extractedKeywords, editedKeywords, referenceImages, favoritedImageIds } = data;
   const keywords = editedKeywords && editedKeywords.length > 0 ? editedKeywords : extractedKeywords;
-  const favoritedBlocks = arenaBlocks.filter(block => favoritedBlockIds.includes(block.id));
-  const favoritedImages = referenceImages?.filter(img => favoritedImageIds?.includes(img.id)) || [];
-  const useReferenceImages = favoritedImages.length > 0 || (referenceImages && referenceImages.length > 0);
+  const favoritedImages = referenceImages.filter(img => favoritedImageIds.includes(img.id));
   const allReferenceImages = referenceImages || [];
 
   return `
@@ -343,39 +339,23 @@ function generateEmailHTML(data: BriefingData): string {
   </div>
 
   <h2>Client-Selected Visual References</h2>
-  ${useReferenceImages ? (
-    favoritedImages.length > 0 ? `
+  ${favoritedImages.length > 0 ? `
   <p><em>The client favorited ${favoritedImages.length} image${favoritedImages.length > 1 ? 's' : ''} from our internal collection:</em></p>
   <div class="gallery">
     ${favoritedImages.map(img => formatReferenceImageItem(img)).join('')}
   </div>
-  ` : '<p><em>Client did not select specific favorite images.</em></p>'
-  ) : (
-    favoritedBlocks.length > 0 ? `
-  <p><em>The client favorited ${favoritedBlocks.length} image${favoritedBlocks.length > 1 ? 's' : ''} from the AI-curated gallery:</em></p>
-  <div class="gallery">
-    ${favoritedBlocks.map(block => formatGalleryItem(block)).join('')}
-  </div>
-  ` : '<p><em>Client did not select specific favorite images.</em></p>'
-  )}
+  ` : '<p><em>Client did not select specific favorite images.</em></p>'}
 
   <h2>All Curated Visual References</h2>
-  ${useReferenceImages ? `
-  <p><em>Complete gallery of ${allReferenceImages.length} images from our internal collection, curated based on extracted keywords:</em></p>
-  ${allReferenceImages.length > 0 ? `
+  ${referenceImages.length > 0 ? `
+  <p><em>Complete gallery of ${referenceImages.length} images from our internal collection, curated based on extracted keywords:</em></p>
   <div class="gallery">
-    ${allReferenceImages.map(img => formatReferenceImageItem(img)).join('')}
+    ${referenceImages.map(img => formatReferenceImageItem(img)).join('')}
   </div>
-  ` : '<p><em>No images in collection yet. Visual direction to be discussed during kickoff call.</em></p>'}
   <p style="margin-top: 2rem; color: #666; font-size: 14px;">
     All references are from our internal design library, curated and tagged by our team.
   </p>
-  ` : `
-  <p><em>Complete gallery of ${arenaBlocks.length} images curated based on extracted keywords:</em></p>
-  <div class="gallery">
-    ${arenaBlocks.map(block => formatGalleryItem(block)).join('')}
-  </div>
-  `}
+  ` : '<p><em>No images in collection yet. Visual direction to be discussed during kickoff call.</em></p>'}
 
 </body>
 </html>

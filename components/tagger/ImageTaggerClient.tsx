@@ -163,13 +163,12 @@ export default function ImageTaggerClient() {
         // Map database categories to vocabulary config keys dynamically
         const vocabularyState: TagVocabulary = {}
 
+        // Since tag_vocabulary.category now uses the config key directly,
+        // no mapping is needed - just match by key
         vocabConfig.structure.categories.forEach(cat => {
           if (cat.storage_type === 'array' || cat.storage_type === 'jsonb_array') {
-            // Map from config key to database category name
-            // Most keys match database categories, but handle special cases
-            const dbCategory = cat.key === 'project_types' ? 'project_type' :
-                              cat.key === 'industries' ? 'industry' : cat.key
-            vocabularyState[cat.key] = groupedVocabulary[dbCategory] || []
+            // Use the category key directly (it matches the database category)
+            vocabularyState[cat.key] = groupedVocabulary[cat.key] || []
           }
         })
 
@@ -393,14 +392,8 @@ export default function ImageTaggerClient() {
 
       const now = new Date().toISOString()
 
-      // Map config keys to database categories
-      const keyToDbCategory = (key: string): string => {
-        if (key === 'industries') return 'industry'
-        if (key === 'project_types') return 'project_type'
-        return key
-      }
-
       // Collect all tags with their categories
+      // Since tag_vocabulary.category now uses the config key directly, no mapping needed
       const tagUpdates: Array<{ category: string; tagValue: string }> = []
 
       vocabConfig.structure.categories.forEach(cat => {
@@ -409,7 +402,7 @@ export default function ImageTaggerClient() {
           if (Array.isArray(tagValues)) {
             tagValues.forEach(tag => {
               tagUpdates.push({
-                category: keyToDbCategory(cat.key),
+                category: cat.key, // Use the key directly (matches database category)
                 tagValue: tag
               })
             })
@@ -950,14 +943,8 @@ export default function ImageTaggerClient() {
       // Use the validated and normalized tag value
       const normalized = validationResult.data
 
-      // Map config key to database category
-      const keyToDbCategory = (key: string): string => {
-        if (key === 'industries') return 'industry'
-        if (key === 'project_types') return 'project_type'
-        return key
-      }
-
-      const dbCategory = keyToDbCategory(addTagCategory)
+      // Since tag_vocabulary.category now uses the config key directly, no mapping needed
+      const dbCategory = addTagCategory
 
       // Check for exact duplicate
       const existingTags = vocabulary[addTagCategory] || []
@@ -1044,8 +1031,8 @@ export default function ImageTaggerClient() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto"></div>
-          <p className="text-gray-600">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="text-gray-300">
             {configLoading ? 'Loading vocabulary configuration...' : 'Loading tag vocabulary...'}
           </p>
         </div>
@@ -1056,12 +1043,12 @@ export default function ImageTaggerClient() {
   // Show error state
   if (configError || vocabularyError) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+      <div className="bg-red-900/50 border border-red-600 rounded-lg p-6 text-center">
         <div className="text-4xl mb-4">⚠️</div>
-        <h3 className="text-lg font-semibold text-red-900 mb-2">
+        <h3 className="text-lg font-semibold text-red-300 mb-2">
           {configError ? 'Failed to Load Vocabulary Configuration' : 'Failed to Load Vocabulary'}
         </h3>
-        <p className="text-red-700 mb-4">{configError || vocabularyError}</p>
+        <p className="text-red-400 mb-4">{configError || vocabularyError}</p>
         <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
@@ -1240,22 +1227,22 @@ function UploadSection({ onFilesSelected, uploadedImages, onStartTagging }: Uplo
         onDrop={handleDrop}
         className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
           isDragging
-            ? 'border-black bg-gray-50'
-            : 'border-gray-300 hover:border-gray-400'
+            ? 'border-blue-500 bg-gray-800'
+            : 'border-gray-600 hover:border-gray-500 bg-gray-800'
         }`}
       >
         <div className="space-y-4">
           <div className="text-6xl">📁</div>
-          <h2 className="text-2xl font-semibold">Upload Reference Images</h2>
-          <p className="text-gray-600">
+          <h2 className="text-2xl font-semibold text-white">Upload Reference Images</h2>
+          <p className="text-gray-300">
             Drag and drop images here, or click to select files
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-400">
             Supported formats: JPG, PNG, WEBP
           </p>
           <button
             onClick={handleSelectClick}
-            className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Select Images
           </button>
@@ -1274,12 +1261,12 @@ function UploadSection({ onFilesSelected, uploadedImages, onStartTagging }: Uplo
       {uploadedImages.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">
+            <h3 className="text-lg font-semibold text-white">
               {uploadedImages.length} {uploadedImages.length === 1 ? 'Image' : 'Images'} Uploaded
             </h3>
             <button
               onClick={onStartTagging}
-              className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               Start Tagging →
             </button>
@@ -1289,9 +1276,9 @@ function UploadSection({ onFilesSelected, uploadedImages, onStartTagging }: Uplo
             {uploadedImages.map((image) => (
               <div
                 key={image.id}
-                className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                className="bg-gray-800 rounded-lg overflow-hidden shadow-xl hover:shadow-2xl transition-shadow border border-gray-700"
               >
-                <div className="aspect-square bg-gray-100 overflow-hidden">
+                <div className="aspect-square bg-gray-900 overflow-hidden">
                   <img
                     src={image.previewUrl}
                     alt={image.filename}
@@ -1299,7 +1286,7 @@ function UploadSection({ onFilesSelected, uploadedImages, onStartTagging }: Uplo
                   />
                 </div>
                 <div className="p-2">
-                  <p className="text-xs text-gray-600 truncate" title={image.filename}>
+                  <p className="text-xs text-gray-300 truncate" title={image.filename}>
                     {image.filename}
                   </p>
                 </div>
@@ -1334,7 +1321,7 @@ function FilterBar({ currentFilter, statusCounts, onFilterChange, onReviewSkippe
   ]
 
   return (
-    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+    <div className="bg-gray-800 rounded-lg p-4 shadow-xl border border-gray-700">
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           {filters.map((filter) => {
@@ -1350,13 +1337,13 @@ function FilterBar({ currentFilter, statusCounts, onFilterChange, onReviewSkippe
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   isActive
                     ? filter.color === 'orange'
-                      ? 'bg-orange-100 text-orange-800 border-2 border-orange-400'
+                      ? 'bg-orange-900/50 text-orange-300 border-2 border-orange-600'
                       : filter.color === 'green'
-                      ? 'bg-green-100 text-green-800 border-2 border-green-400'
-                      : 'bg-gray-200 text-gray-900 border-2 border-gray-400'
+                      ? 'bg-green-900/50 text-green-300 border-2 border-green-600'
+                      : 'bg-gray-700 text-white border-2 border-gray-600'
                     : count === 0 && filter.key !== 'all'
-                    ? 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                    ? 'bg-gray-900 text-gray-600 border border-gray-700 cursor-not-allowed'
+                    : 'bg-gray-900 text-gray-300 border border-gray-600 hover:bg-gray-750 hover:border-gray-500'
                 }`}
               >
                 {filter.label}
@@ -1394,18 +1381,18 @@ function ProgressIndicator({ current, total, currentStatus }: ProgressIndicatorP
   const percentage = (current / total) * 100
 
   const statusConfig = {
-    pending: { label: 'Pending', color: 'bg-gray-500', textColor: 'text-gray-700' },
-    skipped: { label: 'Skipped', color: 'bg-orange-500', textColor: 'text-orange-700' },
-    tagged: { label: 'Tagged', color: 'bg-green-500', textColor: 'text-green-700' }
+    pending: { label: 'Pending', color: 'bg-gray-500', textColor: 'text-gray-300' },
+    skipped: { label: 'Skipped', color: 'bg-orange-500', textColor: 'text-orange-300' },
+    tagged: { label: 'Tagged', color: 'bg-green-500', textColor: 'text-green-300' }
   }
 
   const status = currentStatus ? statusConfig[currentStatus] : null
 
   return (
-    <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-200">
+    <div className="bg-gray-800 rounded-lg p-5 shadow-xl border border-gray-700">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <span className="text-base font-semibold text-gray-900">
+          <span className="text-base font-semibold text-white">
             Image {current} of {total}
           </span>
           {status && (
@@ -1415,13 +1402,13 @@ function ProgressIndicator({ current, total, currentStatus }: ProgressIndicatorP
             </span>
           )}
         </div>
-        <span className="text-sm font-medium text-gray-600">
+        <span className="text-sm font-medium text-gray-400">
           {Math.round(percentage)}% Complete
         </span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-3">
+      <div className="w-full bg-gray-700 rounded-full h-3">
         <div
-          className="bg-black h-3 rounded-full transition-all duration-300"
+          className="bg-blue-500 h-3 rounded-full transition-all duration-300"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -1456,17 +1443,17 @@ function TagForm({ vocabConfig, vocabulary, currentTags, onUpdateTags, onOpenAdd
 
   if (!vocabConfig) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <p className="text-gray-500">Loading configuration...</p>
+      <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 p-6">
+        <p className="text-gray-300">Loading configuration...</p>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="flex flex-col h-full bg-gray-800 rounded-lg shadow-xl border border-gray-700">
       {/* Fixed Header */}
-      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
-        <h3 className="text-xl font-semibold text-gray-900">
+      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-700">
+        <h3 className="text-xl font-semibold text-white">
           Tag Image
         </h3>
       </div>
@@ -1476,24 +1463,24 @@ function TagForm({ vocabConfig, vocabulary, currentTags, onUpdateTags, onOpenAdd
         {/* AI Insights Panel */}
         {aiSuggestions && aiSuggestions.reasoning && (
           <div className={`rounded-lg p-4 border-2 ${
-            aiSuggestions.confidence === 'high' ? 'bg-blue-50 border-blue-200' :
-            aiSuggestions.confidence === 'medium' ? 'bg-yellow-50 border-yellow-200' :
-            'bg-gray-50 border-gray-200'
+            aiSuggestions.confidence === 'high' ? 'bg-blue-900/50 border-blue-600' :
+            aiSuggestions.confidence === 'medium' ? 'bg-yellow-900/50 border-yellow-600' :
+            'bg-gray-700 border-gray-600'
           }`}>
             <div className="flex items-start gap-2">
               <span className="text-lg">✨</span>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-semibold text-gray-900">AI Analysis</span>
+                  <span className="text-sm font-semibold text-white">AI Analysis</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    aiSuggestions.confidence === 'high' ? 'bg-blue-200 text-blue-800' :
-                    aiSuggestions.confidence === 'medium' ? 'bg-yellow-200 text-yellow-800' :
-                    'bg-gray-200 text-gray-800'
+                    aiSuggestions.confidence === 'high' ? 'bg-blue-600 text-blue-200' :
+                    aiSuggestions.confidence === 'medium' ? 'bg-yellow-600 text-yellow-200' :
+                    'bg-gray-600 text-gray-200'
                   }`}>
                     {aiSuggestions.confidence} confidence
                   </span>
                 </div>
-                <p className="text-xs text-gray-700 leading-relaxed">
+                <p className="text-xs text-gray-300 leading-relaxed">
                   {aiSuggestions.reasoning}
                 </p>
               </div>
@@ -1503,16 +1490,16 @@ function TagForm({ vocabConfig, vocabulary, currentTags, onUpdateTags, onOpenAdd
 
         {/* Dynamic Form Sections - NO nested scrolling */}
         {vocabConfig.structure.categories.map((category) => (
-          <div key={category.key} className="pb-4 border-b border-gray-100 last:border-0">
+          <div key={category.key} className="pb-4 border-b border-gray-700 last:border-0">
             {/* Multi-select categories (checkboxes) */}
             {(category.storage_type === 'array' || category.storage_type === 'jsonb_array') && (
               <>
-                <label className="block text-sm font-semibold text-gray-900 mb-3">
+                <label className="block text-sm font-semibold text-white mb-3">
                   {category.label} ({(currentTags[category.key] as string[])?.length || 0})
-                  {isLoadingAI && <span className="ml-2 text-xs text-gray-500">🤖 Analyzing...</span>}
+                  {isLoadingAI && <span className="ml-2 text-xs text-gray-400">🤖 Analyzing...</span>}
                 </label>
                 {category.description && (
-                  <p className="text-xs text-gray-600 mb-3">{category.description}</p>
+                  <p className="text-xs text-gray-400 mb-3">{category.description}</p>
                 )}
 
                 {/* REMOVED max-h-40 overflow-y-auto - let it flow naturally */}
@@ -1537,7 +1524,7 @@ function TagForm({ vocabConfig, vocabulary, currentTags, onUpdateTags, onOpenAdd
 
                 <button
                   onClick={() => onOpenAddTagModal(category.key)}
-                  className="mt-3 text-sm text-blue-600 hover:text-blue-800 transition-colors font-medium"
+                  className="mt-3 text-sm text-blue-400 hover:text-blue-300 transition-colors font-medium"
                 >
                   + Add custom {category.label.toLowerCase()}
                 </button>
@@ -1547,18 +1534,18 @@ function TagForm({ vocabConfig, vocabulary, currentTags, onUpdateTags, onOpenAdd
             {/* Text field categories (textarea) */}
             {category.storage_type === 'text' && (
               <>
-                <label className="block text-sm font-semibold text-gray-900 mb-3">
+                <label className="block text-sm font-semibold text-white mb-3">
                   {category.label} {!category.label.includes('Optional') && '(Optional)'}
                 </label>
                 {category.description && (
-                  <p className="text-xs text-gray-600 mb-3">{category.description}</p>
+                  <p className="text-xs text-gray-400 mb-3">{category.description}</p>
                 )}
                 <textarea
                   value={(currentTags[category.key] || '') as string}
                   onChange={(e) => handleTextChange(category.key, e.target.value)}
                   placeholder={category.placeholder || `Enter ${category.label.toLowerCase()}...`}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full px-3 py-2 border border-gray-600 bg-gray-900 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none placeholder-gray-500"
                 />
               </>
             )}
@@ -1609,16 +1596,16 @@ function AddTagModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
+      <div className="bg-gray-800 rounded-lg shadow-2xl max-w-md w-full mx-4 border border-gray-700">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+          <h3 className="text-lg font-semibold text-white">
             Add Custom {categoryLabel}
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-300 transition-colors"
             disabled={isAdding}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1631,7 +1618,7 @@ function AddTagModal({
         <div className="px-6 py-4 space-y-4">
           {/* Input */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-white mb-2">
               Tag Name
             </label>
             <input
@@ -1642,17 +1629,17 @@ function AddTagModal({
               onKeyDown={handleKeyDown}
               placeholder={`e.g., "${categoryLabel.toLowerCase()}"`}
               disabled={isAdding}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 border border-gray-600 bg-gray-900 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-700 disabled:cursor-not-allowed placeholder-gray-500"
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-400">
               Tag will be normalized to lowercase
             </p>
           </div>
 
           {/* Similar Tags Warning */}
           {similarTags.length > 0 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <p className="text-sm font-medium text-yellow-800 mb-2">
+            <div className="bg-yellow-900/50 border border-yellow-600 rounded-lg p-3">
+              <p className="text-sm font-medium text-yellow-300 mb-2">
                 Similar tags found:
               </p>
               <div className="flex flex-wrap gap-2">
@@ -1661,13 +1648,13 @@ function AddTagModal({
                     key={tag}
                     onClick={() => onUseSimilar(tag)}
                     disabled={isAdding}
-                    className="px-2 py-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-xs rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-2 py-1 bg-yellow-700 hover:bg-yellow-600 text-yellow-200 text-xs rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {tag}
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-yellow-700">
+              <p className="mt-2 text-xs text-yellow-400">
                 Click a tag to use it instead
               </p>
             </div>
@@ -1675,25 +1662,25 @@ function AddTagModal({
 
           {/* Error Display */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-sm text-red-800">{error}</p>
+            <div className="bg-red-900/50 border border-red-600 rounded-lg p-3">
+              <p className="text-sm text-red-300">{error}</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-700 bg-gray-900 rounded-b-lg">
           <button
             onClick={onClose}
             disabled={isAdding}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             onClick={onAdd}
             disabled={!newTagValue.trim() || isAdding}
-            className="px-4 py-2 bg-black text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isAdding ? (
               <>

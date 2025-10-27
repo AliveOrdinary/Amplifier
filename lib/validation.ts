@@ -107,13 +107,12 @@ export const tagValueSchema = z
   .transform(val => val.trim().toLowerCase())
   .refine(val => val.length > 0, 'Tag cannot be empty after trimming');
 
-export const tagCategorySchema = z.enum([
-  'industry',
-  'project_type',
-  'style',
-  'mood',
-  'elements'
-]);
+// Dynamic category validation - accepts any valid category string
+export const tagCategorySchema = z
+  .string()
+  .min(1, 'Category is required')
+  .max(50, 'Category must be less than 50 characters')
+  .regex(/^[a-z_]+$/, 'Category must be lowercase letters and underscores only');
 
 export const tagDescriptionSchema = z
   .string()
@@ -156,7 +155,7 @@ export const notesSchema = z
 
 export const tagArraySchema = z
   .array(tagValueSchema)
-  .max(20, 'Cannot have more than 20 tags in a category');
+  .max(100, 'Cannot have more than 100 tags in a category');
 
 export const imageStatusSchema = z.enum(['pending', 'tagged', 'approved', 'skipped']);
 
@@ -181,7 +180,7 @@ export const vocabularyCategorySchema = z.object({
     .string()
     .min(1, 'Storage path is required')
     .max(100, 'Storage path must be less than 100 characters')
-    .regex(/^[a-z_]+$/, 'Storage path must be lowercase letters and underscores only'),
+    .regex(/^[a-z_][a-z0-9_.]*$/, 'Storage path must start with a letter or underscore, and contain only lowercase letters, numbers, underscores, and dots'),
   search_weight: z
     .number()
     .min(0, 'Search weight must be at least 0')
@@ -193,6 +192,15 @@ export const vocabularyCategorySchema = z.object({
   placeholder: z
     .string()
     .max(200, 'Placeholder must be less than 200 characters')
+    .optional(),
+  tags: z
+    .array(
+      z.string()
+        .min(1, 'Tag cannot be empty')
+        .max(50, 'Tag must be less than 50 characters')
+        .transform(val => val.trim().toLowerCase())
+    )
+    .max(100, 'Cannot have more than 100 tags per category')
     .optional(),
 });
 

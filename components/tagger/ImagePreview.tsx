@@ -36,9 +36,9 @@ const ImagePreview = memo(function ImagePreview({
   const isLastImage = currentIndex === totalImages - 1;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
+    <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 p-6 space-y-6">
       {/* Image Container */}
-      <div className="bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center border border-gray-200 relative" style={{ maxHeight: '70vh', minHeight: '400px' }}>
+      <div className="bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center border border-gray-700 relative" style={{ maxHeight: '70vh', minHeight: '400px' }}>
         <Image
           src={image.previewUrl}
           alt={image.filename}
@@ -50,17 +50,17 @@ const ImagePreview = memo(function ImagePreview({
       </div>
 
       {/* Filename */}
-      <div className="border-t border-gray-200 pt-4">
-        <p className="text-sm font-semibold text-gray-900 truncate" title={image.filename}>
+      <div className="border-t border-gray-700 pt-4">
+        <p className="text-sm font-semibold text-white truncate" title={image.filename}>
           {image.filename}
         </p>
         {image.status === 'skipped' && (
-          <span className="inline-block mt-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded">
+          <span className="inline-block mt-2 px-2 py-1 bg-orange-900/50 text-orange-300 text-xs font-medium rounded border border-orange-700">
             Skipped
           </span>
         )}
         {image.status === 'tagged' && (
-          <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+          <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-green-900/50 text-green-300 text-xs font-medium rounded border border-green-700">
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
@@ -70,14 +70,14 @@ const ImagePreview = memo(function ImagePreview({
       </div>
 
       {/* Navigation Buttons */}
-      <div className="flex gap-3 border-t border-gray-200 pt-4">
+      <div className="flex gap-3 border-t border-gray-700 pt-4">
         <button
           onClick={onPrevious}
           disabled={isFirstImage}
           className={`flex-1 px-4 py-3 border-2 rounded-lg font-medium transition-all ${
             isFirstImage
-              ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-100'
-              : 'border-gray-400 text-gray-900 bg-white hover:bg-gray-50 hover:border-gray-500'
+              ? 'border-gray-700 text-gray-600 cursor-not-allowed bg-gray-900'
+              : 'border-gray-600 text-white bg-gray-800 hover:bg-gray-700 hover:border-gray-500'
           }`}
         >
           ← Previous
@@ -87,7 +87,7 @@ const ImagePreview = memo(function ImagePreview({
           <>
             <button
               onClick={onSkip}
-              className="flex-1 px-4 py-3 border-2 border-orange-400 text-orange-700 bg-orange-50 rounded-lg font-medium hover:bg-orange-100 hover:border-orange-500 transition-all"
+              className="flex-1 px-4 py-3 border-2 border-orange-600 text-orange-300 bg-orange-900/30 rounded-lg font-medium hover:bg-orange-900/50 hover:border-orange-500 transition-all"
             >
               Skip
             </button>
@@ -97,8 +97,8 @@ const ImagePreview = memo(function ImagePreview({
               disabled={isSaving}
               className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
                 isSaving
-                  ? 'bg-gray-400 text-gray-100 cursor-not-allowed'
-                  : 'bg-black text-white hover:bg-gray-800 shadow-sm hover:shadow-md'
+                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md'
               }`}
             >
               {isSaving ? (
@@ -120,8 +120,8 @@ const ImagePreview = memo(function ImagePreview({
             disabled={isLastImage}
             className={`flex-1 px-4 py-3 border-2 rounded-lg font-medium transition-all ${
               isLastImage
-                ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-100'
-                : 'border-gray-400 text-gray-900 bg-white hover:bg-gray-50 hover:border-gray-500'
+                ? 'border-gray-700 text-gray-600 cursor-not-allowed bg-gray-900'
+                : 'border-gray-600 text-white bg-gray-800 hover:bg-gray-700 hover:border-gray-500'
             }`}
           >
             Next →

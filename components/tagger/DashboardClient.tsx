@@ -20,13 +20,7 @@ interface DashboardStats {
   }
   vocabulary: {
     total: number
-    byCategory: {
-      industry: number
-      project_type: number
-      style: number
-      mood: number
-      elements: number
-    }
+    byCategory: Record<string, number>
     neverUsed: number
   }
   aiAccuracy?: {
@@ -40,8 +34,7 @@ interface DashboardStats {
     thumbnail_path: string
     original_filename: string
     tagged_at: string
-    industries: string[]
-    project_types: string[]
+    tags: Record<string, any>
   }>
 }
 
@@ -320,59 +313,53 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
     <div className="space-y-12">
       {/* Overview Stats */}
       <div>
-        <h2 className="text-3xl font-bold text-gray-50 mb-6">Overview</h2>
+        <h2 className="text-3xl font-bold text-white mb-6">Overview</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Images */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Total Images</div>
-            <div className="text-5xl font-bold text-gray-900 mb-4">{stats.images.total}</div>
+          <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6 hover:shadow-2xl transition-shadow">
+            <div className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Total Images</div>
+            <div className="text-5xl font-bold text-white mb-4">{stats.images.total}</div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Pending:</span>
-                <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{stats.images.pending}</span>
+                <span className="text-gray-400">Pending:</span>
+                <span className="font-semibold text-white bg-gray-700 px-2 py-0.5 rounded">{stats.images.pending}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Tagged:</span>
-                <span className="font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded">{stats.images.tagged}</span>
+                <span className="text-gray-400">Tagged:</span>
+                <span className="font-semibold text-green-300 bg-green-900/50 px-2 py-0.5 rounded">{stats.images.tagged}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Approved:</span>
-                <span className="font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">{stats.images.approved}</span>
+                <span className="text-gray-400">Approved:</span>
+                <span className="font-semibold text-blue-300 bg-blue-900/50 px-2 py-0.5 rounded">{stats.images.approved}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Skipped:</span>
-                <span className="font-semibold text-orange-700 bg-orange-100 px-2 py-0.5 rounded">{stats.images.skipped}</span>
+                <span className="text-gray-400">Skipped:</span>
+                <span className="font-semibold text-orange-300 bg-orange-900/50 px-2 py-0.5 rounded">{stats.images.skipped}</span>
               </div>
             </div>
           </div>
 
           {/* Vocabulary */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Tag Vocabulary</div>
-            <div className="text-5xl font-bold text-gray-900 mb-4">{stats.vocabulary.total}</div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Industries:</span>
-                <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{stats.vocabulary.byCategory.industry}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Project Types:</span>
-                <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{stats.vocabulary.byCategory.project_type}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Styles:</span>
-                <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{stats.vocabulary.byCategory.style}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Never Used:</span>
-                <span className="font-semibold text-gray-400 bg-gray-50 px-2 py-0.5 rounded">{stats.vocabulary.neverUsed}</span>
+          <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6 hover:shadow-2xl transition-shadow">
+            <div className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Tag Vocabulary</div>
+            <div className="text-5xl font-bold text-white mb-4">{stats.vocabulary.total}</div>
+            <div className="space-y-2 text-sm max-h-40 overflow-y-auto">
+              {Object.entries(stats.vocabulary.byCategory).map(([category, count]) => (
+                <div key={category} className="flex justify-between items-center">
+                  <span className="text-gray-400 capitalize">{category.replace(/_/g, ' ')}:</span>
+                  <span className="font-semibold text-white bg-gray-700 px-2 py-0.5 rounded">{count}</span>
+                </div>
+              ))}
+              <div className="flex justify-between items-center pt-2 border-t border-gray-700">
+                <span className="text-gray-400">Never Used:</span>
+                <span className="font-semibold text-gray-500 bg-gray-750 px-2 py-0.5 rounded">{stats.vocabulary.neverUsed}</span>
               </div>
             </div>
           </div>
 
           {/* AI Accuracy */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">AI Accuracy</div>
+          <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6 hover:shadow-2xl transition-shadow">
+            <div className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">AI Accuracy</div>
             {stats.aiAccuracy ? (
               <>
                 <div className="text-5xl font-bold text-blue-600 mb-4">
@@ -403,15 +390,15 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
           </div>
 
           {/* Storage & Activity */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Storage Used</div>
-            <div className="text-5xl font-bold text-gray-900 mb-1">
+          <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6 hover:shadow-2xl transition-shadow">
+            <div className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Storage Used</div>
+            <div className="text-5xl font-bold text-white mb-1">
               {estimatedStorage.toFixed(0)}
-              <span className="text-2xl text-gray-500 ml-2">MB</span>
+              <span className="text-2xl text-gray-400 ml-2">MB</span>
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Last Tagged</div>
-              <div className="text-sm text-gray-700">
+            <div className="mt-4 pt-4 border-t border-gray-700">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Last Tagged</div>
+              <div className="text-sm text-gray-300">
                 {stats.lastTaggedAt
                   ? new Date(stats.lastTaggedAt).toLocaleString('en-US', {
                       month: 'short',
@@ -420,7 +407,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
                       hour: 'numeric',
                       minute: '2-digit'
                     })
-                  : <span className="text-gray-400 italic">No images tagged yet</span>}
+                  : <span className="text-gray-500 italic">No images tagged yet</span>}
               </div>
             </div>
           </div>
@@ -429,51 +416,51 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-3xl font-bold text-gray-50 mb-6">Quick Actions</h2>
+        <h2 className="text-3xl font-bold text-white mb-6">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Link
             href="/tagger"
-            className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 p-8 group"
+            className="bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 p-8 group border border-blue-500"
           >
             <div className="text-4xl mb-4">🏷️</div>
             <div className="font-bold text-xl mb-2">Start Tagging</div>
-            <div className="text-sm text-blue-50 opacity-90">Tag new reference images with AI assistance</div>
+            <div className="text-sm text-blue-100 opacity-90">Tag new reference images with AI assistance</div>
           </Link>
 
           <Link
             href="/tagger/gallery"
-            className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 p-8 group"
+            className="bg-gradient-to-br from-green-600 to-green-700 text-white rounded-xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 p-8 group border border-green-500"
           >
             <div className="text-4xl mb-4">🖼️</div>
             <div className="font-bold text-xl mb-2">View Gallery</div>
-            <div className="text-sm text-green-50 opacity-90">Browse {stats.images.tagged + stats.images.approved} tagged images</div>
+            <div className="text-sm text-green-100 opacity-90">Browse {stats.images.tagged + stats.images.approved} tagged images</div>
           </Link>
 
           <Link
             href="/tagger/vocabulary"
-            className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 p-8 group"
+            className="bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 p-8 group border border-purple-500"
           >
             <div className="text-4xl mb-4">📚</div>
             <div className="font-bold text-xl mb-2">Manage Vocabulary</div>
-            <div className="text-sm text-purple-50 opacity-90">Edit tags and categories</div>
+            <div className="text-sm text-purple-100 opacity-90">Edit tags and categories</div>
           </Link>
 
           <Link
             href="/tagger/vocabulary-config"
-            className="bg-gradient-to-br from-pink-500 to-pink-600 text-white rounded-xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 p-8 group"
+            className="bg-gradient-to-br from-pink-600 to-pink-700 text-white rounded-xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 p-8 group border border-pink-500"
           >
             <div className="text-4xl mb-4">⚙️</div>
             <div className="font-bold text-xl mb-2">Vocabulary Config</div>
-            <div className="text-sm text-pink-50 opacity-90">Manage vocabulary structure</div>
+            <div className="text-sm text-pink-100 opacity-90">Manage vocabulary structure</div>
           </Link>
 
           <Link
             href="/tagger/ai-analytics"
-            className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 p-8 group"
+            className="bg-gradient-to-br from-orange-600 to-orange-700 text-white rounded-xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 p-8 group border border-orange-500"
           >
             <div className="text-4xl mb-4">🤖</div>
             <div className="font-bold text-xl mb-2">AI Analytics</div>
-            <div className="text-sm text-orange-50 opacity-90">View AI learning and performance</div>
+            <div className="text-sm text-orange-100 opacity-90">View AI learning and performance</div>
           </Link>
         </div>
       </div>
@@ -481,8 +468,8 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
       {/* Recent Activity */}
       {stats.recentImages.length > 0 && (
         <div>
-          <h2 className="text-3xl font-bold text-gray-50 mb-6">Recent Activity</h2>
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-8">
+          <h2 className="text-3xl font-bold text-white mb-6">Recent Activity</h2>
+          <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-8">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
               {stats.recentImages.map(image => (
                 <Link
@@ -490,7 +477,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
                   href="/tagger/gallery"
                   className="group"
                 >
-                  <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-3 shadow-sm group-hover:shadow-md transition-shadow relative">
+                  <div className="aspect-square bg-gray-700 rounded-lg overflow-hidden mb-3 shadow-sm group-hover:shadow-md transition-shadow relative">
                     <Image
                       src={image.thumbnail_path}
                       alt={image.original_filename}
@@ -499,8 +486,8 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
                       className="object-cover group-hover:scale-110 transition-transform duration-200"
                     />
                   </div>
-                  <div className="text-sm font-medium text-gray-800 truncate mb-1">{image.original_filename}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-sm font-medium text-white truncate mb-1">{image.original_filename}</div>
+                  <div className="text-xs text-gray-400">
                     {new Date(image.tagged_at).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
@@ -518,7 +505,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
       <div>
         <button
           onClick={() => setShowAdminControls(!showAdminControls)}
-          className="flex items-center gap-2 text-red-600 hover:text-red-700 font-medium mb-4"
+          className="flex items-center gap-2 text-red-400 hover:text-red-300 font-medium mb-4"
         >
           <span className="text-xl">⚙️</span>
           <span>Admin Controls (Test Phase)</span>
@@ -526,12 +513,12 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
         </button>
 
         {showAdminControls && (
-          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 space-y-4">
-            <div className="flex items-start gap-2 text-red-800 mb-4">
+          <div className="bg-red-900/30 border-2 border-red-700 rounded-lg p-6 space-y-4">
+            <div className="flex items-start gap-2 text-red-300 mb-4">
               <span className="text-2xl">⚠️</span>
               <div>
                 <div className="font-semibold">Danger Zone</div>
-                <div className="text-sm text-red-700">
+                <div className="text-sm text-red-400">
                   These actions are irreversible. Use with caution.
                 </div>
               </div>
@@ -590,29 +577,29 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
 
       {/* Delete All Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-800 rounded-lg max-w-md w-full p-6 border border-gray-700">
             <div className="text-center mb-6">
               <div className="text-6xl mb-4">⚠️</div>
-              <h3 className="text-2xl font-bold text-red-600 mb-2">Delete All Images?</h3>
-              <p className="text-gray-600">
-                This will permanently delete all <span className="font-bold">{stats.images.total} images</span> from
+              <h3 className="text-2xl font-bold text-red-400 mb-2">Delete All Images?</h3>
+              <p className="text-gray-300">
+                This will permanently delete all <span className="font-bold text-white">{stats.images.total} images</span> from
                 storage and database. This cannot be undone.
               </p>
             </div>
 
             {deleteProgress ? (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div className="bg-blue-900/50 border border-blue-600 rounded-lg p-4 mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                  <div className="text-sm text-blue-800">{deleteProgress}</div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400"></div>
+                  <div className="text-sm text-blue-300">{deleteProgress}</div>
                 </div>
               </div>
             ) : (
               <>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Type <span className="font-mono bg-gray-100 px-2 py-1 rounded">DELETE</span> to confirm:
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Type <span className="font-mono bg-gray-700 px-2 py-1 rounded text-white">DELETE</span> to confirm:
                   </label>
                   <input
                     type="text"
@@ -620,7 +607,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
                     onChange={(e) => setDeleteConfirmation(e.target.value)}
                     placeholder="DELETE"
                     disabled={isDeleting}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 disabled:bg-gray-100"
+                    className="w-full px-3 py-2 border border-gray-600 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 disabled:bg-gray-700 placeholder-gray-500"
                   />
                 </div>
 
@@ -631,7 +618,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
                       setDeleteConfirmation('')
                     }}
                     disabled={isDeleting}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                    className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -651,15 +638,15 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
 
       {/* Duplicates Modal */}
       {showDuplicates && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-2xl font-bold text-gray-900">
+        <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8 border border-gray-700">
+            <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-white">
                 Duplicate Images {duplicates.length > 0 && `(${duplicates.length})`}
               </h3>
               <button
                 onClick={() => setShowDuplicates(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-300"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -670,26 +657,26 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
             <div className="p-6">
               {isLoadingDuplicates ? (
                 <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Scanning for duplicates...</p>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                  <p className="text-gray-300">Scanning for duplicates...</p>
                 </div>
               ) : duplicates.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">✅</div>
-                  <p className="text-xl font-semibold text-gray-900 mb-2">No duplicates found!</p>
-                  <p className="text-gray-600">All images have unique filenames.</p>
+                  <p className="text-xl font-semibold text-white mb-2">No duplicates found!</p>
+                  <p className="text-gray-400">All images have unique filenames.</p>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {duplicates.map(dup => (
-                    <div key={dup.filename} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="font-semibold text-gray-900 mb-3">
+                    <div key={dup.filename} className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                      <div className="font-semibold text-white mb-3">
                         {dup.filename} ({dup.images.length} copies)
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {dup.images.map((img, idx) => (
-                          <div key={img.id} className="bg-white rounded-lg p-3 border border-gray-200">
-                            <div className="aspect-square bg-gray-100 rounded overflow-hidden mb-2 relative">
+                          <div key={img.id} className="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                            <div className="aspect-square bg-gray-700 rounded overflow-hidden mb-2 relative">
                               <Image
                                 src={img.thumbnail_path}
                                 alt={img.original_filename}
@@ -698,7 +685,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
                                 className="object-cover"
                               />
                             </div>
-                            <div className="text-xs text-gray-500 mb-2">
+                            <div className="text-xs text-gray-400 mb-2">
                               {idx === 0 ? 'Original' : `Duplicate ${idx}`}
                               <br />
                               {new Date(img.tagged_at).toLocaleDateString()}
@@ -706,7 +693,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
                             {idx > 0 && (
                               <button
                                 onClick={() => handleDeleteDuplicate(img.id, img.storage_path, img.thumbnail_path)}
-                                className="w-full px-2 py-1 bg-red-100 text-red-700 text-xs rounded hover:bg-red-200"
+                                className="w-full px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
                               >
                                 Delete
                               </button>

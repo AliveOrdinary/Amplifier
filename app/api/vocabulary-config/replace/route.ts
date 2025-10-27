@@ -127,7 +127,74 @@ export async function POST(request: NextRequest) {
       console.error('Error deleting old config:', deleteConfigError);
     }
 
-    // 5. Insert new vocabulary config
+    // 5. Sync database schema with new vocabulary structure
+    console.log('Syncing database schema with new vocabulary structure...');
+
+    // Get current columns in reference_images table
+    const { data: currentColumns, error: columnsError } = await supabase.rpc('get_table_columns', {
+      table_name: 'reference_images'
+    }).catch(() => {
+      // If function doesn't exist, query information_schema directly
+      return supabase
+        .from('information_schema.columns')
+        .select('column_name')
+        .eq('table_name', 'reference_images');
+    });
+
+    const existingColumns = new Set(
+      currentColumns?.map((col: any) => col.column_name || col) || []
+    );
+
+    // Collect required columns from vocabulary config
+    const requiredColumns = new Set<string>();
+    const columnsToAdd: Array<{ name: string; type: string }> = [];
+
+    structure.categories.forEach(category => {
+      if (category.storage_type === 'array') {
+        // Direct array column
+        requiredColumns.add(category.storage_path);
+        if (!existingColumns.has(category.storage_path)) {
+          columnsToAdd.push({ name: category.storage_path, type: 'text[]' });
+        }
+      } else if (category.storage_type === 'jsonb_array') {
+        // JSONB nested - ensure tags column exists
+        const rootColumn = category.storage_path.split('.')[0];
+        requiredColumns.add(rootColumn);
+        // tags column already exists, no need to add
+      } else if (category.storage_type === 'text') {
+        // Text column
+        requiredColumns.add(category.storage_path);
+        // notes column already exists, no need to add
+      }
+    });
+
+    // Add new columns if needed
+    if (columnsToAdd.length > 0) {
+      console.log(`Adding ${columnsToAdd.length} new columns:`, columnsToAdd.map(c => c.name));
+
+      for (const column of columnsToAdd) {
+        const { data: syncResult, error: syncError } = await supabase.rpc(
+          'sync_reference_images_schema',
+          {
+            column_name: column.name,
+            column_type: column.type
+          }
+        );
+
+        if (syncError) {
+          console.error(`Failed to add column ${column.name}:`, syncError);
+          return NextResponse.json({
+            success: false,
+            error: `Failed to sync database schema`,
+            details: `Could not add column ${column.name}: ${syncError.message}`
+          }, { status: 500 });
+        }
+
+        console.log(`Column ${column.name}: ${syncResult.action} - ${syncResult.message}`);
+      }
+    }
+
+    // 6. Insert new vocabulary config
     console.log('Inserting new vocabulary config...');
     const { data: newConfig, error: insertError } = await supabase
       .from('vocabulary_config')
@@ -149,6 +216,48 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // 7. Insert tags from categories (if provided)
+    console.log('Inserting tags from categories...');
+    let totalTagsInserted = 0;
+
+    for (const category of structure.categories) {
+      // Skip if no tags or if storage_type is 'text'
+      if (!category.tags || category.tags.length === 0 || category.storage_type === 'text') {
+        continue;
+      }
+
+      // Use the category key directly as the category (fully dynamic)
+      // The tag_vocabulary.category column is varchar, so it accepts any string
+      const tagCategory = category.key
+
+      // Prepare tag inserts
+      const tagInserts = category.tags.map((tag, index) => ({
+        category: tagCategory,
+        tag_value: tag.trim().toLowerCase(),
+        description: null,
+        sort_order: index + 1,
+        is_active: true,
+        times_used: 0,
+      }));
+
+      // Insert tags in batches (Supabase has a limit)
+      const batchSize = 50;
+      for (let i = 0; i < tagInserts.length; i += batchSize) {
+        const batch = tagInserts.slice(i, i + batchSize);
+        const { error: tagInsertError } = await supabase
+          .from('tag_vocabulary')
+          .insert(batch);
+
+        if (tagInsertError) {
+          console.error(`Error inserting tags for category ${category.key}:`, tagInsertError);
+          // Continue with other categories even if one fails
+        } else {
+          totalTagsInserted += batch.length;
+        }
+      }
+    }
+
+    console.log(`Inserted ${totalTagsInserted} tags across categories`);
     console.log('Vocabulary replacement completed successfully');
 
     return NextResponse.json({
@@ -157,7 +266,8 @@ export async function POST(request: NextRequest) {
       config: newConfig,
       stats: {
         images_deleted: images?.length || 0,
-        storage_files_deleted: images?.length ? images.length * 2 : 0
+        storage_files_deleted: images?.length ? images.length * 2 : 0,
+        tags_inserted: totalTagsInserted
       }
     });
 

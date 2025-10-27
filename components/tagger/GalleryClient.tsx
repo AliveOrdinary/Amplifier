@@ -367,20 +367,20 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
   // Show loading state while config is loading
   if (configLoading) {
     return (
-      <div className="bg-white rounded-lg p-12 text-center border border-gray-200">
+      <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
         <div className="text-4xl mb-4">⏳</div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Loading gallery...</h3>
-        <p className="text-gray-600">Fetching vocabulary configuration</p>
+        <h3 className="text-xl font-semibold text-white mb-2">Loading gallery...</h3>
+        <p className="text-gray-300">Fetching vocabulary configuration</p>
       </div>
     )
   }
 
   if (configError) {
     return (
-      <div className="bg-white rounded-lg p-12 text-center border border-red-200">
+      <div className="bg-gray-800 rounded-lg p-12 text-center border border-red-700">
         <div className="text-4xl mb-4">❌</div>
-        <h3 className="text-xl font-semibold text-red-900 mb-2">Configuration Error</h3>
-        <p className="text-red-600">{configError}</p>
+        <h3 className="text-xl font-semibold text-red-300 mb-2">Configuration Error</h3>
+        <p className="text-red-400">{configError}</p>
       </div>
     )
   }
@@ -392,31 +392,31 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
   return (
     <div className="space-y-8">
       {/* Filters and Controls */}
-      <div className="bg-white rounded-xl p-8 shadow-md border border-gray-200">
+      <div className="bg-gray-800 rounded-xl p-8 shadow-xl border border-gray-700">
         {/* Header */}
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-50 mb-2">Filter Gallery</h2>
-          <p className="text-sm text-gray-600">Search and filter your reference images</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Filter Gallery</h2>
+          <p className="text-sm text-gray-300">Search and filter your reference images</p>
         </div>
 
         {/* Search and Sort Row */}
         <div className="flex gap-4 mb-6">
           <div className="flex-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Search</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-2">Search</label>
             <input
               type="text"
               placeholder="🔍 Search by filename or notes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              className="w-full px-4 py-3 border-2 border-gray-600 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-500"
             />
           </div>
           <div className="w-56">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-2">Sort By</label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium transition-colors bg-white"
+              className="w-full px-4 py-3 border-2 border-gray-600 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium transition-colors"
             >
               <option value="newest">📅 Newest First</option>
               <option value="oldest">📅 Oldest First</option>
@@ -427,11 +427,11 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
 
         {/* Dynamic Filter Row */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-3">Filter by Categories</label>
+          <label className="block text-sm font-semibold text-gray-300 mb-3">Filter by Categories</label>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {vocabConfig.structure.categories.map(category => (
               <div key={category.key}>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wide mb-2">
                   {category.label}
                 </label>
                 <select
@@ -440,7 +440,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
                     ...prev,
                     [category.key]: e.target.value
                   }))}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-semibold text-gray-900 transition-colors bg-white hover:border-gray-400 cursor-pointer"
+                  className="w-full px-4 py-3 border-2 border-gray-600 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-semibold transition-colors hover:border-gray-500 cursor-pointer"
                 >
                   <option value="all" className="font-semibold">
                     ✨ All {category.label} ({images.length})
@@ -467,13 +467,13 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
         </div>
 
         {/* Results count and bulk actions */}
-        <div className="mt-6 pt-6 border-t-2 border-gray-200 flex items-center justify-between">
+        <div className="mt-6 pt-6 border-t-2 border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-gray-900">
+            <span className="text-sm font-semibold text-white">
               Showing {filteredImages.length} of {images.length} images
             </span>
             {selectedImageIds.size > 0 && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-600 text-white border border-blue-500">
                 {selectedImageIds.size} selected
               </span>
             )}
@@ -482,7 +482,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
           {selectedImageIds.size === 0 ? (
             <button
               onClick={selectAll}
-              className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg font-semibold transition-colors"
+              className="px-4 py-2 text-sm text-blue-400 hover:text-blue-300 hover:bg-gray-700 rounded-lg font-semibold transition-colors"
             >
               Select All
             </button>
@@ -490,7 +490,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
             <div className="flex gap-3">
               <button
                 onClick={clearSelection}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg font-semibold transition-colors"
+                className="px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg font-semibold transition-colors"
               >
                 Clear Selection
               </button>
@@ -507,10 +507,10 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
 
       {/* Image Grid */}
       {filteredImages.length === 0 ? (
-        <div className="bg-white rounded-xl p-16 text-center border-2 border-dashed border-gray-300 shadow-sm">
+        <div className="bg-gray-800 rounded-xl p-16 text-center border-2 border-dashed border-gray-600 shadow-sm">
           <div className="text-7xl mb-6">🔍</div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-3">No images found</h3>
-          <p className="text-gray-600 text-lg mb-6">Try adjusting your filters or search query</p>
+          <h3 className="text-2xl font-bold text-white mb-3">No images found</h3>
+          <p className="text-gray-300 text-lg mb-6">Try adjusting your filters or search query</p>
           <button
             onClick={() => {
               setSearchQuery('')
@@ -524,10 +524,10 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
       ) : (
         <div>
           <div className="mb-6">
-            <h3 className="text-2xl font-bold text-gray-50">
+            <h3 className="text-2xl font-bold text-white">
               {filteredImages.length === images.length ? 'All Images' : 'Filtered Results'}
             </h3>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-300 mt-1">
               {filteredImages.length === images.length 
                 ? `Viewing all ${images.length} images in your collection`
                 : `Found ${filteredImages.length} images matching your criteria`}
@@ -626,7 +626,7 @@ function ImageCard({ image, vocabConfig, isSelected, onToggleSelect, onClick }: 
   })
 
   return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-md border border-gray-200 hover:shadow-xl transition-all duration-200 group relative">
+    <div className="bg-gray-800 rounded-xl overflow-hidden shadow-xl border border-gray-700 hover:shadow-2xl transition-all duration-200 group relative">
       {/* Selection Checkbox */}
       <div className="absolute top-3 left-3 z-10">
         <input
@@ -636,14 +636,14 @@ function ImageCard({ image, vocabConfig, isSelected, onToggleSelect, onClick }: 
             e.stopPropagation()
             onToggleSelect()
           }}
-          className="w-6 h-6 rounded-md border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm bg-white"
+          className="w-6 h-6 rounded-md border-2 border-gray-600 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm bg-gray-900"
         />
       </div>
 
       {/* Thumbnail */}
       <div
         onClick={onClick}
-        className="aspect-square bg-gray-100 overflow-hidden relative cursor-pointer"
+        className="aspect-square bg-gray-900 overflow-hidden relative cursor-pointer"
       >
         <Image
           src={image.thumbnail_path || image.storage_path}
@@ -686,12 +686,12 @@ function ImageCard({ image, vocabConfig, isSelected, onToggleSelect, onClick }: 
       </div>
 
       {/* Info */}
-      <div className="p-4 bg-gradient-to-b from-white to-gray-50">
-        <p className="text-sm font-semibold text-gray-900 truncate mb-1" title={image.original_filename}>
+      <div className="p-4 bg-gradient-to-b from-gray-800 to-gray-900">
+        <p className="text-sm font-semibold text-white truncate mb-1" title={image.original_filename}>
           {image.original_filename}
         </p>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-400">
             📅 {new Date(image.tagged_at).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'short',
@@ -699,7 +699,7 @@ function ImageCard({ image, vocabConfig, isSelected, onToggleSelect, onClick }: 
             })}
           </span>
           {allTags.length > 0 && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-600 text-white border border-blue-500">
               {allTags.length} tags
             </span>
           )}
@@ -773,14 +773,14 @@ function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailMo
   }, [image.ai_suggested_tags, actualTags])
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto my-8">
+    <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-gray-800 rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto my-8 border border-gray-700">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-          <h2 className="text-2xl font-bold text-gray-900">Image Details</h2>
+        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between z-10">
+          <h2 className="text-2xl font-bold text-white">Image Details</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-300 transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -793,7 +793,7 @@ function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailMo
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Image */}
             <div>
-              <div className="bg-gray-100 rounded-lg overflow-hidden relative">
+              <div className="bg-gray-900 rounded-lg overflow-hidden relative">
                 <Image
                   src={image.storage_path}
                   alt={image.original_filename}
@@ -805,12 +805,12 @@ function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailMo
               </div>
 
               <div className="mt-4 space-y-2">
-                <p className="text-sm font-semibold text-gray-900">{image.original_filename}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-sm font-semibold text-white">{image.original_filename}</p>
+                <p className="text-xs text-gray-400">
                   Tagged: {new Date(image.tagged_at).toLocaleString()}
                 </p>
                 {image.updated_at && image.updated_at !== image.tagged_at && (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-400">
                     Updated: {new Date(image.updated_at).toLocaleString()}
                   </p>
                 )}
@@ -821,7 +821,7 @@ function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailMo
             <div className="space-y-6">
               {/* Tags */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Tags</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">Tags</h3>
 
                 <div className="space-y-4">
                   {/* Dynamically render all categories */}
@@ -831,20 +831,20 @@ function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailMo
 
                     // Color rotation for visual variety
                     const colors = [
-                      'bg-gray-100 text-gray-800',
-                      'bg-blue-100 text-blue-800',
-                      'bg-purple-100 text-purple-800',
-                      'bg-green-100 text-green-800',
-                      'bg-orange-100 text-orange-800',
-                      'bg-pink-100 text-pink-800',
-                      'bg-indigo-100 text-indigo-800',
-                      'bg-yellow-100 text-yellow-800'
+                      'bg-gray-700 text-gray-300',
+                      'bg-blue-900/50 text-blue-300 border border-blue-700',
+                      'bg-purple-900/50 text-purple-300 border border-purple-700',
+                      'bg-green-900/50 text-green-300 border border-green-700',
+                      'bg-orange-900/50 text-orange-300 border border-orange-700',
+                      'bg-pink-900/50 text-pink-300 border border-pink-700',
+                      'bg-indigo-900/50 text-indigo-300 border border-indigo-700',
+                      'bg-yellow-900/50 text-yellow-300 border border-yellow-700'
                     ]
                     const colorClass = colors[catIdx % colors.length]
 
                     return (
                       <div key={category.key}>
-                        <p className="text-sm font-medium text-gray-700 mb-2">{category.label}</p>
+                        <p className="text-sm font-medium text-gray-300 mb-2">{category.label}</p>
                         <div className="flex flex-wrap gap-2">
                           {tags.map((tag, idx) => (
                             <span key={idx} className={`px-3 py-1 text-sm rounded-full ${colorClass}`}>
@@ -861,8 +861,8 @@ function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailMo
               {/* Notes */}
               {image.notes && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Notes</h3>
-                  <p className="text-sm text-gray-700 bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-white mb-2">Notes</h3>
+                  <p className="text-sm text-gray-300 bg-gray-900 p-4 rounded-lg border border-gray-700">
                     {image.notes}
                   </p>
                 </div>
@@ -871,29 +871,29 @@ function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailMo
               {/* AI Analysis */}
               {corrections?.hadSuggestions && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Analysis</h3>
+                  <h3 className="text-lg font-semibold text-white mb-2">AI Analysis</h3>
 
                   {/* Confidence Score */}
                   {image.ai_confidence_score !== null && (
                     <div className="mb-3">
                       <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="text-gray-700">Confidence</span>
+                        <span className="text-gray-300">Confidence</span>
                         <span className={`font-medium ${
-                          image.ai_confidence_score >= 0.8 ? 'text-green-600' :
-                          image.ai_confidence_score >= 0.5 ? 'text-yellow-600' :
-                          'text-gray-600'
+                          image.ai_confidence_score >= 0.8 ? 'text-green-400' :
+                          image.ai_confidence_score >= 0.5 ? 'text-yellow-400' :
+                          'text-gray-400'
                         }`}>
                           {image.ai_confidence_score >= 0.8 ? 'High' :
                            image.ai_confidence_score >= 0.5 ? 'Medium' : 'Low'}
                           {' '}({Math.round(image.ai_confidence_score * 100)}%)
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-gray-700 rounded-full h-2">
                         <div
                           className={`h-2 rounded-full ${
                             image.ai_confidence_score >= 0.8 ? 'bg-green-500' :
                             image.ai_confidence_score >= 0.5 ? 'bg-yellow-500' :
-                            'bg-gray-400'
+                            'bg-gray-500'
                           }`}
                           style={{ width: `${image.ai_confidence_score * 100}%` }}
                         />
@@ -903,7 +903,7 @@ function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailMo
 
                   {/* Reasoning */}
                   {image.ai_reasoning && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900 mb-3">
+                    <div className="bg-blue-900/50 border border-blue-700 rounded-lg p-3 text-sm text-blue-300 mb-3">
                       <p className="font-medium mb-1">AI Reasoning:</p>
                       <p>{image.ai_reasoning}</p>
                     </div>
@@ -911,12 +911,12 @@ function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailMo
 
                   {/* Corrections */}
                   {(corrections.added.length > 0 || corrections.removed.length > 0) && (
-                    <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                      <p className="text-sm font-medium text-gray-900">Designer Corrections:</p>
+                    <div className="bg-gray-900 rounded-lg p-4 space-y-3 border border-gray-700">
+                      <p className="text-sm font-medium text-white">Designer Corrections:</p>
 
                       {corrections.added.length > 0 && (
                         <div>
-                          <p className="text-xs font-medium text-green-700 mb-1">Added Tags:</p>
+                          <p className="text-xs font-medium text-green-400 mb-1">Added Tags:</p>
                           <div className="flex flex-wrap gap-1">
                             {corrections.added.map((tag, idx) => (
                               <span key={idx} className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded">
@@ -1103,14 +1103,14 @@ function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave }: Edi
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto my-8">
+    <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-gray-800 rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto my-8 border border-gray-700">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-          <h2 className="text-2xl font-bold text-gray-900">Edit Image Tags</h2>
+        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between z-10">
+          <h2 className="text-2xl font-bold text-white">Edit Image Tags</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-300 transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1123,7 +1123,7 @@ function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave }: Edi
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Image Preview */}
             <div>
-              <div className="bg-gray-100 rounded-lg overflow-hidden relative">
+              <div className="bg-gray-900 rounded-lg overflow-hidden relative">
                 <Image
                   src={image.storage_path}
                   alt={image.original_filename}
@@ -1133,7 +1133,7 @@ function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave }: Edi
                   className="w-full h-auto"
                 />
               </div>
-              <p className="mt-4 text-sm font-semibold text-gray-900">{image.original_filename}</p>
+              <p className="mt-4 text-sm font-semibold text-white">{image.original_filename}</p>
             </div>
 
             {/* Tag Selection */}
@@ -1151,23 +1151,23 @@ function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave }: Edi
 
                 // Color schemes for visual variety
                 const colorSchemes = [
-                  { bg: 'bg-gray-100', hover: 'hover:bg-gray-200', text: 'text-gray-800', selected: 'bg-gray-800 text-white' },
-                  { bg: 'bg-blue-100', hover: 'hover:bg-blue-200', text: 'text-blue-800', selected: 'bg-blue-600 text-white' },
-                  { bg: 'bg-purple-100', hover: 'hover:bg-purple-200', text: 'text-purple-800', selected: 'bg-purple-600 text-white' },
-                  { bg: 'bg-green-100', hover: 'hover:bg-green-200', text: 'text-green-800', selected: 'bg-green-600 text-white' },
-                  { bg: 'bg-orange-100', hover: 'hover:bg-orange-200', text: 'text-orange-800', selected: 'bg-orange-600 text-white' },
-                  { bg: 'bg-pink-100', hover: 'hover:bg-pink-200', text: 'text-pink-800', selected: 'bg-pink-600 text-white' },
-                  { bg: 'bg-indigo-100', hover: 'hover:bg-indigo-200', text: 'text-indigo-800', selected: 'bg-indigo-600 text-white' },
-                  { bg: 'bg-yellow-100', hover: 'hover:bg-yellow-200', text: 'text-yellow-800', selected: 'bg-yellow-600 text-white' }
+                  { bg: 'bg-gray-700', hover: 'hover:bg-gray-600', text: 'text-gray-300', selected: 'bg-gray-600 text-white' },
+                  { bg: 'bg-blue-900/50', hover: 'hover:bg-blue-800/50', text: 'text-blue-300', selected: 'bg-blue-600 text-white' },
+                  { bg: 'bg-purple-900/50', hover: 'hover:bg-purple-800/50', text: 'text-purple-300', selected: 'bg-purple-600 text-white' },
+                  { bg: 'bg-green-900/50', hover: 'hover:bg-green-800/50', text: 'text-green-300', selected: 'bg-green-600 text-white' },
+                  { bg: 'bg-orange-900/50', hover: 'hover:bg-orange-800/50', text: 'text-orange-300', selected: 'bg-orange-600 text-white' },
+                  { bg: 'bg-pink-900/50', hover: 'hover:bg-pink-800/50', text: 'text-pink-300', selected: 'bg-pink-600 text-white' },
+                  { bg: 'bg-indigo-900/50', hover: 'hover:bg-indigo-800/50', text: 'text-indigo-300', selected: 'bg-indigo-600 text-white' },
+                  { bg: 'bg-yellow-900/50', hover: 'hover:bg-yellow-800/50', text: 'text-yellow-300', selected: 'bg-yellow-600 text-white' }
                 ]
                 const colors = colorSchemes[catIdx % colorSchemes.length]
 
                 return (
                   <div key={category.key}>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                    <label className="block text-sm font-medium text-white mb-2">
                       {category.label} ({selectedCount} selected)
                     </label>
-                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-700 rounded-lg bg-gray-900">
                       {categoryVocab.map(tag => {
                         const isSelected = Array.isArray(selectedTags) && selectedTags.includes(tag)
                         return (
@@ -1191,23 +1191,23 @@ function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave }: Edi
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label className="block text-sm font-medium text-white mb-2">
                   Notes
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-600 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500"
                   placeholder="Add any notes about this image..."
                 />
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t border-gray-200">
+              <div className="flex gap-3 pt-4 border-t border-gray-700">
                 <button
                   onClick={onClose}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
                 >
                   Cancel
                 </button>
@@ -1369,15 +1369,15 @@ function BulkEditModal({ images, vocabulary, vocabConfig, onClose, onSave }: Bul
   const hasSelections = Object.values(categoryTags).some(tags => tags.length > 0)
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8">
+    <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8 border border-gray-700">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
+        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 z-10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-gray-900">Bulk Edit {images.length} Images</h2>
+            <h2 className="text-2xl font-bold text-white">Bulk Edit {images.length} Images</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-300 transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1392,7 +1392,7 @@ function BulkEditModal({ images, vocabulary, vocabConfig, onClose, onSave }: Bul
               className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
                 mode === 'add'
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
               Add Tags
@@ -1402,7 +1402,7 @@ function BulkEditModal({ images, vocabulary, vocabConfig, onClose, onSave }: Bul
               className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
                 mode === 'remove'
                   ? 'bg-red-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
               Remove Tags
@@ -1412,7 +1412,7 @@ function BulkEditModal({ images, vocabulary, vocabConfig, onClose, onSave }: Bul
 
         {/* Content */}
         <div className="p-6 space-y-6">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-300">
             {mode === 'add'
               ? 'Select tags to add to all selected images. Existing tags will be preserved.'
               : 'Select tags to remove from all selected images.'}
@@ -1430,23 +1430,23 @@ function BulkEditModal({ images, vocabulary, vocabConfig, onClose, onSave }: Bul
 
             // Color schemes for visual variety
             const colorSchemes = [
-              { bg: 'bg-gray-100', hover: 'hover:bg-gray-200', text: 'text-gray-800', selected: 'bg-gray-800 text-white' },
-              { bg: 'bg-blue-100', hover: 'hover:bg-blue-200', text: 'text-blue-800', selected: 'bg-blue-600 text-white' },
-              { bg: 'bg-purple-100', hover: 'hover:bg-purple-200', text: 'text-purple-800', selected: 'bg-purple-600 text-white' },
-              { bg: 'bg-green-100', hover: 'hover:bg-green-200', text: 'text-green-800', selected: 'bg-green-600 text-white' },
-              { bg: 'bg-orange-100', hover: 'hover:bg-orange-200', text: 'text-orange-800', selected: 'bg-orange-600 text-white' },
-              { bg: 'bg-pink-100', hover: 'hover:bg-pink-200', text: 'text-pink-800', selected: 'bg-pink-600 text-white' },
-              { bg: 'bg-indigo-100', hover: 'hover:bg-indigo-200', text: 'text-indigo-800', selected: 'bg-indigo-600 text-white' },
-              { bg: 'bg-yellow-100', hover: 'hover:bg-yellow-200', text: 'text-yellow-800', selected: 'bg-yellow-600 text-white' }
+              { bg: 'bg-gray-700', hover: 'hover:bg-gray-600', text: 'text-gray-300', selected: 'bg-gray-600 text-white' },
+              { bg: 'bg-blue-900/50', hover: 'hover:bg-blue-800/50', text: 'text-blue-300', selected: 'bg-blue-600 text-white' },
+              { bg: 'bg-purple-900/50', hover: 'hover:bg-purple-800/50', text: 'text-purple-300', selected: 'bg-purple-600 text-white' },
+              { bg: 'bg-green-900/50', hover: 'hover:bg-green-800/50', text: 'text-green-300', selected: 'bg-green-600 text-white' },
+              { bg: 'bg-orange-900/50', hover: 'hover:bg-orange-800/50', text: 'text-orange-300', selected: 'bg-orange-600 text-white' },
+              { bg: 'bg-pink-900/50', hover: 'hover:bg-pink-800/50', text: 'text-pink-300', selected: 'bg-pink-600 text-white' },
+              { bg: 'bg-indigo-900/50', hover: 'hover:bg-indigo-800/50', text: 'text-indigo-300', selected: 'bg-indigo-600 text-white' },
+              { bg: 'bg-yellow-900/50', hover: 'hover:bg-yellow-800/50', text: 'text-yellow-300', selected: 'bg-yellow-600 text-white' }
             ]
             const colors = colorSchemes[catIdx % colorSchemes.length]
 
             return (
               <div key={category.key}>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label className="block text-sm font-medium text-white mb-2">
                   {category.label} ({selectedTags.length} selected)
                 </label>
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-700 rounded-lg bg-gray-900">
                   {categoryVocab.map(tag => {
                     const isSelected = selectedTags.includes(tag)
                     return (
@@ -1469,10 +1469,10 @@ function BulkEditModal({ images, vocabulary, vocabConfig, onClose, onSave }: Bul
           })}
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
+          <div className="flex gap-3 pt-4 border-t border-gray-700">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
             >
               Cancel
             </button>

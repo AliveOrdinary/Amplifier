@@ -15,13 +15,7 @@ interface DashboardStats {
   }
   vocabulary: {
     total: number
-    byCategory: {
-      industry: number
-      project_type: number
-      style: number
-      mood: number
-      elements: number
-    }
+    byCategory: Record<string, number>
     neverUsed: number
   }
   aiAccuracy?: {
@@ -35,8 +29,7 @@ interface DashboardStats {
     thumbnail_path: string
     original_filename: string
     tagged_at: string
-    industries: string[]
-    project_types: string[]
+    tags: Record<string, any>
   }>
 }
 
@@ -57,22 +50,25 @@ async function getDashboardStats(): Promise<DashboardStats> {
       skipped: images?.filter(img => img.status === 'skipped').length || 0
     }
 
-    // Get vocabulary stats
+    // Get vocabulary stats (dynamic categories)
     const { data: vocab, error: vocabError } = await supabaseAdmin
       .from('tag_vocabulary')
       .select('category, times_used')
 
     if (vocabError) throw vocabError
 
+    // Build byCategory dynamically
+    const byCategory: Record<string, number> = {}
+    vocab?.forEach(v => {
+      if (!byCategory[v.category]) {
+        byCategory[v.category] = 0
+      }
+      byCategory[v.category]++
+    })
+
     const vocabStats = {
       total: vocab?.length || 0,
-      byCategory: {
-        industry: vocab?.filter(v => v.category === 'industry').length || 0,
-        project_type: vocab?.filter(v => v.category === 'project_type').length || 0,
-        style: vocab?.filter(v => v.category === 'style').length || 0,
-        mood: vocab?.filter(v => v.category === 'mood').length || 0,
-        elements: vocab?.filter(v => v.category === 'elements').length || 0
-      },
+      byCategory,
       neverUsed: vocab?.filter(v => v.times_used === 0).length || 0
     }
 
@@ -98,10 +94,10 @@ async function getDashboardStats(): Promise<DashboardStats> {
       ?.filter(img => img.tagged_at)
       .sort((a, b) => new Date(b.tagged_at).getTime() - new Date(a.tagged_at).getTime())[0]?.tagged_at || null
 
-    // Get recent images
+    // Get recent images (select all fields, let client handle display)
     const { data: recentImages, error: recentError } = await supabaseAdmin
       .from('reference_images')
-      .select('id, thumbnail_path, original_filename, tagged_at, industries, project_types')
+      .select('id, thumbnail_path, original_filename, tagged_at, tags')
       .in('status', ['tagged', 'approved'])
       .order('tagged_at', { ascending: false })
       .limit(10)
@@ -122,7 +118,7 @@ async function getDashboardStats(): Promise<DashboardStats> {
       images: { total: 0, pending: 0, tagged: 0, approved: 0, skipped: 0 },
       vocabulary: {
         total: 0,
-        byCategory: { industry: 0, project_type: 0, style: 0, mood: 0, elements: 0 },
+        byCategory: {},
         neverUsed: 0
       },
       lastTaggedAt: null,
@@ -135,13 +131,13 @@ export default async function DashboardPage() {
   const stats = await getDashboardStats()
 
   return (
-    <div className="min-h-screen bg-custom-bg">
+    <div className="min-h-screen bg-gray-900">
       <div className="container mx-auto px-4 py-8">
         {/* Header with Sign Out Button */}
         <div className="mb-8 flex justify-between items-start">
           <div>
-            <h1 className="text-4xl font-bold text-gray-50 mb-2">Reference Image Tagger</h1>
-            <p className="text-gray-600">
+            <h1 className="text-4xl font-bold text-white mb-2">Reference Image Tagger</h1>
+            <p className="text-gray-300 font-medium">
               Manage your design reference library with AI-powered tagging
             </p>
           </div>

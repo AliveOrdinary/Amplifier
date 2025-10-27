@@ -2,13 +2,12 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import type { QuestionnaireResponses, ArenaBlock, ReferenceImage } from '@/lib/types';
+import type { QuestionnaireResponses, ReferenceImage } from '@/lib/types';
 
 interface BriefingSummaryProps {
   responses: QuestionnaireResponses;
   keywords: string[];
-  favoritedBlocks: ArenaBlock[];
-  favoritedImages?: ReferenceImage[];
+  favoritedImages: ReferenceImage[];
   onBack: () => void;
   onSubmit: () => void;
   isLoading: boolean;
@@ -17,8 +16,7 @@ interface BriefingSummaryProps {
 export default function BriefingSummary({
   responses,
   keywords,
-  favoritedBlocks,
-  favoritedImages = [],
+  favoritedImages,
   onBack,
   onSubmit,
   isLoading,
@@ -127,37 +125,23 @@ export default function BriefingSummary({
       </div>
 
       {/* Favorited Images */}
-      {(favoritedImages.length > 0 || favoritedBlocks.length > 0) && (
+      {favoritedImages.length > 0 && (
         <div className="mb-8 p-6 bg-gray-900 border-2 border-gray-800 rounded-lg">
           <h3 className="text-xl font-bold mb-4 text-white">
-            Selected Visual References ({favoritedImages.length > 0 ? favoritedImages.length : favoritedBlocks.length})
+            Selected Visual References ({favoritedImages.length})
           </h3>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-            {favoritedImages.length > 0 ? (
-              favoritedImages.map(image => (
-                <div key={image.id} className="relative w-full h-24">
-                  <Image
-                    src={image.thumbnail_path}
-                    alt={image.original_filename}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    className="object-cover rounded-md border border-gray-700"
-                  />
-                </div>
-              ))
-            ) : (
-              favoritedBlocks.map(block => (
-                <div key={block.id} className="relative w-full h-24">
-                  <Image
-                    src={block.image?.thumb?.url || block.image?.display?.url || ''}
-                    alt={block.title || 'Favorited image'}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    className="object-cover rounded-md border border-gray-700"
-                  />
-                </div>
-              ))
-            )}
+            {favoritedImages.map(image => (
+              <div key={image.id} className="relative w-full h-24">
+                <Image
+                  src={image.thumbnail_path}
+                  alt={image.original_filename}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  className="object-cover rounded-md border border-gray-700"
+                />
+              </div>
+            ))}
           </div>
         </div>
       )}

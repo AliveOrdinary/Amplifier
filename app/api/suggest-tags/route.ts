@@ -310,29 +310,32 @@ async function getCorrectionAnalysis(): Promise<CorrectionAnalysis | null> {
       ? Math.round((totalAccepted / totalSuggestions) * 100)
       : 0
 
-    // Calculate category-specific accuracy
+    // Calculate category-specific accuracy (dynamic categories)
     const categoryAccuracy: Record<string, number> = {}
-    const categoryStats: Record<string, { total: number, correct: number }> = {
-      industry: { total: 0, correct: 0 },
-      project_type: { total: 0, correct: 0 },
-      style: { total: 0, correct: 0 },
-      mood: { total: 0, correct: 0 },
-      elements: { total: 0, correct: 0 }
-    }
+    const categoryStats: Record<string, { total: number, correct: number }> = {}
+
+    // Initialize category stats dynamically from vocabulary
+    const uniqueCategories = new Set<string>()
+    vocabulary?.forEach(v => uniqueCategories.add(v.category))
+    uniqueCategories.forEach(cat => {
+      categoryStats[cat] = { total: 0, correct: 0 }
+    })
 
     // This is simplified - would need more detailed tracking in production
     frequentlyMissed.forEach(pattern => {
       const cat = pattern.category
-      if (categoryStats[cat]) {
-        categoryStats[cat].total += pattern.count
+      if (!categoryStats[cat]) {
+        categoryStats[cat] = { total: 0, correct: 0 }
       }
+      categoryStats[cat].total += pattern.count
     })
 
     frequentlyWrong.forEach(pattern => {
       const cat = pattern.category
-      if (categoryStats[cat]) {
-        categoryStats[cat].total += pattern.count
+      if (!categoryStats[cat]) {
+        categoryStats[cat] = { total: 0, correct: 0 }
       }
+      categoryStats[cat].total += pattern.count
     })
 
     Object.entries(categoryStats).forEach(([cat, stats]) => {
@@ -475,31 +478,32 @@ Respond ONLY with valid JSON. Do not include any markdown formatting, code block
 function generateMissedTagGuidance(missedTags: CorrectionPattern[]): string {
   const guidance: string[] = []
 
-  // Analyze patterns in missed tags
-  const industries = missedTags.filter(t => t.category === 'industry')
-  const styles = missedTags.filter(t => t.category === 'style')
-  const moods = missedTags.filter(t => t.category === 'mood')
-  const elements = missedTags.filter(t => t.category === 'elements')
+  // Group missed tags by category dynamically
+  const categoryIssues: Record<string, CorrectionPattern[]> = {}
+  missedTags.forEach(tag => {
+    if (!categoryIssues[tag.category]) {
+      categoryIssues[tag.category] = []
+    }
+    categoryIssues[tag.category].push(tag)
+  })
 
-  if (industries.length > 0) {
-    const topIndustry = industries[0]
-    guidance.push(`→ When you see ${topIndustry.tag}-related imagery, don't hesitate to tag it - you've missed this ${topIndustry.count} times!`)
-  }
+  // Generate guidance for top 4 categories with most issues
+  Object.entries(categoryIssues)
+    .sort((a, b) => b[1].length - a[1].length) // Sort by number of issues
+    .slice(0, 4) // Take top 4 categories
+    .forEach(([category, patterns]) => {
+      const topPattern = patterns[0]
+      const categoryLabel = category.replace(/_/g, ' ')
 
-  if (styles.length > 0) {
-    const topStyle = styles[0]
-    guidance.push(`→ Look more carefully for "${topStyle.tag}" style characteristics - this is often present but you miss it`)
-  }
-
-  if (moods.length > 0) {
-    const topMood = moods[0]
-    guidance.push(`→ The "${topMood.tag}" mood appears more frequently than you think - consider it more often`)
-  }
-
-  if (elements.length > 0) {
-    const topElement = elements[0]
-    guidance.push(`→ "${topElement.tag}" is a key design element you frequently overlook - check for it specifically`)
-  }
+      // Generate contextual guidance based on frequency
+      if (topPattern.percentage > 30) {
+        guidance.push(`→ CRITICAL: You frequently miss "${topPattern.tag}" (${categoryLabel}) - missed ${topPattern.count} times (${topPattern.percentage}% of images)`)
+      } else if (topPattern.percentage > 15) {
+        guidance.push(`→ You often miss "${topPattern.tag}" (${categoryLabel}) - pay more attention to this tag`)
+      } else {
+        guidance.push(`→ Watch for "${topPattern.tag}" (${categoryLabel}) - you've missed this ${topPattern.count} times`)
+      }
+    })
 
   return guidance.length > 0 ? '\n' + guidance.join('\n') : ''
 }
@@ -507,23 +511,31 @@ function generateMissedTagGuidance(missedTags: CorrectionPattern[]): string {
 function generateWrongTagGuidance(wrongTags: CorrectionPattern[]): string {
   const guidance: string[] = []
 
-  // Analyze patterns in wrong suggestions
+  // Analyze top wrong suggestions
   const topWrong = wrongTags[0]
-  if (topWrong) {
-    if (topWrong.percentage > 40) {
-      guidance.push(`→ CRITICAL: You over-suggest "${topWrong.tag}" - only use when EXTREMELY confident`)
+  if (topWrong && topWrong.percentage > 40) {
+    const categoryLabel = topWrong.category.replace(/_/g, ' ')
+    guidance.push(`→ CRITICAL: You over-suggest "${topWrong.tag}" (${categoryLabel}) - only use when EXTREMELY confident`)
+  }
+
+  // Group wrong tags by category dynamically
+  const categoryIssues: Record<string, CorrectionPattern[]> = {}
+  wrongTags.forEach(tag => {
+    if (!categoryIssues[tag.category]) {
+      categoryIssues[tag.category] = []
     }
-  }
+    categoryIssues[tag.category].push(tag)
+  })
 
-  const styles = wrongTags.filter(t => t.category === 'style')
-  if (styles.length >= 2) {
-    guidance.push(`→ You're misidentifying styles - be more conservative with style tags unless 100% certain`)
-  }
-
-  const moods = wrongTags.filter(t => t.category === 'mood')
-  if (moods.length >= 2) {
-    guidance.push(`→ Mood interpretation is inconsistent - only suggest moods that are very clearly conveyed`)
-  }
+  // Find categories with multiple wrong tags (pattern of misidentification)
+  Object.entries(categoryIssues)
+    .filter(([_, patterns]) => patterns.length >= 2) // 2+ wrong tags in same category
+    .slice(0, 3) // Top 3 problematic categories
+    .forEach(([category, patterns]) => {
+      const categoryLabel = category.replace(/_/g, ' ')
+      const totalWrong = patterns.reduce((sum, p) => sum + p.count, 0)
+      guidance.push(`→ You're misidentifying ${categoryLabel} tags (${totalWrong} corrections) - be more conservative unless 100% certain`)
+    })
 
   return guidance.length > 0 ? '\n' + guidance.join('\n') : ''
 }

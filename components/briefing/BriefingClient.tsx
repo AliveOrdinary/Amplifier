@@ -9,7 +9,7 @@ import KeywordEditor from './KeywordEditor';
 import ImageGallery from './ImageGallery';
 import BriefingSummary from './BriefingSummary';
 import SuccessScreen from './SuccessScreen';
-import type { QuestionnaireResponses, ArenaBlock, ReferenceImage } from '@/lib/types';
+import type { QuestionnaireResponses, ReferenceImage } from '@/lib/types';
 
 const STEP_LABELS = [
   'Client Info',
@@ -66,8 +66,6 @@ export default function BriefingClient() {
 
   const [extractedKeywords, setExtractedKeywords] = useState<string[]>([]);
   const [editedKeywords, setEditedKeywords] = useState<string[]>([]);
-  const [arenaBlocks, setArenaBlocks] = useState<ArenaBlock[]>([]);
-  const [favoritedBlockIds, setFavoritedBlockIds] = useState<number[]>([]);
   const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
   const [favoritedImageIds, setFavoritedImageIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -187,8 +185,6 @@ export default function BriefingClient() {
             responses,
             extractedKeywords,
             editedKeywords,
-            arenaBlocks,
-            favoritedBlockIds,
             referenceImages,
             favoritedImageIds,
             timestamp: new Date().toISOString(),
@@ -320,15 +316,8 @@ export default function BriefingClient() {
       case 9:
         return (
           <ImageGallery
-            blocks={arenaBlocks}
-            favoritedIds={favoritedBlockIds}
             referenceImages={referenceImages}
             favoritedImageIds={favoritedImageIds}
-            onToggleFavorite={(id) => {
-              setFavoritedBlockIds(prev =>
-                prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-              );
-            }}
             onToggleFavoriteImage={(id) => {
               setFavoritedImageIds(prev =>
                 prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -343,7 +332,6 @@ export default function BriefingClient() {
           <BriefingSummary
             responses={responses}
             keywords={editedKeywords.length > 0 ? editedKeywords : extractedKeywords}
-            favoritedBlocks={arenaBlocks.filter(b => favoritedBlockIds.includes(b.id))}
             favoritedImages={referenceImages.filter(img => favoritedImageIds.includes(img.id))}
             onBack={handleBack}
             onSubmit={handleSubmit}

@@ -53,7 +53,7 @@ export default function LoginClient() {
 
   return (
     <div className="w-full max-w-lg">
-      <div className="bg-white rounded-2xl shadow-2xl border-2 border-gray-200 overflow-hidden">
+      <div className="bg-gray-800 rounded-2xl shadow-2xl border-2 border-gray-700 overflow-hidden">
         {/* Header */}
         <div className="px-8 py-8 bg-gradient-to-br from-blue-600 to-blue-700 text-center">
           <div className="text-6xl mb-4">🔐</div>
@@ -69,10 +69,10 @@ export default function LoginClient() {
         <div className="px-8 py-8">
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+            <div className="mb-6 p-4 bg-red-900/50 border-2 border-red-600 rounded-lg">
               <div className="flex items-start gap-3">
                 <span className="text-2xl">⚠️</span>
-                <p className="text-sm text-red-900 font-medium pt-1">{error}</p>
+                <p className="text-sm text-red-300 font-medium pt-1">{error}</p>
               </div>
             </div>
           )}
@@ -83,7 +83,7 @@ export default function LoginClient() {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide"
+                className="block text-sm font-bold text-white mb-3 uppercase tracking-wide"
               >
                 Email Address
               </label>
@@ -94,7 +94,7 @@ export default function LoginClient() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400"
+                className="w-full px-4 py-3 border-2 border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-900 text-white placeholder-gray-500 transition-all hover:border-gray-500"
                 placeholder="your.email@example.com"
                 disabled={loading}
               />
@@ -104,7 +104,7 @@ export default function LoginClient() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide"
+                className="block text-sm font-bold text-white mb-3 uppercase tracking-wide"
               >
                 Password
               </label>
@@ -115,7 +115,7 @@ export default function LoginClient() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600 transition-all hover:border-gray-400"
+                className="w-full px-4 py-3 border-2 border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-900 text-white placeholder-gray-500 transition-all hover:border-gray-500"
                 placeholder="Enter your password"
                 disabled={loading}
               />
@@ -125,7 +125,7 @@ export default function LoginClient() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-3.5 px-6 rounded-lg hover:bg-blue-700 hover:shadow-lg focus:ring-4 focus:ring-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg mt-8"
+              className="w-full bg-blue-600 text-white py-3.5 px-6 rounded-lg hover:bg-blue-700 hover:shadow-lg focus:ring-4 focus:ring-blue-900/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg mt-8"
             >
               {loading ? '⏳ Signing in...' : '🚀 Sign In'}
             </button>
@@ -133,8 +133,8 @@ export default function LoginClient() {
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-6 bg-gray-50 border-t-2 border-gray-100 text-center">
-          <p className="text-sm text-gray-600 font-medium">
+        <div className="px-8 py-6 bg-gray-900 border-t-2 border-gray-700 text-center">
+          <p className="text-sm text-gray-400 font-medium">
             🔒 Protected system - authorized users only
           </p>
         </div>

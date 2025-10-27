@@ -37,46 +37,7 @@ export interface ProjectData {
 }
 
 // Visual Briefing Tool Types
-
-export interface ArenaBlock {
-  id: number;
-  title: string | null;
-  class: 'Image' | 'Link' | 'Text' | 'Attachment' | 'Media';
-  image?: {
-    thumb?: { url: string };
-    display?: { url: string };
-    original?: { url: string; file_size?: number; file_size_display?: string };
-  };
-  description?: string;
-  description_html?: string;
-  user: {
-    id: number;
-    username: string;
-    full_name: string;
-  };
-  source?: {
-    url: string;
-    provider?: {
-      name: string;
-      url: string;
-    };
-  };
-  content?: string;
-  content_html?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ArenaSearchResponse {
-  term: string;
-  per: number;
-  current_page: number;
-  total_pages: number;
-  length: number;
-  blocks?: ArenaBlock[];
-  channels?: any[];
-  users?: any[];
-}
+// Note: Arena.net integration removed - now only uses internal reference images
 
 export interface QuestionnaireResponses {
   // Client Info
@@ -130,10 +91,8 @@ export interface BriefingData {
   responses: QuestionnaireResponses;
   extractedKeywords: string[];
   editedKeywords?: string[];
-  arenaBlocks: ArenaBlock[];
-  favoritedBlockIds: number[];
-  referenceImages?: ReferenceImage[];
-  favoritedImageIds?: string[];
+  referenceImages: ReferenceImage[];
+  favoritedImageIds: string[];
   timestamp: string;
 }
 
@@ -143,15 +102,6 @@ export interface ExtractKeywordsRequest {
 
 export interface ExtractKeywordsResponse {
   keywords: string[];
-  error?: string;
-}
-
-export interface SearchArenaRequest {
-  keywords: string[];
-}
-
-export interface SearchArenaResponse {
-  blocks: ArenaBlock[];
   error?: string;
 }
 
