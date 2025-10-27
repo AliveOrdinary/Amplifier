@@ -6,6 +6,8 @@
 **Previous Audit:** October 22, 2025 (SECURITY_AUDIT_PART1.md)
 **Scope:** Authentication, authorization, input validation, API security, data protection
 
+> **⚠️ DEPRECATION NOTICE (October 27, 2025):** Netlify CMS and Netlify Identity have been removed from this project. Content is now managed manually via markdown files in the `content/` directory. References to Netlify CMS in this document are historical.
+
 ---
 
 ## ⚠️ EXECUTIVE SUMMARY

@@ -1,14 +1,25 @@
-# Portfolio Website with Next.js and Netlify CMS
+# Amplifier Portfolio & Reference Image Tagger
 
-A portfolio website for a graphic designer built with Next.js and Netlify CMS.
+A dual-purpose Next.js application combining a graphic design portfolio with an AI-powered reference image tagging system.
 
 ## Features
 
+**Portfolio Website:**
 - Responsive design for all devices
-- Netlify CMS for content management
-- Fast page loading with Next.js
+- File-based content management with markdown
+- Fast page loading with Next.js App Router
 - High-quality image optimization
-- Markdown support
+
+**Reference Image Tagger:**
+- AI-powered tag suggestions (Claude Sonnet 4)
+- Dynamic vocabulary system
+- Supabase authentication and storage
+- Comprehensive analytics dashboard
+
+**Visual Briefing System:**
+- Interactive client questionnaire
+- AI keyword extraction
+- Reference image search integration
 
 ## Setup
 
@@ -39,32 +50,38 @@ npm run dev
 
 ## Content Management
 
-The website uses Netlify CMS for content management. The CMS can be accessed at `/admin` once the site is deployed to Netlify.
+Portfolio content is managed through markdown files in the `content/` directory:
 
-### Setting up Netlify CMS
+- `content/global/info.md` - Site-wide settings (navigation, footer, site title)
+- `content/pages/` - Page-specific content (home.md, about.md, contact.md)
+- `content/projects/` - Project case studies (each project is a separate .md file)
 
-1. Deploy the site to Netlify
-2. Enable Identity service in your Netlify site dashboard
-3. Enable Git Gateway in your Netlify site dashboard
-4. Set up invite-only access or open registration as per your preference
+**To add new projects:** See the comprehensive guide at [`docs/ADDING_PROJECTS.md`](docs/ADDING_PROJECTS.md)
+
+**Quick start:** Create a markdown file in `content/projects/`, add frontmatter with project details, upload media to `public/images/uploads/[project-slug]/`, commit and deploy.
 
 ## Project Structure
 
-- `app/` - Next.js app router pages and layouts
-- `components/` - React components
-- `content/` - Markdown content managed by Netlify CMS
-- `lib/` - Utility functions
-- `public/` - Static assets and Netlify CMS admin files
+- `app/` - Next.js app router pages and layouts (portfolio + tagger + briefing)
+- `components/` - React components (Layout, Tagger, Briefing components)
+- `content/` - Markdown content for portfolio
+- `lib/` - Utility functions (Supabase, validation, markdown processing)
+- `public/` - Static assets
+- `supabase/migrations/` - Database migrations
 
 ## Deployment
 
-This site is configured for easy deployment on Netlify:
+**Requirements:**
+- Node.js runtime (Vercel, Netlify Functions, or Node.js server)
+- Supabase project with configured database and storage
+- Environment variables (see CLAUDE.md for full list)
 
-1. Push your code to a GitHub repository
-2. Connect the repository to Netlify
-3. Configure build settings:
-   - Build command: `npm run build`
-   - Publish directory: `out`
+**Build Settings:**
+- Build command: `npm run build`
+- Output directory: `.next`
+- Node.js version: 18 or newer
+
+**Note:** This application requires server-side features and cannot be deployed as a static site.
 
 ## License
 

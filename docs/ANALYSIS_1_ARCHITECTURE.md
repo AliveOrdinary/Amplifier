@@ -5,6 +5,8 @@
 **Framework:** Next.js 15.3.1 (App Router)
 **Deployment:** Originally Netlify, now Vercel-compatible (server features enabled)
 
+> **⚠️ DEPRECATION NOTICE (October 27, 2025):** Netlify CMS and Netlify Identity have been removed from this project. Content is now managed manually via markdown files in the `content/` directory. References to Netlify CMS in this document are historical.
+
 ---
 
 ## Executive Summary
