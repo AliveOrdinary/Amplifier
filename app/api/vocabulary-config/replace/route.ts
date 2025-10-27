@@ -131,18 +131,26 @@ export async function POST(request: NextRequest) {
     console.log('Syncing database schema with new vocabulary structure...');
 
     // Get current columns in reference_images table
-    const { data: currentColumns, error: columnsError } = await supabase.rpc('get_table_columns', {
+    let currentColumns: any[] = [];
+
+    // Try RPC function first
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_table_columns', {
       table_name: 'reference_images'
-    }).catch(() => {
-      // If function doesn't exist, query information_schema directly
-      return supabase
+    });
+
+    if (rpcError) {
+      // If RPC function doesn't exist, query information_schema directly
+      const { data: schemaData } = await supabase
         .from('information_schema.columns')
         .select('column_name')
         .eq('table_name', 'reference_images');
-    });
+      currentColumns = schemaData || [];
+    } else {
+      currentColumns = rpcData || [];
+    }
 
     const existingColumns = new Set(
-      currentColumns?.map((col: any) => col.column_name || col) || []
+      currentColumns.map((col: any) => col.column_name || col) || []
     );
 
     // Collect required columns from vocabulary config

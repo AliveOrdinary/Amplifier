@@ -362,24 +362,6 @@ function generateEmailHTML(data: BriefingData): string {
   `.trim();
 }
 
-function formatGalleryItem(block: ArenaBlock): string {
-  const imageUrl = block.image?.display?.url || block.image?.thumb?.url || '';
-  const title = block.title || 'Untitled';
-  const username = block.user?.username || 'Unknown';
-  const sourceUrl = block.source?.url || `https://are.na/block/${block.id}`;
-
-  return `
-    <div class="gallery-item">
-      <img src="${imageUrl}" alt="${title}" />
-      <div class="gallery-item-info">
-        <div><strong>${title}</strong></div>
-        <div>by ${username}</div>
-        <div><a href="${sourceUrl}" target="_blank">View on Are.na</a></div>
-      </div>
-    </div>
-  `;
-}
-
 function formatReferenceImageItem(image: ReferenceImage): string {
   const imageUrl = image.storage_path;
   const filename = image.original_filename || 'Untitled';

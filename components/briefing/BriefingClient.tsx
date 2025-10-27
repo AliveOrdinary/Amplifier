@@ -249,8 +249,6 @@ export default function BriefingClient() {
     });
     setExtractedKeywords([]);
     setEditedKeywords([]);
-    setArenaBlocks([]);
-    setFavoritedBlockIds([]);
     setReferenceImages([]);
     setFavoritedImageIds([]);
     setIsSubmitted(false);
