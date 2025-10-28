@@ -1,11 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+import { createClientComponentClient } from '@/lib/supabase'
 
 interface VocabularyTag {
   id: string
@@ -40,6 +36,7 @@ interface VocabularyClientProps {
 }
 
 export default function VocabularyClient({ tags: initialTags }: VocabularyClientProps) {
+  const supabase = createClientComponentClient()
   const [tags, setTags] = useState<VocabularyTag[]>(initialTags)
   const [selectedTag, setSelectedTag] = useState<VocabularyTag | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -820,6 +817,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
             setSelectedTag(null)
           }}
           onSave={handleTagUpdate}
+          supabase={supabase}
         />
       )}
 
@@ -834,6 +832,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
             setSelectedTag(null)
           }}
           onMerge={handleMergeComplete}
+          supabase={supabase}
         />
       )}
 
@@ -843,6 +842,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
           vocabConfig={vocabConfig}
           onClose={() => setShowAddModal(false)}
           onAdd={handleTagAdd}
+          supabase={supabase}
         />
       )}
 
@@ -887,9 +887,10 @@ interface EditTagModalProps {
   tag: VocabularyTag
   onClose: () => void
   onSave: (updatedTag: VocabularyTag) => void
+  supabase: any
 }
 
-function EditTagModal({ tag, onClose, onSave }: EditTagModalProps) {
+function EditTagModal({ tag, onClose, onSave, supabase }: EditTagModalProps) {
   const [tagValue, setTagValue] = useState(tag.tag_value)
   const [description, setDescription] = useState(tag.description || '')
   const [isSaving, setIsSaving] = useState(false)
@@ -977,9 +978,10 @@ interface MergeTagModalProps {
   vocabConfig: VocabularyConfig
   onClose: () => void
   onMerge: (sourceId: string, targetId: string) => void
+  supabase: any
 }
 
-function MergeTagModal({ sourceTag, allTags, vocabConfig, onClose, onMerge }: MergeTagModalProps) {
+function MergeTagModal({ sourceTag, allTags, vocabConfig, onClose, onMerge, supabase }: MergeTagModalProps) {
   const [targetTagId, setTargetTagId] = useState('')
   const [isMerging, setIsMerging] = useState(false)
 
@@ -1160,9 +1162,10 @@ interface AddTagModalProps {
   vocabConfig: VocabularyConfig
   onClose: () => void
   onAdd: (newTag: VocabularyTag) => void
+  supabase: any
 }
 
-function AddTagModal({ vocabConfig, onClose, onAdd }: AddTagModalProps) {
+function AddTagModal({ vocabConfig, onClose, onAdd, supabase }: AddTagModalProps) {
   // Initialize with the first category from config
   const [category, setCategory] = useState(vocabConfig.structure.categories[0]?.key || '')
   const [tagValue, setTagValue] = useState('')

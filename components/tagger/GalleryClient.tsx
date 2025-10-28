@@ -1,12 +1,8 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createClientComponentClient } from '@/lib/supabase'
 import Image from 'next/image'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 interface ReferenceImage {
   id: string
@@ -70,7 +66,8 @@ function getDatabaseCategory(storagePath: string, categoryKey: string): string {
 async function updateTagUsageForChanges(
   oldTags: Record<string, string[]>,
   newTags: Record<string, string[]>,
-  vocabularyConfig: any
+  vocabularyConfig: any,
+  supabase: any
 ) {
   try {
     const now = new Date().toISOString()
@@ -125,6 +122,7 @@ async function updateTagUsageForChanges(
 }
 
 export default function GalleryClient({ images: initialImages }: GalleryClientProps) {
+  const supabase = createClientComponentClient()
   const [images, setImages] = useState<ReferenceImage[]>(initialImages)
   const [selectedImage, setSelectedImage] = useState<ReferenceImage | null>(null)
   const [editingImage, setEditingImage] = useState<ReferenceImage | null>(null)
@@ -569,6 +567,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
             setSelectedImage(null)
           }}
           onSave={handleImageUpdate}
+          supabase={supabase}
         />
       )}
 
@@ -580,6 +579,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
           vocabConfig={vocabConfig}
           onClose={() => setShowBulkEdit(false)}
           onSave={handleBulkUpdate}
+          supabase={supabase}
         />
       )}
     </div>
@@ -982,9 +982,10 @@ interface EditImageModalProps {
   vocabConfig: VocabularyConfig
   onClose: () => void
   onSave: (updatedImage: ReferenceImage) => void
+  supabase: any
 }
 
-function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave }: EditImageModalProps) {
+function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave, supabase }: EditImageModalProps) {
   // Helper function to get value from image based on storage_path
   const getImageValue = (storagePath: string): any => {
     if (storagePath.includes('.')) {
@@ -1053,7 +1054,7 @@ function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave }: Edi
       })
 
       // Update tag usage counts
-      await updateTagUsageForChanges(oldTags, newTags, vocabConfig)
+      await updateTagUsageForChanges(oldTags, newTags, vocabConfig, supabase)
 
       // Build update object dynamically
       const updateData: any = {
@@ -1232,9 +1233,10 @@ interface BulkEditModalProps {
   vocabConfig: VocabularyConfig
   onClose: () => void
   onSave: (updatedImages: ReferenceImage[]) => void
+  supabase: any
 }
 
-function BulkEditModal({ images, vocabulary, vocabConfig, onClose, onSave }: BulkEditModalProps) {
+function BulkEditModal({ images, vocabulary, vocabConfig, onClose, onSave, supabase }: BulkEditModalProps) {
   const [mode, setMode] = useState<'add' | 'remove'>('add')
   const [isSaving, setIsSaving] = useState(false)
 
@@ -1319,7 +1321,7 @@ function BulkEditModal({ images, vocabulary, vocabConfig, onClose, onSave }: Bul
         })
 
         // Update tag usage counts
-        await updateTagUsageForChanges(oldTags, newTags, vocabConfig)
+        await updateTagUsageForChanges(oldTags, newTags, vocabConfig, supabase)
 
         // Build update object
         const updateData: any = {
