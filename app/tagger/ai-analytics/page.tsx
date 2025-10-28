@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import AIAnalyticsClient from '@/components/tagger/AIAnalyticsClient'
 import Link from 'next/link'
+import { VocabularyCategory } from '@/lib/validation'
 
 // Disable caching - always fetch fresh data
 export const revalidate = 0
@@ -193,7 +194,7 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
     const categoryStats: Record<string, { suggested: number[], selected: number[] }> = {}
 
     // Initialize stats for each category from config
-    vocabConfig.structure.categories.forEach(category => {
+    vocabConfig.structure.categories.forEach((category: VocabularyCategory) => {
       if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
         categoryStats[category.key] = { suggested: [], selected: [] }
       }
@@ -202,7 +203,7 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
     images?.forEach(img => {
       const aiSuggested = img.ai_suggested_tags || {}
 
-      vocabConfig.structure.categories.forEach(category => {
+      vocabConfig.structure.categories.forEach((category: VocabularyCategory) => {
         if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
           // Get AI suggested count (try both camelCase and snake_case)
           const suggestedValue = aiSuggested[category.key] || aiSuggested[category.storage_path] || []
@@ -216,7 +217,7 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
     })
 
     const categoryBreakdown: TagCategoryStats[] = Object.entries(categoryStats).map(([catKey, stats]) => {
-      const category = vocabConfig.structure.categories.find(c => c.key === catKey)
+      const category = vocabConfig.structure.categories.find((c: VocabularyCategory) => c.key === catKey)
       const avgSuggested = stats.suggested.length > 0
         ? stats.suggested.reduce((a, b) => a + b, 0) / stats.suggested.length
         : 0
@@ -314,7 +315,7 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
       const actual_tags: Record<string, string[]> = {}
       let totalTags = 0
 
-      vocabConfig.structure.categories.forEach(category => {
+      vocabConfig.structure.categories.forEach((category: VocabularyCategory) => {
         if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
           const value = getImageValue(img, category.storage_path)
           const tagArray = Array.isArray(value) ? value : []

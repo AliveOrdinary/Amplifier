@@ -346,6 +346,7 @@ export type CreateTagInput = z.infer<typeof createTagSchema>;
 export type UpdateTagInput = z.infer<typeof updateTagSchema>;
 export type ImageStatus = z.infer<typeof imageStatusSchema>;
 export type VocabularyConfigInput = z.infer<typeof vocabularyConfigSchema>;
+export type VocabularyCategory = z.infer<typeof vocabularyCategorySchema>;
 export type AISuggestionsInput = z.infer<typeof aiSuggestionsSchema>;
 export type SearchQuery = z.infer<typeof searchQuerySchema>;
 export type SortOrder = z.infer<typeof sortOrderSchema>;
