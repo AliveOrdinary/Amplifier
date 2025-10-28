@@ -3,11 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+import { createClientComponentClient } from '@/lib/supabase'
 
 // Type definitions
 interface TagCategoryStats {
@@ -37,19 +33,25 @@ interface ImageAnalysis {
   original_filename: string
   ai_confidence_score: number | null
   ai_suggested_tags: any
-  actual_tags: {
-    industries: string[]
-    project_types: string[]
-    styles: string[]
-    moods: string[]
-    elements: string[]
-  }
+  actual_tags: Record<string, string[]> // Dynamic categories
   corrections: {
     tags_added: string[]
     tags_removed: string[]
   } | null
   correctionPercentage: number
   tagged_at: string
+}
+
+interface VocabularyConfig {
+  structure: {
+    categories: Array<{
+      key: string
+      label: string
+      storage_path: string
+      storage_type: 'array' | 'jsonb_array' | 'text'
+      search_weight: number
+    }>
+  }
 }
 
 interface AIAnalytics {
@@ -67,6 +69,7 @@ interface AIAnalytics {
   confidenceBuckets: ConfidenceBucket[]
   imageAnalysis: ImageAnalysis[]
   insights: string[]
+  vocabConfig: VocabularyConfig
 }
 
 interface AIAnalyticsClientProps {
@@ -74,6 +77,7 @@ interface AIAnalyticsClientProps {
 }
 
 export default function AIAnalyticsClient({ analytics }: AIAnalyticsClientProps) {
+  const supabase = createClientComponentClient()
   const [selectedImage, setSelectedImage] = useState<ImageAnalysis | null>(null)
   const [isRetraining, setIsRetraining] = useState(false)
   const [retrainMessage, setRetrainMessage] = useState<string | null>(null)
@@ -756,26 +760,17 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
                   <div>
                     <div className="text-sm font-semibold text-gray-600 mb-2">Actual Tags (Designer Selected)</div>
                     <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="font-medium">Industries: </span>
-                        <span className="text-gray-600">{selectedImage.actual_tags.industries.join(', ') || 'None'}</span>
-                      </div>
-                      <div>
-                        <span className="font-medium">Project Types: </span>
-                        <span className="text-gray-600">{selectedImage.actual_tags.project_types.join(', ') || 'None'}</span>
-                      </div>
-                      <div>
-                        <span className="font-medium">Styles: </span>
-                        <span className="text-gray-600">{selectedImage.actual_tags.styles.join(', ') || 'None'}</span>
-                      </div>
-                      <div>
-                        <span className="font-medium">Moods: </span>
-                        <span className="text-gray-600">{selectedImage.actual_tags.moods.join(', ') || 'None'}</span>
-                      </div>
-                      <div>
-                        <span className="font-medium">Elements: </span>
-                        <span className="text-gray-600">{selectedImage.actual_tags.elements.join(', ') || 'None'}</span>
-                      </div>
+                      {analytics.vocabConfig.structure.categories
+                        .filter(cat => cat.storage_type === 'array' || cat.storage_type === 'jsonb_array')
+                        .map(category => {
+                          const tags = selectedImage.actual_tags[category.key] || []
+                          return (
+                            <div key={category.key}>
+                              <span className="font-medium">{category.label}: </span>
+                              <span className="text-gray-600">{tags.join(', ') || 'None'}</span>
+                            </div>
+                          )
+                        })}
                     </div>
                   </div>
 

@@ -45,19 +45,25 @@ interface ImageAnalysis {
   original_filename: string
   ai_confidence_score: number | null
   ai_suggested_tags: any
-  actual_tags: {
-    industries: string[]
-    project_types: string[]
-    styles: string[]
-    moods: string[]
-    elements: string[]
-  }
+  actual_tags: Record<string, string[]> // Dynamic categories
   corrections: {
     tags_added: string[]
     tags_removed: string[]
   } | null
   correctionPercentage: number
   tagged_at: string
+}
+
+interface VocabularyConfig {
+  structure: {
+    categories: Array<{
+      key: string
+      label: string
+      storage_path: string
+      storage_type: 'array' | 'jsonb_array' | 'text'
+      search_weight: number
+    }>
+  }
 }
 
 interface AIAnalytics {
@@ -75,10 +81,20 @@ interface AIAnalytics {
   confidenceBuckets: ConfidenceBucket[]
   imageAnalysis: ImageAnalysis[]
   insights: string[]
+  vocabConfig: VocabularyConfig // Add config to pass to client
 }
 
 async function getAIAnalytics(): Promise<AIAnalytics> {
   try {
+    // Fetch active vocabulary config
+    const { data: vocabConfig, error: configError } = await supabaseAdmin
+      .from('vocabulary_config')
+      .select('*')
+      .eq('is_active', true)
+      .single()
+
+    if (configError) throw configError
+
     // Fetch all images with AI suggestions
     const { data: images, error: imagesError } = await supabaseAdmin
       .from('reference_images')
@@ -96,7 +112,7 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
     if (correctionsError) throw correctionsError
 
     // Fetch tag vocabulary for category mapping
-    const { data: vocabulary, error: vocabError } = await supabaseAdmin
+    const { data: vocabulary, error: vocabError} = await supabaseAdmin
       .from('tag_vocabulary')
       .select('tag_value, category')
 
@@ -159,36 +175,48 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
     const accuracyTrend = Math.abs(trendPercentage) < 5 ? 'stable'
       : trendPercentage > 0 ? 'improving' : 'declining'
 
-    // 2. Tag Category Breakdown
-    const categoryStats: Record<string, { suggested: number[], selected: number[] }> = {
-      industry: { suggested: [], selected: [] },
-      project_type: { suggested: [], selected: [] },
-      style: { suggested: [], selected: [] },
-      mood: { suggested: [], selected: [] },
-      elements: { suggested: [], selected: [] }
+    // Helper to get value from image based on storage_path
+    const getImageValue = (img: any, storagePath: string): any => {
+      if (storagePath.includes('.')) {
+        const parts = storagePath.split('.')
+        let value: any = img
+        for (const part of parts) {
+          value = value?.[part]
+        }
+        return value
+      } else {
+        return img[storagePath]
+      }
     }
+
+    // 2. Tag Category Breakdown (Dynamic)
+    const categoryStats: Record<string, { suggested: number[], selected: number[] }> = {}
+
+    // Initialize stats for each category from config
+    vocabConfig.structure.categories.forEach(category => {
+      if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+        categoryStats[category.key] = { suggested: [], selected: [] }
+      }
+    })
 
     images?.forEach(img => {
       const aiSuggested = img.ai_suggested_tags || {}
-      const actual = img.tags || {}
 
-      categoryStats.industry.suggested.push(aiSuggested.industries?.length || 0)
-      categoryStats.industry.selected.push(img.industries?.length || 0)
+      vocabConfig.structure.categories.forEach(category => {
+        if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+          // Get AI suggested count (try both camelCase and snake_case)
+          const suggestedValue = aiSuggested[category.key] || aiSuggested[category.storage_path] || []
+          categoryStats[category.key].suggested.push(Array.isArray(suggestedValue) ? suggestedValue.length : 0)
 
-      categoryStats.project_type.suggested.push(aiSuggested.projectTypes?.length || 0)
-      categoryStats.project_type.selected.push(img.project_types?.length || 0)
-
-      categoryStats.style.suggested.push(aiSuggested.styles?.length || 0)
-      categoryStats.style.selected.push((actual.style || []).length)
-
-      categoryStats.mood.suggested.push(aiSuggested.moods?.length || 0)
-      categoryStats.mood.selected.push((actual.mood || []).length)
-
-      categoryStats.elements.suggested.push(aiSuggested.elements?.length || 0)
-      categoryStats.elements.selected.push((actual.elements || []).length)
+          // Get actual selected count from image
+          const actualValue = getImageValue(img, category.storage_path)
+          categoryStats[category.key].selected.push(Array.isArray(actualValue) ? actualValue.length : 0)
+        }
+      })
     })
 
-    const categoryBreakdown: TagCategoryStats[] = Object.entries(categoryStats).map(([cat, stats]) => {
+    const categoryBreakdown: TagCategoryStats[] = Object.entries(categoryStats).map(([catKey, stats]) => {
+      const category = vocabConfig.structure.categories.find(c => c.key === catKey)
       const avgSuggested = stats.suggested.length > 0
         ? stats.suggested.reduce((a, b) => a + b, 0) / stats.suggested.length
         : 0
@@ -198,7 +226,7 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
       const accuracy = avgSuggested > 0 ? (avgSelected / avgSuggested) * 100 : 0
 
       return {
-        category: cat,
+        category: category?.label || catKey,
         avgSuggestedByAI: Math.round(avgSuggested * 10) / 10,
         avgSelectedByDesigner: Math.round(avgSelected * 10) / 10,
         accuracy: Math.round(accuracy * 10) / 10
@@ -278,14 +306,23 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
       }
     })
 
-    // 6. Image-Level Analysis
+    // 6. Image-Level Analysis (Dynamic)
     const imageAnalysis: ImageAnalysis[] = images?.map(img => {
       const correction = corrections?.find(c => c.image_id === img.id)
-      const totalTags = (img.industries?.length || 0) +
-                       (img.project_types?.length || 0) +
-                       ((img.tags?.style || []).length) +
-                       ((img.tags?.mood || []).length) +
-                       ((img.tags?.elements || []).length)
+
+      // Dynamically build actual_tags and count total tags
+      const actual_tags: Record<string, string[]> = {}
+      let totalTags = 0
+
+      vocabConfig.structure.categories.forEach(category => {
+        if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+          const value = getImageValue(img, category.storage_path)
+          const tagArray = Array.isArray(value) ? value : []
+          actual_tags[category.key] = tagArray
+          totalTags += tagArray.length
+        }
+      })
+
       const correctionCount = (correction?.tags_added?.length || 0) + (correction?.tags_removed?.length || 0)
       const correctionPercentage = totalTags > 0 ? Math.round((correctionCount / totalTags) * 100) : 0
 
@@ -295,13 +332,7 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
         original_filename: img.original_filename,
         ai_confidence_score: img.ai_confidence_score,
         ai_suggested_tags: img.ai_suggested_tags,
-        actual_tags: {
-          industries: img.industries || [],
-          project_types: img.project_types || [],
-          styles: img.tags?.style || [],
-          moods: img.tags?.mood || [],
-          elements: img.tags?.elements || []
-        },
+        actual_tags,
         corrections: correction ? {
           tags_added: correction.tags_added || [],
           tags_removed: correction.tags_removed || []
@@ -388,7 +419,8 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
       wrongTags,
       confidenceBuckets,
       imageAnalysis,
-      insights
+      insights,
+      vocabConfig
     }
 
   } catch (error) {
@@ -409,7 +441,8 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
       wrongTags: [],
       confidenceBuckets: [],
       imageAnalysis: [],
-      insights: ['No data available. Tag some images with AI suggestions to see analytics.']
+      insights: ['No data available. Tag some images with AI suggestions to see analytics.'],
+      vocabConfig: { structure: { categories: [] } }
     }
   }
 }
