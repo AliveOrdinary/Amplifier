@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 export default function TaggerPage() {
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen max-h-screen overflow-y-auto bg-gray-900">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <Link

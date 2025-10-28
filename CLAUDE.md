@@ -696,14 +696,14 @@ Matched on: styles
 
 **Current Limitations:**
 1. **Authentication:** Tagger has basic Supabase Auth but no role-based access control (admin controls accessible to all authenticated users)
-2. No image duplication detection during upload
-3. No keyboard shortcuts in standard tagger (planned for bulk upload)
-4. No template system for common tag combinations (planned for bulk upload)
+2. No keyboard shortcuts in standard tagger (planned for bulk upload)
+3. No template system for common tag combinations (planned for bulk upload)
 
 **Recently Completed:**
 - ✅ **AI Analytics Dashboard** (`/tagger/ai-analytics`) - Fully implemented with comprehensive metrics, charts, correction analysis, and A/B testing controls
 - ✅ **Vocabulary Config Replacement UI** - Full implementation at `/tagger/vocabulary-config` with JSON paste/upload, validation, template download, and destructive replacement workflow
 - ✅ **Dynamic Category System** - Database constraint removed (migration: `remove_category_constraint_for_dynamic_vocabularies`). System now truly dynamic - accepts any category names defined in vocabulary_config without requiring migrations
+- ✅ **Image Duplicate Detection** - Multi-level detection (SHA-256 content hash, perceptual hash for visual similarity, filename matching) with side-by-side comparison modal and user choice workflow. 90% similarity threshold for strict detection.
 
 **Non-Critical Issues:**
 - VocabularyClient.tsx:204 - Unused `targetId` parameter in `handleMergeComplete()` (merge feature works but parameter not used)
@@ -741,6 +741,7 @@ Matched on: styles
 12. **Storage** - Supabase storage for originals and thumbnails (max 800px)
 13. **Admin Tools** - Delete all, find duplicates, export data, reset vocabulary
 14. **Dynamic Category System** - Truly dynamic vocabulary structure with no database constraints, supports any category names
+15. **Duplicate Detection** - Multi-level detection (exact files via SHA-256, visual similarity via pHash, filename conflicts) with side-by-side comparison modal and user choice workflow
 
 ### 📋 Planned (Not Yet Built)
 
@@ -752,8 +753,6 @@ Matched on: styles
    - See detailed plan above
 
 2. **Role-Based Access Control** - Currently all authenticated users have admin access
-
-3. **Image Duplication Detection** - Detect duplicate uploads by filename or hash
 
 ### 🐛 Known Minor Issues (Non-Breaking)
 

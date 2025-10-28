@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClientComponentClient } from '@/lib/supabase'
 import TagCheckbox from './TagCheckbox'
 import ImagePreview from './ImagePreview'
+import { generateFileHash, generatePerceptualHash, getFileSize, formatFileSize } from '@/lib/file-hash'
 
 // Image processing constants
 const MAX_IMAGE_WIDTH = 1200
@@ -18,6 +19,9 @@ interface UploadedImage {
   previewUrl: string
   filename: string
   status: 'pending' | 'tagged' | 'skipped'
+  fileHash?: string
+  fileSize?: number
+  perceptualHash?: string
 }
 
 interface VocabularyCategory {
@@ -93,6 +97,20 @@ export default function ImageTaggerClient() {
   // AI suggestion state
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, AISuggestion>>({})
   const [isLoadingAI, setIsLoadingAI] = useState<Record<string, boolean>>({})
+
+  // Duplicate detection state
+  const [duplicateCheck, setDuplicateCheck] = useState<{
+    file: File
+    fileHash: string
+    fileSize: number
+    perceptualHash: string
+    existingImage: any
+    matchType: 'exact' | 'similar' | 'filename'
+    confidence: number
+    message: string
+  } | null>(null)
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false)
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]) // Files waiting to be processed after duplicate decision
 
   // Filter state
   type FilterType = 'all' | 'pending' | 'skipped' | 'tagged'
@@ -207,28 +225,202 @@ export default function ImageTaggerClient() {
     }
   }, [])
 
-  // Handle file upload
-  const handleFilesSelected = (files: FileList | null) => {
-    if (!files) return
+  // Helper function to process a list of files
+  const processFiles = async (filesToProcess: File[]) => {
+    if (filesToProcess.length === 0) return
 
-    const validFiles = Array.from(files).filter(file => {
+    setCheckingDuplicates(true)
+    const newImages: UploadedImage[] = []
+
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const file = filesToProcess[i]
+
+      // Validate file type
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-      return validTypes.includes(file.type)
-    })
-
-    const newImages: UploadedImage[] = validFiles.map(file => {
-      const previewUrl = URL.createObjectURL(file)
-      blobUrlsRef.current.add(previewUrl) // Track for cleanup
-      return {
-        id: crypto.randomUUID(),
-        file,
-        previewUrl,
-        filename: file.name,
-        status: 'pending'
+      if (!validTypes.includes(file.type)) {
+        alert(`❌ Invalid file type: ${file.name}\nPlease upload JPG, PNG, or WEBP images.`)
+        continue
       }
-    })
 
-    setUploadedImages(prev => [...prev, ...newImages])
+      // Validate file size
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`❌ File too large: ${file.name}\nMaximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`)
+        continue
+      }
+
+      try {
+        console.log(`🔍 Processing: ${file.name}`)
+
+        // Generate hashes (parallel for speed)
+        console.log(`  ⏳ Generating hashes...`)
+        const [fileHash, perceptualHash] = await Promise.all([
+          generateFileHash(file),
+          generatePerceptualHash(file)
+        ])
+        const fileSize = getFileSize(file)
+
+        console.log(`  ✅ Hashes generated`)
+        console.log(`     SHA-256: ${fileHash.substring(0, 16)}...`)
+        console.log(`     pHash: ${perceptualHash}`)
+        console.log(`     Size: ${formatFileSize(fileSize)}`)
+
+        // Check for duplicates
+        console.log(`  🔍 Checking for duplicates...`)
+        const response = await fetch('/api/check-duplicate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            fileHash,
+            fileSize,
+            perceptualHash
+          })
+        })
+
+        if (!response.ok) {
+          console.error('  ⚠️ Duplicate check failed, proceeding anyway')
+          // Continue with upload if check fails
+        } else {
+          const result = await response.json()
+
+          if (result.isDuplicate) {
+            console.log(`  ⚠️ ${result.message}`)
+            console.log(`  📦 API Response:`, result)
+
+            // Save remaining files to process after user decision
+            const remainingFiles = filesToProcess.slice(i + 1)
+            if (remainingFiles.length > 0) {
+              console.log(`  📦 Saving ${remainingFiles.length} remaining file(s) for later`)
+              setPendingFiles(remainingFiles)
+            }
+
+            // Add any images we've already processed
+            if (newImages.length > 0) {
+              setUploadedImages(prev => [...prev, ...newImages])
+              console.log(`\n✅ Added ${newImages.length} image${newImages.length > 1 ? 's' : ''} to queue (before duplicate)\n`)
+            }
+
+            // Show duplicate modal and wait for user decision
+            const duplicateData = {
+              file,
+              fileHash,
+              fileSize,
+              perceptualHash,
+              existingImage: result.existingImage,
+              matchType: result.matchType,
+              confidence: result.confidence || 100,
+              message: result.message
+            }
+
+            console.log(`  🎯 Setting duplicate check state:`, duplicateData)
+            setDuplicateCheck(duplicateData)
+
+            console.log(`  ⏹️ Hiding loading overlay`)
+            setCheckingDuplicates(false)
+
+            console.log(`  ⏸️ Pausing file processing (${remainingFiles.length} files pending)`)
+            return // Pause processing, wait for user decision
+          }
+
+          console.log(`  ✅ No duplicate found`)
+        }
+
+        // Not a duplicate - proceed with adding to upload queue
+        const id = crypto.randomUUID()
+        const previewUrl = URL.createObjectURL(file)
+        blobUrlsRef.current.add(previewUrl) // Track for cleanup
+
+        newImages.push({
+          id,
+          file,
+          previewUrl,
+          filename: file.name,
+          status: 'pending',
+          fileHash,
+          fileSize,
+          perceptualHash
+        })
+
+        console.log(`  📸 Added to queue`)
+
+      } catch (error) {
+        console.error(`❌ Error processing ${file.name}:`, error)
+        alert(`Failed to process ${file.name}. You can try uploading it again.`)
+      }
+    }
+
+    // All files processed successfully (no duplicates found)
+    if (newImages.length > 0) {
+      setUploadedImages(prev => [...prev, ...newImages])
+      console.log(`\n✅ Added ${newImages.length} image${newImages.length > 1 ? 's' : ''} to queue\n`)
+    }
+
+    setCheckingDuplicates(false)
+  }
+
+  // Handle file upload with duplicate detection
+  const handleFilesSelected = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const fileArray = Array.from(files)
+    await processFiles(fileArray)
+  }
+
+  // Handle user choosing to skip duplicate
+  const handleSkipDuplicate = async () => {
+    console.log('⏭️ User skipped duplicate')
+    setDuplicateCheck(null)
+
+    // Continue processing remaining files
+    if (pendingFiles.length > 0) {
+      console.log(`▶️ Continuing with ${pendingFiles.length} remaining file(s)`)
+      const filesToProcess = [...pendingFiles]
+      setPendingFiles([]) // Clear pending files
+      await processFiles(filesToProcess)
+    } else {
+      console.log('✅ No more files to process')
+    }
+  }
+
+  // Handle user choosing to upload anyway
+  const handleKeepDuplicate = async () => {
+    if (!duplicateCheck) return
+
+    console.log('📸 User chose to keep duplicate')
+
+    const id = crypto.randomUUID()
+    const previewUrl = URL.createObjectURL(duplicateCheck.file)
+    blobUrlsRef.current.add(previewUrl) // Track for cleanup
+
+    setUploadedImages(prev => [...prev, {
+      id,
+      file: duplicateCheck.file,
+      previewUrl,
+      filename: duplicateCheck.file.name,
+      status: 'pending',
+      fileHash: duplicateCheck.fileHash,
+      fileSize: duplicateCheck.fileSize,
+      perceptualHash: duplicateCheck.perceptualHash
+    }])
+
+    setDuplicateCheck(null)
+
+    // Continue processing remaining files
+    if (pendingFiles.length > 0) {
+      console.log(`▶️ Continuing with ${pendingFiles.length} remaining file(s)`)
+      const filesToProcess = [...pendingFiles]
+      setPendingFiles([]) // Clear pending files
+      await processFiles(filesToProcess)
+    } else {
+      console.log('✅ No more files to process')
+    }
+  }
+
+  // Handle user viewing existing image
+  const handleViewExisting = () => {
+    if (!duplicateCheck) return
+    const url = `/tagger/gallery?highlight=${duplicateCheck.existingImage.id}`
+    console.log('👁️ Opening gallery:', url)
+    window.open(url, '_blank')
   }
 
   // Start tagging
@@ -655,7 +847,10 @@ export default function ImageTaggerClient() {
         status: 'tagged',
         tagged_at: new Date().toISOString(),
         ai_model_version: 'claude-sonnet-4-20250514',
-        prompt_version: aiSuggestion?.promptVersion || 'baseline'
+        prompt_version: aiSuggestion?.promptVersion || 'baseline',
+        file_hash: currentImage.fileHash || null,
+        file_size: currentImage.fileSize || null,
+        perceptual_hash: currentImage.perceptualHash || null
       }
 
       // Dynamically populate fields based on vocabulary config
@@ -722,14 +917,25 @@ export default function ImageTaggerClient() {
       setSaveSuccess(true)
 
       // Update image status
-      setUploadedImages(prev =>
-        prev.map((img, idx) =>
-          idx === currentIndex ? { ...img, status: 'tagged' as const } : img
-        )
+      const updatedImages = uploadedImages.map((img, idx) =>
+        idx === currentIndex ? { ...img, status: 'tagged' as const } : img
+      )
+      setUploadedImages(updatedImages)
+
+      // Check if all images are now tagged or skipped
+      const allComplete = updatedImages.every(img =>
+        img.status === 'tagged' || img.status === 'skipped'
       )
 
-      // Clear success message after 2 seconds
-      setTimeout(() => setSaveSuccess(false), 2000)
+      if (allComplete) {
+        console.log('🎉 All images completed! Redirecting to dashboard...')
+        setTimeout(() => {
+          window.location.href = '/tagger/dashboard'
+        }, 1500) // Give user time to see success message
+      } else {
+        // Clear success message after 2 seconds (only if not redirecting)
+        setTimeout(() => setSaveSuccess(false), 2000)
+      }
 
     } catch (error) {
       console.error('❌ Error saving image:', error)
@@ -754,11 +960,24 @@ export default function ImageTaggerClient() {
 
   const handleSkip = () => {
     // Mark current image as skipped
-    setUploadedImages(prev =>
-      prev.map((img, idx) =>
-        idx === currentIndex ? { ...img, status: 'skipped' } : img
-      )
+    const updatedImages = uploadedImages.map((img, idx) =>
+      idx === currentIndex ? { ...img, status: 'skipped' as const } : img
     )
+    setUploadedImages(updatedImages)
+
+    // Check if all images are now tagged or skipped
+    const allComplete = updatedImages.every(img =>
+      img.status === 'tagged' || img.status === 'skipped'
+    )
+
+    if (allComplete) {
+      console.log('🎉 All images completed! Redirecting to dashboard...')
+      setTimeout(() => {
+        window.location.href = '/tagger/dashboard'
+      }, 1000)
+      return
+    }
+
     // Move to next image if available
     if (currentIndex < uploadedImages.length - 1) {
       setCurrentIndex(prev => prev + 1)
@@ -1062,11 +1281,240 @@ export default function ImageTaggerClient() {
   // Render based on state
   if (!isTaggingMode) {
     return (
-      <UploadSection
-        onFilesSelected={handleFilesSelected}
-        uploadedImages={uploadedImages}
-        onStartTagging={handleStartTagging}
-      />
+      <>
+        <UploadSection
+          onFilesSelected={handleFilesSelected}
+          uploadedImages={uploadedImages}
+          onStartTagging={handleStartTagging}
+        />
+
+        {/* Duplicate Detection Modal - Available in Upload Mode */}
+        {duplicateCheck && (() => {
+          console.log('🎨 RENDERING DUPLICATE MODAL (Upload Mode):', duplicateCheck)
+          return (
+          <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-700 shadow-2xl">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="text-6xl mb-3">
+                  {duplicateCheck.matchType === 'exact' && '⚠️'}
+                  {duplicateCheck.matchType === 'similar' && 'ℹ️'}
+                  {duplicateCheck.matchType === 'filename' && 'ℹ️'}
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-2">
+                  {duplicateCheck.matchType === 'exact' && 'Duplicate Image Detected'}
+                  {duplicateCheck.matchType === 'similar' && 'Visually Similar Image Found'}
+                  {duplicateCheck.matchType === 'filename' && 'Matching Filename Found'}
+                </h3>
+                <p className="text-gray-300 mb-2">
+                  {duplicateCheck.message}
+                </p>
+                {duplicateCheck.confidence && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-700 rounded-full border border-gray-600">
+                    <span className="text-sm font-medium text-gray-300">
+                      Confidence:
+                    </span>
+                    <span className={`text-sm font-bold ${
+                      duplicateCheck.confidence >= 95 ? 'text-red-400' :
+                      duplicateCheck.confidence >= 85 ? 'text-orange-400' :
+                      'text-yellow-400'
+                    }`}>
+                      {duplicateCheck.confidence}%
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Side-by-side comparison */}
+              <div className="bg-gray-900 border-2 border-gray-700 rounded-lg p-4 mb-6">
+                <div className="grid grid-cols-2 gap-6">
+                  {/* New Image */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                        New Upload
+                      </p>
+                      <span className="px-2 py-0.5 bg-blue-900/50 text-blue-300 text-xs font-semibold rounded border border-blue-700">
+                        NEW
+                      </span>
+                    </div>
+
+                    <div className="bg-gray-950 rounded-lg overflow-hidden border-2 border-blue-600 mb-3 aspect-square flex items-center justify-center">
+                      <img
+                        src={URL.createObjectURL(duplicateCheck.file)}
+                        alt="New upload"
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-white truncate" title={duplicateCheck.file.name}>
+                        {duplicateCheck.file.name}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Size: {formatFileSize(duplicateCheck.fileSize)}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Type: {duplicateCheck.file.type.split('/')[1].toUpperCase()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Existing Image */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                        In Library
+                      </p>
+                      <span className={`px-2 py-0.5 text-xs font-semibold rounded border ${
+                        duplicateCheck.existingImage.status === 'tagged'
+                          ? 'bg-green-900/50 text-green-300 border-green-700'
+                          : duplicateCheck.existingImage.status === 'skipped'
+                          ? 'bg-orange-900/50 text-orange-300 border-orange-700'
+                          : 'bg-gray-700 text-gray-300 border-gray-600'
+                      }`}>
+                        {duplicateCheck.existingImage.status.toUpperCase()}
+                      </span>
+                    </div>
+
+                    <div className="bg-gray-950 rounded-lg overflow-hidden border-2 border-gray-600 mb-3 aspect-square flex items-center justify-center">
+                      {duplicateCheck.existingImage.thumbnail_path ? (
+                        <img
+                          src={duplicateCheck.existingImage.thumbnail_path}
+                          alt="Existing"
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-gray-500 text-sm">No preview available</div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-white truncate" title={duplicateCheck.existingImage.original_filename}>
+                        {duplicateCheck.existingImage.original_filename}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Size: {duplicateCheck.existingImage.file_size
+                          ? formatFileSize(duplicateCheck.existingImage.file_size)
+                          : 'Unknown'}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Uploaded: {new Date(duplicateCheck.existingImage.tagged_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Match details */}
+              <div className="bg-blue-900/50 border border-blue-600 rounded-lg p-3 mb-6">
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-400 text-lg flex-shrink-0">ℹ️</span>
+                  <div className="text-sm text-blue-200">
+                    {duplicateCheck.matchType === 'exact' && (
+                      <p>
+                        <strong className="text-blue-300">Exact match:</strong> The file content is identical (same SHA-256 hash).
+                        This is definitely the same image.
+                      </p>
+                    )}
+                    {duplicateCheck.matchType === 'similar' && (
+                      <p>
+                        <strong className="text-blue-300">Visual similarity:</strong> The images look very similar ({duplicateCheck.confidence}% match).
+                        This could be a resized, cropped, or edited version of the same image.
+                      </p>
+                    )}
+                    {duplicateCheck.matchType === 'filename' && (
+                      <p>
+                        <strong className="text-blue-300">Filename match:</strong> The filename is the same but the content may differ.
+                        {duplicateCheck.confidence >= 80
+                          ? ' File sizes match, so it\'s likely the same image.'
+                          : ' File sizes differ, so it might be a different image.'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="space-y-3">
+                <button
+                  onClick={handleSkipDuplicate}
+                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors font-semibold text-base border border-gray-600"
+                >
+                  Skip This Image
+                </button>
+
+                {/* Only show "Upload Anyway" for non-exact matches or low confidence */}
+                {(duplicateCheck.matchType !== 'exact' && duplicateCheck.confidence < 95) && (
+                  <button
+                    onClick={handleKeepDuplicate}
+                    className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-base"
+                  >
+                    Upload Anyway (Keep Both)
+                  </button>
+                )}
+
+                <button
+                  onClick={handleViewExisting}
+                  className="w-full px-4 py-3 border-2 border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 transition-colors font-semibold text-base flex items-center justify-center gap-2"
+                >
+                  <span>View Existing Image in Gallery</span>
+                  <span>→</span>
+                </button>
+              </div>
+
+              {/* Technical details (collapsible) */}
+              <details className="mt-4 pt-4 border-t border-gray-700">
+                <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300 font-medium">
+                  Technical Details
+                </summary>
+                <div className="mt-2 text-xs text-gray-400 space-y-1 font-mono">
+                  <p>New SHA-256: {duplicateCheck.fileHash.substring(0, 32)}...</p>
+                  <p>New pHash: {duplicateCheck.perceptualHash}</p>
+                  {duplicateCheck.existingImage.file_hash && (
+                    <p>Existing SHA-256: {duplicateCheck.existingImage.file_hash.substring(0, 32)}...</p>
+                  )}
+                  {duplicateCheck.existingImage.perceptual_hash && (
+                    <p>Existing pHash: {duplicateCheck.existingImage.perceptual_hash}</p>
+                  )}
+                </div>
+              </details>
+            </div>
+          </div>
+          )
+        })()}
+
+        {/* Loading overlay for duplicate check */}
+        {checkingDuplicates && (
+          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-40">
+            <div className="bg-gray-800 rounded-lg p-6 shadow-2xl max-w-md border border-gray-700">
+              <div className="flex items-center gap-4">
+                <div className="animate-spin text-3xl">🔍</div>
+                <div>
+                  <p className="font-bold text-white text-lg">Checking for duplicates...</p>
+                  <p className="text-sm text-gray-300 mt-1">
+                    Generating hashes and comparing with library
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span>SHA-256 hash</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span>Perceptual hash</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                  <span>Database comparison</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     )
   }
 
@@ -1124,6 +1572,233 @@ export default function ImageTaggerClient() {
             setAddTagError(null)
           }}
         />
+      )}
+
+      {/* Duplicate Detection Modal */}
+      {duplicateCheck && (() => {
+        console.log('🎨 RENDERING DUPLICATE MODAL:', duplicateCheck)
+        return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-3">
+                {duplicateCheck.matchType === 'exact' && '⚠️'}
+                {duplicateCheck.matchType === 'similar' && 'ℹ️'}
+                {duplicateCheck.matchType === 'filename' && 'ℹ️'}
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                {duplicateCheck.matchType === 'exact' && 'Duplicate Image Detected'}
+                {duplicateCheck.matchType === 'similar' && 'Visually Similar Image Found'}
+                {duplicateCheck.matchType === 'filename' && 'Matching Filename Found'}
+              </h3>
+              <p className="text-gray-600 mb-2">
+                {duplicateCheck.message}
+              </p>
+              {duplicateCheck.confidence && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
+                  <span className="text-sm font-medium text-gray-700">
+                    Confidence:
+                  </span>
+                  <span className={`text-sm font-bold ${
+                    duplicateCheck.confidence >= 95 ? 'text-red-600' :
+                    duplicateCheck.confidence >= 85 ? 'text-orange-600' :
+                    'text-yellow-600'
+                  }`}>
+                    {duplicateCheck.confidence}%
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Side-by-side comparison */}
+            <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4 mb-6">
+              <div className="grid grid-cols-2 gap-6">
+                {/* New Image */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+                      New Upload
+                    </p>
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
+                      NEW
+                    </span>
+                  </div>
+
+                  <div className="bg-white rounded-lg overflow-hidden border-2 border-blue-300 mb-3 aspect-square flex items-center justify-center">
+                    <img
+                      src={URL.createObjectURL(duplicateCheck.file)}
+                      alt="New upload"
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate" title={duplicateCheck.file.name}>
+                      {duplicateCheck.file.name}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Size: {formatFileSize(duplicateCheck.fileSize)}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Type: {duplicateCheck.file.type.split('/')[1].toUpperCase()}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Existing Image */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+                      In Library
+                    </p>
+                    <span className={`px-2 py-0.5 text-xs font-semibold rounded ${
+                      duplicateCheck.existingImage.status === 'tagged'
+                        ? 'bg-green-100 text-green-800'
+                        : duplicateCheck.existingImage.status === 'skipped'
+                        ? 'bg-orange-100 text-orange-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {duplicateCheck.existingImage.status.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div className="bg-white rounded-lg overflow-hidden border-2 border-gray-300 mb-3 aspect-square flex items-center justify-center">
+                    {duplicateCheck.existingImage.thumbnail_path ? (
+                      <img
+                        src={duplicateCheck.existingImage.thumbnail_path}
+                        alt="Existing"
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    ) : (
+                      <div className="text-gray-400 text-sm">No preview available</div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate" title={duplicateCheck.existingImage.original_filename}>
+                      {duplicateCheck.existingImage.original_filename}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Size: {duplicateCheck.existingImage.file_size
+                        ? formatFileSize(duplicateCheck.existingImage.file_size)
+                        : 'Unknown'}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Uploaded: {new Date(duplicateCheck.existingImage.tagged_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Match details */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
+              <div className="flex items-start gap-2">
+                <span className="text-blue-600 text-lg flex-shrink-0">ℹ️</span>
+                <div className="text-sm text-blue-900">
+                  {duplicateCheck.matchType === 'exact' && (
+                    <p>
+                      <strong>Exact match:</strong> The file content is identical (same SHA-256 hash).
+                      This is definitely the same image.
+                    </p>
+                  )}
+                  {duplicateCheck.matchType === 'similar' && (
+                    <p>
+                      <strong>Visual similarity:</strong> The images look very similar ({duplicateCheck.confidence}% match).
+                      This could be a resized, cropped, or edited version of the same image.
+                    </p>
+                  )}
+                  {duplicateCheck.matchType === 'filename' && (
+                    <p>
+                      <strong>Filename match:</strong> The filename is the same but the content may differ.
+                      {duplicateCheck.confidence >= 80
+                        ? ' File sizes match, so it\'s likely the same image.'
+                        : ' File sizes differ, so it might be a different image.'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="space-y-3">
+              <button
+                onClick={handleSkipDuplicate}
+                className="w-full px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-semibold text-base"
+              >
+                Skip This Image
+              </button>
+
+              {/* Only show "Upload Anyway" for non-exact matches or low confidence */}
+              {(duplicateCheck.matchType !== 'exact' && duplicateCheck.confidence < 95) && (
+                <button
+                  onClick={handleKeepDuplicate}
+                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-base"
+                >
+                  Upload Anyway (Keep Both)
+                </button>
+              )}
+
+              <button
+                onClick={handleViewExisting}
+                className="w-full px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-base flex items-center justify-center gap-2"
+              >
+                <span>View Existing Image in Gallery</span>
+                <span>→</span>
+              </button>
+            </div>
+
+            {/* Technical details (collapsible) */}
+            <details className="mt-4 pt-4 border-t border-gray-200">
+              <summary className="text-xs text-gray-600 cursor-pointer hover:text-gray-900 font-medium">
+                Technical Details
+              </summary>
+              <div className="mt-2 text-xs text-gray-600 space-y-1 font-mono">
+                <p>New SHA-256: {duplicateCheck.fileHash.substring(0, 32)}...</p>
+                <p>New pHash: {duplicateCheck.perceptualHash}</p>
+                {duplicateCheck.existingImage.file_hash && (
+                  <p>Existing SHA-256: {duplicateCheck.existingImage.file_hash.substring(0, 32)}...</p>
+                )}
+                {duplicateCheck.existingImage.perceptual_hash && (
+                  <p>Existing pHash: {duplicateCheck.existingImage.perceptual_hash}</p>
+                )}
+              </div>
+            </details>
+          </div>
+        </div>
+        )
+      })()}
+
+      {/* Loading overlay for duplicate check */}
+      {checkingDuplicates && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-40">
+          <div className="bg-white rounded-lg p-6 shadow-xl max-w-md">
+            <div className="flex items-center gap-4">
+              <div className="animate-spin text-3xl">🔍</div>
+              <div>
+                <p className="font-bold text-gray-900 text-lg">Checking for duplicates...</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Generating hashes and comparing with library
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span>SHA-256 hash</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span>Perceptual hash</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                <span>Database comparison</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Filter Bar */}
