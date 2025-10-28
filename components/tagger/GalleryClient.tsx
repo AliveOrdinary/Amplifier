@@ -55,16 +55,14 @@ interface TagVocabularyRow {
 }
 
 // Helper function to extract database category name from storage_path
-function getDatabaseCategory(storagePath: string): string {
+function getDatabaseCategory(storagePath: string, categoryKey: string): string {
   if (storagePath.includes('.')) {
-    // For nested paths like "tags.style", the db category is "style"
-    return storagePath.split('.')[1]
+    // For nested paths like "tags.brand_expression", use the category key as the db category
+    // This matches how tags are stored in the database
+    return categoryKey
   } else {
-    // For direct paths, convert plural to singular
-    // (the database uses singular form: industry, project_type)
-    if (storagePath === 'industries') return 'industry'
-    if (storagePath === 'project_types') return 'project_type'
-    return storagePath
+    // For direct paths like "creative_fields", use the category key
+    return categoryKey
   }
 }
 
@@ -84,7 +82,7 @@ async function updateTagUsageForChanges(
 
     for (const category of categories) {
       const categoryKey = category.key
-      const dbCategory = getDatabaseCategory(category.storage_path)
+      const dbCategory = getDatabaseCategory(category.storage_path, categoryKey)
 
       // For array-type categories only
       if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
@@ -203,7 +201,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
         // Create a mapping from database category to config category key
         const dbCategoryToConfigKey: Record<string, string> = {}
         vocabConfig.structure.categories.forEach(category => {
-          const dbCategory = getDatabaseCategory(category.storage_path)
+          const dbCategory = getDatabaseCategory(category.storage_path, category.key)
           dbCategoryToConfigKey[dbCategory] = category.key
         })
 
