@@ -899,14 +899,6 @@ function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailMo
                     </div>
                   )}
 
-                  {/* Reasoning */}
-                  {image.ai_reasoning && (
-                    <div className="bg-blue-900/50 border border-blue-700 rounded-lg p-3 text-sm text-blue-300 mb-3">
-                      <p className="font-medium mb-1">AI Reasoning:</p>
-                      <p>{image.ai_reasoning}</p>
-                    </div>
-                  )}
-
                   {/* Corrections */}
                   {(corrections.added.length > 0 || corrections.removed.length > 0) && (
                     <div className="bg-gray-900 rounded-lg p-4 space-y-3 border border-gray-700">

@@ -56,7 +56,7 @@ interface ImageTags {
 
 interface AISuggestion {
   confidence: 'high' | 'medium' | 'low'
-  reasoning: string
+  reasoning?: string // Optional - no longer generated to save API costs
   promptVersion?: 'baseline' | 'enhanced'
   [categoryKey: string]: string[] | string | 'high' | 'medium' | 'low' | 'baseline' | 'enhanced' | undefined
 }
@@ -97,6 +97,10 @@ export default function ImageTaggerClient() {
   // AI suggestion state
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, AISuggestion>>({})
   const [isLoadingAI, setIsLoadingAI] = useState<Record<string, boolean>>({})
+
+  // OPTIMIZATION: Prefetching state for background AI analysis
+  const [prefetchedSuggestions, setPrefetchedSuggestions] = useState<Map<string, AISuggestion>>(new Map())
+  const [isPrefetching, setIsPrefetching] = useState(false)
 
   // Duplicate detection state
   const [duplicateCheck, setDuplicateCheck] = useState<{
@@ -486,7 +490,53 @@ export default function ImageTaggerClient() {
   // Get AI tag suggestions for an image
   const getSuggestionsFromAI = async (imageId: string, file: File) => {
     try {
-      // Mark as loading
+      // CHECK CACHE FIRST
+      if (prefetchedSuggestions.has(imageId)) {
+        console.log('⚡ Using prefetched suggestions (instant!)')
+        const cachedSuggestions = prefetchedSuggestions.get(imageId)!
+
+        // Store suggestions
+        setAiSuggestions(prev => ({ ...prev, [imageId]: cachedSuggestions }))
+
+        // Auto-apply suggestions to image tags
+        if (!vocabConfig) return
+
+        const currentTags = imageTags[imageId] || {}
+        const mergedTags: ImageTags = {}
+
+        vocabConfig.structure.categories.forEach(cat => {
+          if (cat.storage_type === 'array' || cat.storage_type === 'jsonb_array') {
+            const currentValues = (currentTags[cat.key] || []) as string[]
+            const suggestedValues = (cachedSuggestions[cat.key] || []) as string[]
+            mergedTags[cat.key] = [...new Set([...currentValues, ...suggestedValues])]
+          } else if (cat.storage_type === 'text') {
+            mergedTags[cat.key] = currentTags[cat.key] || ''
+          }
+        })
+
+        setImageTags(prev => ({
+          ...prev,
+          [imageId]: mergedTags
+        }))
+
+        // Remove from cache
+        setPrefetchedSuggestions(prev => {
+          const newMap = new Map(prev)
+          newMap.delete(imageId)
+          return newMap
+        })
+
+        // Prefetch NEXT image
+        const currentIdx = uploadedImages.findIndex(img => img.id === imageId)
+        const nextIndex = currentIdx + 1
+        if (nextIndex < uploadedImages.length) {
+          prefetchNextImageSuggestions(nextIndex)
+        }
+
+        return
+      }
+
+      // NOT CACHED - Fetch normally
       setIsLoadingAI(prev => ({ ...prev, [imageId]: true }))
 
       console.log(`🤖 Getting AI suggestions for ${file.name}...`)
@@ -559,10 +609,81 @@ export default function ImageTaggerClient() {
         [imageId]: mergedTags
       }))
 
+      // Prefetch NEXT image after successful fetch
+      const currentIdx = uploadedImages.findIndex(img => img.id === imageId)
+      const nextIndex = currentIdx + 1
+      if (nextIndex < uploadedImages.length) {
+        prefetchNextImageSuggestions(nextIndex)
+      }
+
     } catch (error) {
       console.error('❌ Error getting AI suggestions:', error)
     } finally {
       setIsLoadingAI(prev => ({ ...prev, [imageId]: false }))
+    }
+  }
+
+  // OPTIMIZATION: Prefetch AI suggestions for next image in background
+  const prefetchNextImageSuggestions = async (nextIndex: number) => {
+    if (nextIndex >= uploadedImages.length) return
+
+    const nextImage = uploadedImages[nextIndex]
+
+    // Skip if already prefetched or currently loading
+    if (prefetchedSuggestions.has(nextImage.id) || isLoadingAI[nextImage.id]) {
+      console.log(`⏭️ Skipping prefetch for image ${nextIndex + 1} (already cached or loading)`)
+      return
+    }
+
+    console.log(`🔮 Pre-fetching suggestions for image ${nextIndex + 1}/${uploadedImages.length}...`)
+    setIsPrefetching(true)
+
+    try {
+      // Resize image to keep under 5MB Claude API limit
+      const resizedBlob = await resizeImageForAI(nextImage.file)
+      console.log(`📐 Prefetch resized from ${(nextImage.file.size / 1024 / 1024).toFixed(2)}MB to ${(resizedBlob.size / 1024 / 1024).toFixed(2)}MB`)
+
+      // Convert resized image to base64
+      const base64Image = await blobToBase64(resizedBlob)
+
+      // Call API with dynamic vocabulary structure
+      const response = await fetch('/api/suggest-tags', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: base64Image,
+          vocabulary,
+        }),
+      })
+
+      if (response.ok) {
+        const suggestions: AISuggestion = await response.json()
+
+        // Ensure all vocabulary categories have entries
+        Object.keys(vocabulary).forEach(key => {
+          if (!(key in suggestions)) {
+            suggestions[key] = []
+          }
+        })
+
+        // Store in cache
+        setPrefetchedSuggestions(prev => {
+          const newMap = new Map(prev)
+          newMap.set(nextImage.id, suggestions)
+          return newMap
+        })
+
+        console.log(`✅ Prefetched suggestions for image ${nextIndex + 1}`)
+      } else {
+        console.warn(`⚠️ Prefetch failed for image ${nextIndex + 1}:`, response.status)
+      }
+    } catch (error) {
+      console.error(`❌ Prefetch error for image ${nextIndex + 1}:`, error)
+      // Fail silently - will fetch normally when user navigates
+    } finally {
+      setIsPrefetching(false)
     }
   }
 
@@ -576,6 +697,20 @@ export default function ImageTaggerClient() {
       }
     }
   }, [isTaggingMode, currentIndex, uploadedImages, vocabulary])
+
+  // OPTIMIZATION: Prefetch first 2 images when entering tagging mode
+  useEffect(() => {
+    const hasVocabulary = Object.keys(vocabulary).length > 0
+    if (isTaggingMode && uploadedImages.length > 1 && hasVocabulary && currentIndex === 0) {
+      // Wait a bit for first image to start, then prefetch image #2
+      const timer = setTimeout(() => {
+        console.log('🚀 Starting background prefetch for image #2')
+        prefetchNextImageSuggestions(1)
+      }, 1000) // Wait 1 second after first image starts
+
+      return () => clearTimeout(timer)
+    }
+  }, [isTaggingMode, uploadedImages, vocabulary, currentIndex])
 
   // Update tag usage counts in tag_vocabulary table (dynamic)
   const updateTagUsageCounts = async (tags: ImageTags) => {
@@ -662,7 +797,7 @@ export default function ImageTaggerClient() {
         })
 
         // Build ai_suggested and designer_selected objects dynamically
-        const aiSuggestedData: Record<string, any> = { confidence: aiSuggestion.confidence, reasoning: aiSuggestion.reasoning }
+        const aiSuggestedData: Record<string, any> = { confidence: aiSuggestion.confidence }
         const designerSelectedData: Record<string, any> = {}
 
         vocabConfig.structure.categories.forEach(cat => {
@@ -888,7 +1023,7 @@ export default function ImageTaggerClient() {
         imageData.ai_suggested_tags = aiSuggestedTags
         imageData.ai_confidence_score = aiSuggestion.confidence === 'high' ? 0.9 :
                                          aiSuggestion.confidence === 'medium' ? 0.6 : 0.3
-        imageData.ai_reasoning = aiSuggestion.reasoning || null
+        imageData.ai_reasoning = null // No longer storing reasoning to save API costs
       } else {
         imageData.ai_suggested_tags = null
         imageData.ai_confidence_score = null
@@ -2135,31 +2270,17 @@ function TagForm({ vocabConfig, vocabulary, currentTags, onUpdateTags, onOpenAdd
 
       {/* Scrollable Content - Single scroll container */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
-        {/* AI Insights Panel */}
-        {aiSuggestions && aiSuggestions.reasoning && (
-          <div className={`rounded-lg p-4 border-2 ${
-            aiSuggestions.confidence === 'high' ? 'bg-blue-900/50 border-blue-600' :
-            aiSuggestions.confidence === 'medium' ? 'bg-yellow-900/50 border-yellow-600' :
-            'bg-gray-700 border-gray-600'
-          }`}>
-            <div className="flex items-start gap-2">
-              <span className="text-lg">✨</span>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-semibold text-white">AI Analysis</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    aiSuggestions.confidence === 'high' ? 'bg-blue-600 text-blue-200' :
-                    aiSuggestions.confidence === 'medium' ? 'bg-yellow-600 text-yellow-200' :
-                    'bg-gray-600 text-gray-200'
-                  }`}>
-                    {aiSuggestions.confidence} confidence
-                  </span>
-                </div>
-                <p className="text-xs text-gray-300 leading-relaxed">
-                  {aiSuggestions.reasoning}
-                </p>
-              </div>
-            </div>
+        {/* AI Confidence Badge */}
+        {aiSuggestions && aiSuggestions.confidence && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-400">AI Suggestions:</span>
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+              aiSuggestions.confidence === 'high' ? 'bg-blue-600/20 text-blue-400 border border-blue-600/40' :
+              aiSuggestions.confidence === 'medium' ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/40' :
+              'bg-gray-600/20 text-gray-400 border border-gray-600/40'
+            }`}>
+              {aiSuggestions.confidence.charAt(0).toUpperCase() + aiSuggestions.confidence.slice(1)} confidence
+            </span>
           </div>
         )}
 
