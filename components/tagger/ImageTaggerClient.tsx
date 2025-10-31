@@ -19,7 +19,6 @@ import {
 
 // UI components
 import DuplicateDetectionModal from './ImageTagger/DuplicateDetectionModal'
-import LoadingOverlay from './ImageTagger/LoadingOverlay'
 import ErrorState from './ImageTagger/ErrorState'
 import Toast from './ImageTagger/Toast'
 import AddTagModal from './ImageTagger/AddTagModal'
@@ -257,7 +256,14 @@ export default function ImageTaggerClient() {
 
   // Loading state
   if (configLoading || isLoadingVocabulary) {
-    return <LoadingOverlay message="Loading vocabulary..." />
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin text-4xl mb-4">⚙️</div>
+          <p className="text-gray-400">Loading vocabulary...</p>
+        </div>
+      </div>
+    )
   }
 
   // Error state
