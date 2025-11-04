@@ -7,7 +7,7 @@ import Image from 'next/image'
 import ImageDetailModal from './Gallery/ImageDetailModal'
 import EditImageModal from './Gallery/EditImageModal'
 import BulkEditModal from './Gallery/BulkEditModal'
-import { getDatabaseCategory } from './Gallery/galleryHelpers'
+import { getDatabaseCategory } from '@/lib/vocabulary-utils'
 
 interface ReferenceImage {
   id: string

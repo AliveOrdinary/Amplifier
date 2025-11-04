@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import AIAnalyticsClient from '@/components/tagger/AIAnalyticsClient'
 import Link from 'next/link'
 import { VocabularyCategory } from '@/lib/validation'
+import { getImageValue } from '@/lib/vocabulary-utils'
 
 // Disable caching - always fetch fresh data
 export const revalidate = 0
@@ -175,20 +176,6 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
     const trendPercentage = secondHalfAccuracy - firstHalfAccuracy
     const accuracyTrend = Math.abs(trendPercentage) < 5 ? 'stable'
       : trendPercentage > 0 ? 'improving' : 'declining'
-
-    // Helper to get value from image based on storage_path
-    const getImageValue = (img: any, storagePath: string): any => {
-      if (storagePath.includes('.')) {
-        const parts = storagePath.split('.')
-        let value: any = img
-        for (const part of parts) {
-          value = value?.[part]
-        }
-        return value
-      } else {
-        return img[storagePath]
-      }
-    }
 
     // 2. Tag Category Breakdown (Dynamic)
     const categoryStats: Record<string, { suggested: number[], selected: number[] }> = {}

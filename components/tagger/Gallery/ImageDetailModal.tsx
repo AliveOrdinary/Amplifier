@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import Image from 'next/image'
+import { getImageValue } from '@/lib/vocabulary-utils'
 
 interface ReferenceImage {
   id: string
@@ -42,24 +43,10 @@ interface ImageDetailModalProps {
 }
 
 export default function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailModalProps) {
-  // Helper function to get value from image based on storage_path
-  const getImageValue = (storagePath: string): any => {
-    if (storagePath.includes('.')) {
-      const parts = storagePath.split('.')
-      let value: any = image
-      for (const part of parts) {
-        value = value?.[part]
-      }
-      return value
-    } else {
-      return image[storagePath]
-    }
-  }
-
   // Collect actual tags dynamically
   const actualTags: Record<string, string[]> = {}
   vocabConfig.structure.categories.forEach(category => {
-    const value = getImageValue(category.storage_path)
+    const value = getImageValue(image, category.storage_path)
     if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
       actualTags[category.key] = Array.isArray(value) ? value : []
     } else if (category.storage_type === 'text') {

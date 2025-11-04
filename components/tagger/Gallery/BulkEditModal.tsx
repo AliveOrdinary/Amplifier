@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
-import { updateTagUsageForChanges } from './galleryHelpers'
+import { getImageValue } from '@/lib/vocabulary-utils'
+import { updateTagUsageForChanges } from '@/lib/tag-usage-utils'
 
 interface ReferenceImage {
   id: string
@@ -81,26 +82,12 @@ export default function BulkEditModal({ images, vocabulary, vocabConfig, onClose
       const updatedImages: ReferenceImage[] = []
 
       for (const image of images) {
-        // Helper to get current value from image
-        const getImageValue = (storagePath: string): any => {
-          if (storagePath.includes('.')) {
-            const parts = storagePath.split('.')
-            let value: any = image
-            for (const part of parts) {
-              value = value?.[part]
-            }
-            return value
-          } else {
-            return image[storagePath]
-          }
-        }
-
         // Build new tag values dynamically
         const newCategoryValues: Record<string, any> = {}
 
         vocabConfig.structure.categories.forEach(category => {
           if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
-            const currentValue = getImageValue(category.storage_path)
+            const currentValue = getImageValue(image, category.storage_path)
             let newValue = Array.isArray(currentValue) ? [...currentValue] : []
             const selectedTags = categoryTags[category.key] || []
 
@@ -126,14 +113,14 @@ export default function BulkEditModal({ images, vocabulary, vocabConfig, onClose
 
         vocabConfig.structure.categories.forEach(category => {
           if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
-            const currentValue = getImageValue(category.storage_path)
+            const currentValue = getImageValue(image, category.storage_path)
             oldTags[category.key] = Array.isArray(currentValue) ? currentValue : []
             newTags[category.key] = newCategoryValues[category.key]
           }
         })
 
         // Update tag usage counts
-        await updateTagUsageForChanges(oldTags, newTags, vocabConfig, supabase)
+        await updateTagUsageForChanges(supabase, oldTags, newTags, vocabConfig)
 
         // Build update object
         const updateData: any = {

@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
-import { updateTagUsageForChanges } from './galleryHelpers'
+import { getImageValue, buildUpdateObject } from '@/lib/vocabulary-utils'
+import { updateTagUsageForChanges } from '@/lib/tag-usage-utils'
 
 interface ReferenceImage {
   id: string
@@ -50,25 +51,11 @@ interface EditImageModalProps {
 }
 
 export default function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave, supabase }: EditImageModalProps) {
-  // Helper function to get value from image based on storage_path
-  const getImageValue = (storagePath: string): any => {
-    if (storagePath.includes('.')) {
-      const parts = storagePath.split('.')
-      let value: any = image
-      for (const part of parts) {
-        value = value?.[part]
-      }
-      return value
-    } else {
-      return image[storagePath]
-    }
-  }
-
   // Initialize dynamic tag state based on vocabulary config
   const [categoryTags, setCategoryTags] = useState<Record<string, string[] | string>>(() => {
     const initialTags: Record<string, string[] | string> = {}
     vocabConfig.structure.categories.forEach(category => {
-      const value = getImageValue(category.storage_path)
+      const value = getImageValue(image, category.storage_path)
       if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
         initialTags[category.key] = Array.isArray(value) ? value : []
       } else if (category.storage_type === 'text') {
@@ -102,7 +89,7 @@ export default function EditImageModal({ image, vocabulary, vocabConfig, onClose
       // Prepare old tags for usage count updates
       const oldTags: Record<string, string[]> = {}
       vocabConfig.structure.categories.forEach(category => {
-        const value = getImageValue(category.storage_path)
+        const value = getImageValue(image, category.storage_path)
         if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
           oldTags[category.key] = Array.isArray(value) ? value : []
         }
@@ -118,7 +105,7 @@ export default function EditImageModal({ image, vocabulary, vocabConfig, onClose
       })
 
       // Update tag usage counts
-      await updateTagUsageForChanges(oldTags, newTags, vocabConfig, supabase)
+      await updateTagUsageForChanges(supabase, oldTags, newTags, vocabConfig)
 
       // Build update object dynamically
       const updateData: any = {

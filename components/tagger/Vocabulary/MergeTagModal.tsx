@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
+import { getImageValue, setImageValue } from '@/lib/vocabulary-utils'
 
 interface VocabularyTag {
   id: string
@@ -72,20 +73,6 @@ export default function MergeTagModal({ sourceTag, allTags, vocabConfig, onClose
 
       const targetTag = allTags.find(t => t.id === targetTagId)
       if (!targetTag) throw new Error('Target tag not found')
-
-      // Helper function to get value from image based on storage_path
-      const getImageValue = (image: any, storagePath: string): any => {
-        if (storagePath.includes('.')) {
-          const parts = storagePath.split('.')
-          let value: any = image
-          for (const part of parts) {
-            value = value?.[part]
-          }
-          return value
-        } else {
-          return image[storagePath]
-        }
-      }
 
       // Update each image that uses the source tag
       for (const image of images || []) {
