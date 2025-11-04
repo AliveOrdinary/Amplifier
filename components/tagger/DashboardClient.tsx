@@ -2,13 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
+import { createClientComponentClient } from '@/lib/supabase'
+import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
 import Link from 'next/link'
 import Image from 'next/image'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const supabase = createClientComponentClient()
 
 interface DashboardStats {
   images: {
@@ -55,7 +54,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
 
   const handleDeleteAllImages = async () => {
     if (deleteConfirmation !== 'DELETE') {
-      alert('Please type DELETE to confirm')
+      alert('Please type "DELETE" in all caps to confirm this destructive action.')
       return
     }
 
@@ -76,7 +75,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
       }
 
       if (data.deletedCount === 0) {
-        alert('No images to delete')
+        alert('No images found to delete. The database is already empty.')
         setShowDeleteModal(false)
         setDeleteConfirmation('')
         return
@@ -95,7 +94,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
 
     } catch (error) {
       console.error('❌ Error deleting all images:', error)
-      alert(`Failed to delete all images: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      alert(getErrorMessage(error, ErrorMessages.DELETE_ALL_IMAGES_FAILED))
     } finally {
       setIsDeleting(false)
       setDeleteProgress('')
@@ -132,7 +131,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
       setDuplicates(dupes)
     } catch (error) {
       console.error('Error finding duplicates:', error)
-      alert('Failed to find duplicates')
+      alert(getErrorMessage(error, ErrorMessages.DUPLICATE_DETECTION_FAILED))
     } finally {
       setIsLoadingDuplicates(false)
     }
@@ -165,7 +164,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
       router.refresh()
     } catch (error) {
       console.error('Error deleting duplicate:', error)
-      alert('Failed to delete duplicate')
+      alert(getErrorMessage(error, ErrorMessages.IMAGE_DELETE_FAILED))
     }
   }
 
@@ -204,7 +203,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
       URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Error exporting data:', error)
-      alert('Failed to export data')
+      alert(getErrorMessage(error, ErrorMessages.EXPORT_DATA_FAILED))
     }
   }
 
@@ -299,11 +298,11 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
 
       if (error) throw error
 
-      alert('Vocabulary reset to original mock data')
+      alert('✅ Vocabulary reset to original mock data successfully!')
       router.refresh()
     } catch (error) {
       console.error('Error resetting vocabulary:', error)
-      alert('Failed to reset vocabulary')
+      alert(getErrorMessage(error, ErrorMessages.RESET_VOCABULARY_FAILED))
     }
   }
 

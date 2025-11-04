@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClientComponentClient } from '@/lib/supabase';
+import { ErrorMessages, getErrorMessage } from '@/lib/error-messages';
 import Link from 'next/link';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClientComponentClient();
 
 interface VocabularyCategory {
   key: string;
@@ -78,7 +77,8 @@ export default function VocabularyConfigClient() {
       await navigator.clipboard.writeText(configText);
       alert('✅ Configuration copied to clipboard!');
     } catch (error) {
-      alert('❌ Failed to copy to clipboard');
+      console.error('Failed to copy configuration:', error);
+      alert('❌ Failed to copy to clipboard. Please try selecting and copying the text manually.');
     }
   };
 

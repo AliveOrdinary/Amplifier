@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@/lib/supabase'
+import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
 import { useState } from 'react'
 
 export default function SignOutButton() {
@@ -23,7 +24,7 @@ export default function SignOutButton() {
       router.refresh()
     } catch (error) {
       console.error('Sign out error:', error)
-      alert('Failed to sign out. Please try again.')
+      alert(getErrorMessage(error, 'Failed to sign out. Please try again or refresh the page.'))
     } finally {
       setLoading(false)
     }

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { createClientComponentClient } from '@/lib/supabase'
+import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
 
 interface VocabularyTag {
   id: string
@@ -158,8 +159,8 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       .eq('id', tag.id)
 
     if (error) {
-      alert('Failed to archive tag')
-      console.error(error)
+      console.error('Failed to archive tag:', error)
+      alert(getErrorMessage(error, ErrorMessages.TAG_UPDATE_FAILED))
       return
     }
 
@@ -168,7 +169,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
 
   const handleDeleteTag = async (tag: VocabularyTag) => {
     if (tag.times_used > 0) {
-      alert('Cannot delete a tag that has been used. Archive it instead.')
+      alert('Cannot delete a tag that has been used. Archive it instead to preserve data integrity.')
       return
     }
 
@@ -182,8 +183,8 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       .eq('id', tag.id)
 
     if (error) {
-      alert('Failed to delete tag')
-      console.error(error)
+      console.error('Failed to delete tag:', error)
+      alert(getErrorMessage(error, ErrorMessages.TAG_DELETE_FAILED))
       return
     }
 
@@ -198,7 +199,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
     setTags(prev => [...prev, newTag])
   }
 
-  const handleMergeComplete = (sourceId: string, targetId: string) => {
+  const handleMergeComplete = (sourceId: string) => {
     // Archive source tag and update usage count for target
     setTags(prev => prev.map(t => {
       if (t.id === sourceId) {
@@ -215,19 +216,19 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
     try {
       // Validation
       if (!newCategory.key || !newCategory.label || !newCategory.storage_path) {
-        alert('Please fill in all required fields')
+        alert(ErrorMessages.CATEGORY_REQUIRED_FIELDS)
         return
       }
 
       // Check for duplicate keys
       if (categories.some(cat => cat.key === newCategory.key)) {
-        alert('Category key already exists. Please use a unique key.')
+        alert(ErrorMessages.CATEGORY_DUPLICATE_KEY)
         return
       }
 
       // Check for duplicate storage paths
       if (categories.some(cat => cat.storage_path === newCategory.storage_path)) {
-        alert('Storage path already in use. Please use a unique path.')
+        alert(ErrorMessages.CATEGORY_DUPLICATE_PATH)
         return
       }
 
@@ -241,7 +242,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       if (fetchError) throw fetchError
 
       if (!config) {
-        alert('No active vocabulary configuration found')
+        alert(ErrorMessages.VOCAB_CONFIG_LOAD_FAILED)
         return
       }
 
@@ -273,7 +274,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
 
       if (error) throw error
 
-      alert(`Category "${newCategory.label}" added successfully!`)
+      alert(`✅ Category "${newCategory.label}" added successfully!`)
 
       // Reset form and close modal
       setNewCategory({
@@ -292,7 +293,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
 
     } catch (error: any) {
       console.error('Error adding category:', error)
-      alert(`Failed to add category: ${error.message}`)
+      alert(getErrorMessage(error, ErrorMessages.CATEGORY_REQUIRED_FIELDS))
     }
   }
 
@@ -327,14 +328,14 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
 
       if (error) throw error
 
-      alert('Category updated successfully!')
+      alert('✅ Category updated successfully!')
       setShowEditCategoryModal(false)
       setEditingCategory(null)
       loadVocabularyConfig()
 
     } catch (error: any) {
       console.error('Error updating category:', error)
-      alert(`Failed to update category: ${error.message}`)
+      alert(getErrorMessage(error, 'Failed to update category. Please try again.'))
     }
   }
 
@@ -385,15 +386,15 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
         if (tagsError) throw tagsError
       }
 
-      alert(`Category "${categoryKey}" deleted successfully!`)
-      
+      alert(`✅ Category "${categoryKey}" deleted successfully!`)
+
       // Update local state
       setTags(prev => prev.filter(t => t.category !== categoryKey))
       loadVocabularyConfig()
 
     } catch (error: any) {
       console.error('Error deleting category:', error)
-      alert(`Failed to delete category: ${error.message}`)
+      alert(getErrorMessage(error, ErrorMessages.CATEGORY_DELETE_FAILED))
     }
   }
 
@@ -909,8 +910,8 @@ function EditTagModal({ tag, onClose, onSave, supabase }: EditTagModalProps) {
       .single()
 
     if (error) {
-      alert('Failed to update tag')
-      console.error(error)
+      console.error('Failed to update tag:', error)
+      alert(getErrorMessage(error, ErrorMessages.TAG_UPDATE_FAILED))
       setIsSaving(false)
       return
     }
@@ -977,7 +978,7 @@ interface MergeTagModalProps {
   allTags: VocabularyTag[]
   vocabConfig: VocabularyConfig
   onClose: () => void
-  onMerge: (sourceId: string, targetId: string) => void
+  onMerge: (sourceId: string) => void
   supabase: any
 }
 
@@ -987,7 +988,7 @@ function MergeTagModal({ sourceTag, allTags, vocabConfig, onClose, onMerge, supa
 
   const handleMerge = async () => {
     if (!targetTagId) {
-      alert('Please select a target tag')
+      alert('Please select a target tag to merge into.')
       return
     }
 
@@ -1095,11 +1096,11 @@ function MergeTagModal({ sourceTag, allTags, vocabConfig, onClose, onMerge, supa
 
       if (archiveError) throw archiveError
 
-      onMerge(sourceTag.id, targetTagId)
+      onMerge(sourceTag.id)
       onClose()
     } catch (error) {
       console.error('Merge failed:', error)
-      alert('Failed to merge tags')
+      alert(getErrorMessage(error, ErrorMessages.TAG_MERGE_FAILED))
     } finally {
       setIsMerging(false)
     }
@@ -1174,7 +1175,7 @@ function AddTagModal({ vocabConfig, onClose, onAdd, supabase }: AddTagModalProps
 
   const handleAdd = async () => {
     if (!tagValue.trim()) {
-      alert('Please enter a tag name')
+      alert(ErrorMessages.VALIDATION_REQUIRED_FIELD('Tag name'))
       return
     }
 
@@ -1206,8 +1207,8 @@ function AddTagModal({ vocabConfig, onClose, onAdd, supabase }: AddTagModalProps
       .single()
 
     if (error) {
-      alert('Failed to add tag')
-      console.error(error)
+      console.error('Failed to add tag:', error)
+      alert(getErrorMessage(error, ErrorMessages.TAG_ADD_FAILED))
       setIsAdding(false)
       return
     }

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { createClientComponentClient } from '@/lib/supabase'
+import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
 import Image from 'next/image'
 
 interface ReferenceImage {
@@ -1087,7 +1088,7 @@ function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave, supab
       onSave(data)
     } catch (error) {
       console.error('Error updating image:', error)
-      alert('Failed to update image')
+      alert(getErrorMessage(error, ErrorMessages.IMAGE_UPDATE_FAILED))
     } finally {
       setIsSaving(false)
     }
@@ -1352,7 +1353,7 @@ function BulkEditModal({ images, vocabulary, vocabConfig, onClose, onSave, supab
       onSave(updatedImages)
     } catch (error) {
       console.error('Error bulk updating images:', error)
-      alert('Failed to update images')
+      alert(getErrorMessage(error, ErrorMessages.BULK_UPDATE_FAILED))
     } finally {
       setIsSaving(false)
     }
