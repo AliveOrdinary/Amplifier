@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
 import { getImageValue } from '@/lib/vocabulary-utils'
 import { updateTagUsageForChanges } from '@/lib/tag-usage-utils'
+import { useToast } from '@/components/ui'
 
 interface ReferenceImage {
   id: string
@@ -50,6 +51,7 @@ interface BulkEditModalProps {
 }
 
 export default function BulkEditModal({ images, vocabulary, vocabConfig, onClose, onSave, supabase }: BulkEditModalProps) {
+  const toast = useToast()
   const [mode, setMode] = useState<'add' | 'remove'>('add')
   const [isSaving, setIsSaving] = useState(false)
 
@@ -156,10 +158,11 @@ export default function BulkEditModal({ images, vocabulary, vocabConfig, onClose
         updatedImages.push(data)
       }
 
+      toast.success('Bulk edit complete', `Successfully updated ${updatedImages.length} images`)
       onSave(updatedImages)
     } catch (error) {
       console.error('Error bulk updating images:', error)
-      alert(getErrorMessage(error, ErrorMessages.BULK_UPDATE_FAILED))
+      toast.error('Bulk edit failed', getErrorMessage(error, ErrorMessages.BULK_UPDATE_FAILED))
     } finally {
       setIsSaving(false)
     }

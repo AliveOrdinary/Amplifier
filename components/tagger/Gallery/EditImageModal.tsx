@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
 import { getImageValue, buildUpdateObject } from '@/lib/vocabulary-utils'
 import { updateTagUsageForChanges } from '@/lib/tag-usage-utils'
+import { useToast } from '@/components/ui'
 
 interface ReferenceImage {
   id: string
@@ -51,6 +52,7 @@ interface EditImageModalProps {
 }
 
 export default function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave, supabase }: EditImageModalProps) {
+  const toast = useToast()
   // Initialize dynamic tag state based on vocabulary config
   const [categoryTags, setCategoryTags] = useState<Record<string, string[] | string>>(() => {
     const initialTags: Record<string, string[] | string> = {}
@@ -143,10 +145,11 @@ export default function EditImageModal({ image, vocabulary, vocabConfig, onClose
 
       if (error) throw error
 
+      toast.success('Image updated', 'Tags and notes have been saved successfully')
       onSave(data)
     } catch (error) {
       console.error('Error updating image:', error)
-      alert(getErrorMessage(error, ErrorMessages.IMAGE_UPDATE_FAILED))
+      toast.error('Failed to update image', getErrorMessage(error, ErrorMessages.IMAGE_UPDATE_FAILED))
     } finally {
       setIsSaving(false)
     }

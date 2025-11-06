@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { createClientComponentClient } from '@/lib/supabase'
 import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
+import { useToast, useConfirmDialog } from '@/components/ui'
 import EditTagModal from './Vocabulary/EditTagModal'
 import MergeTagModal from './Vocabulary/MergeTagModal'
 import AddTagModal from './Vocabulary/AddTagModal'
@@ -43,6 +44,8 @@ interface VocabularyClientProps {
 
 export default function VocabularyClient({ tags: initialTags }: VocabularyClientProps) {
   const supabase = createClientComponentClient()
+  const toast = useToast()
+  const { confirmDialog, showConfirm } = useConfirmDialog()
   const [tags, setTags] = useState<VocabularyTag[]>(initialTags)
   const [selectedTag, setSelectedTag] = useState<VocabularyTag | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -154,9 +157,14 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
   }
 
   const handleArchiveTag = async (tag: VocabularyTag) => {
-    if (!confirm(`Archive "${tag.tag_value}"? It will be hidden from the tagger but data will be preserved.`)) {
-      return
-    }
+    const confirmed = await showConfirm({
+      title: 'Archive Tag',
+      message: `Archive "${tag.tag_value}"? It will be hidden from the tagger but data will be preserved.`,
+      confirmText: 'Archive',
+      variant: 'warning'
+    })
+
+    if (!confirmed) return
 
     const { error } = await supabase
       .from('tag_vocabulary')
@@ -165,22 +173,28 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
 
     if (error) {
       console.error('Failed to archive tag:', error)
-      alert(getErrorMessage(error, ErrorMessages.TAG_UPDATE_FAILED))
+      toast.error('Failed to archive tag', getErrorMessage(error, ErrorMessages.TAG_UPDATE_FAILED))
       return
     }
 
+    toast.success('Tag archived', `"${tag.tag_value}" has been archived`)
     setTags(prev => prev.map(t => t.id === tag.id ? { ...t, is_active: false } : t))
   }
 
   const handleDeleteTag = async (tag: VocabularyTag) => {
     if (tag.times_used > 0) {
-      alert('Cannot delete a tag that has been used. Archive it instead to preserve data integrity.')
+      toast.warning('Cannot delete tag', 'This tag has been used. Archive it instead to preserve data integrity.')
       return
     }
 
-    if (!confirm(`Permanently delete "${tag.tag_value}"? This cannot be undone.`)) {
-      return
-    }
+    const confirmed = await showConfirm({
+      title: 'Delete Tag',
+      message: `Permanently delete "${tag.tag_value}"? This cannot be undone.`,
+      confirmText: 'Delete',
+      variant: 'danger'
+    })
+
+    if (!confirmed) return
 
     const { error } = await supabase
       .from('tag_vocabulary')
@@ -189,9 +203,11 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
 
     if (error) {
       console.error('Failed to delete tag:', error)
-      alert(getErrorMessage(error, ErrorMessages.TAG_DELETE_FAILED))
+      toast.error('Failed to delete tag', getErrorMessage(error, ErrorMessages.TAG_DELETE_FAILED))
       return
     }
+
+    toast.success('Tag deleted', `"${tag.tag_value}" has been permanently deleted`)
 
     setTags(prev => prev.filter(t => t.id !== tag.id))
   }
@@ -221,19 +237,19 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
     try {
       // Validation
       if (!newCategory.key || !newCategory.label || !newCategory.storage_path) {
-        alert(ErrorMessages.CATEGORY_REQUIRED_FIELDS)
+        toast.error('Validation error', ErrorMessages.CATEGORY_REQUIRED_FIELDS)
         return
       }
 
       // Check for duplicate keys
       if (categories.some(cat => cat.key === newCategory.key)) {
-        alert(ErrorMessages.CATEGORY_DUPLICATE_KEY)
+        toast.error('Duplicate category key', ErrorMessages.CATEGORY_DUPLICATE_KEY)
         return
       }
 
       // Check for duplicate storage paths
       if (categories.some(cat => cat.storage_path === newCategory.storage_path)) {
-        alert(ErrorMessages.CATEGORY_DUPLICATE_PATH)
+        toast.error('Duplicate storage path', ErrorMessages.CATEGORY_DUPLICATE_PATH)
         return
       }
 
@@ -247,7 +263,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       if (fetchError) throw fetchError
 
       if (!config) {
-        alert(ErrorMessages.VOCAB_CONFIG_LOAD_FAILED)
+        toast.error('Configuration error', ErrorMessages.VOCAB_CONFIG_LOAD_FAILED)
         return
       }
 
@@ -279,7 +295,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
 
       if (error) throw error
 
-      alert(`✅ Category "${newCategory.label}" added successfully!`)
+      toast.success('Category added', `"${newCategory.label}" has been added to the vocabulary`)
 
       // Reset form and close modal
       setNewCategory({
@@ -298,7 +314,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
 
     } catch (error: any) {
       console.error('Error adding category:', error)
-      alert(getErrorMessage(error, ErrorMessages.CATEGORY_REQUIRED_FIELDS))
+      toast.error('Failed to add category', getErrorMessage(error, ErrorMessages.CATEGORY_REQUIRED_FIELDS))
     }
   }
 
@@ -333,14 +349,14 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
 
       if (error) throw error
 
-      alert('✅ Category updated successfully!')
+      toast.success('Category updated', 'Category properties have been updated successfully')
       setShowEditCategoryModal(false)
       setEditingCategory(null)
       loadVocabularyConfig()
 
     } catch (error: any) {
       console.error('Error updating category:', error)
-      alert(getErrorMessage(error, 'Failed to update category. Please try again.'))
+      toast.error('Failed to update category', getErrorMessage(error, 'Failed to update category. Please try again.'))
     }
   }
 
@@ -349,10 +365,17 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
     const tagCount = tags.filter(t => t.category === categoryKey).length
 
     const confirmMessage = tagCount > 0
-      ? `Are you sure you want to delete "${categoryKey}"? This will also delete ${tagCount} tag(s) in this category. This cannot be undone.`
-      : `Are you sure you want to delete "${categoryKey}"?`
+      ? `Delete "${categoryKey}" and its ${tagCount} tag(s)? This cannot be undone.`
+      : `Delete "${categoryKey}"? This cannot be undone.`
 
-    if (!confirm(confirmMessage)) return
+    const confirmed = await showConfirm({
+      title: 'Delete Category',
+      message: confirmMessage,
+      confirmText: 'Delete',
+      variant: 'danger'
+    })
+
+    if (!confirmed) return
 
     try {
       // Get current config
@@ -391,7 +414,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
         if (tagsError) throw tagsError
       }
 
-      alert(`✅ Category "${categoryKey}" deleted successfully!`)
+      toast.success('Category deleted', `"${categoryKey}" and its ${tagCount} tags have been deleted`)
 
       // Update local state
       setTags(prev => prev.filter(t => t.category !== categoryKey))
@@ -399,7 +422,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
 
     } catch (error: any) {
       console.error('Error deleting category:', error)
-      alert(getErrorMessage(error, ErrorMessages.CATEGORY_DELETE_FAILED))
+      toast.error('Failed to delete category', getErrorMessage(error, ErrorMessages.CATEGORY_DELETE_FAILED))
     }
   }
 
@@ -884,6 +907,9 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
           onSave={handleUpdateCategory}
         />
       )}
+
+      {/* Confirm Dialog */}
+      {confirmDialog}
     </div>
   )
 }

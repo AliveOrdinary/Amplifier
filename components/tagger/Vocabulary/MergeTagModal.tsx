@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
 import { getImageValue, setImageValue } from '@/lib/vocabulary-utils'
+import { useToast, useConfirmDialog } from '@/components/ui'
 
 interface VocabularyTag {
   id: string
@@ -42,18 +43,25 @@ interface MergeTagModalProps {
 }
 
 export default function MergeTagModal({ sourceTag, allTags, vocabConfig, onClose, onMerge, supabase }: MergeTagModalProps) {
+  const toast = useToast()
+  const { confirmDialog, showConfirm } = useConfirmDialog()
   const [targetTagId, setTargetTagId] = useState('')
   const [isMerging, setIsMerging] = useState(false)
 
   const handleMerge = async () => {
     if (!targetTagId) {
-      alert('Please select a target tag to merge into.')
+      toast.warning('No target selected', 'Please select a target tag to merge into.')
       return
     }
 
-    if (!confirm(`Merge "${sourceTag.tag_value}" into the selected tag? This will update all ${sourceTag.times_used} references and archive the source tag.`)) {
-      return
-    }
+    const confirmed = await showConfirm({
+      title: 'Merge Tags',
+      message: `Merge "${sourceTag.tag_value}" into the selected tag? This will update all ${sourceTag.times_used} references and archive the source tag.`,
+      confirmText: 'Merge',
+      variant: 'warning'
+    })
+
+    if (!confirmed) return
 
     setIsMerging(true)
 
@@ -141,11 +149,12 @@ export default function MergeTagModal({ sourceTag, allTags, vocabConfig, onClose
 
       if (archiveError) throw archiveError
 
+      toast.success('Tags merged successfully', `"${sourceTag.tag_value}" has been merged and archived`)
       onMerge(sourceTag.id)
       onClose()
     } catch (error) {
       console.error('Merge failed:', error)
-      alert(getErrorMessage(error, ErrorMessages.TAG_MERGE_FAILED))
+      toast.error('Merge failed', getErrorMessage(error, ErrorMessages.TAG_MERGE_FAILED))
     } finally {
       setIsMerging(false)
     }
@@ -199,6 +208,9 @@ export default function MergeTagModal({ sourceTag, allTags, vocabConfig, onClose
           </div>
         </div>
       </div>
+
+      {/* Confirm Dialog */}
+      {confirmDialog}
     </div>
   )
 }

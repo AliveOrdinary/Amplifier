@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@/lib/supabase';
 import { ErrorMessages, getErrorMessage } from '@/lib/error-messages';
+import { useToast, useConfirmDialog } from '@/components/ui';
 import Link from 'next/link';
 
 const supabase = createClientComponentClient();
@@ -311,6 +312,8 @@ export default function VocabularyConfigClient() {
 
 // Replace Vocabulary Modal Component
 function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const toast = useToast();
+  const { confirmDialog, showConfirm } = useConfirmDialog();
   const [inputMethod, setInputMethod] = useState<'paste' | 'upload'>('paste');
   const [pastedJson, setPastedJson] = useState('');
   const [parseError, setParseError] = useState<string | null>(null);
@@ -424,7 +427,14 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
       return;
     }
 
-    if (!confirm('Are you absolutely sure? This will DELETE ALL IMAGES and TAGS. This cannot be undone!')) {
+    const confirmed = await showConfirm({
+      title: 'Delete All Data',
+      message: 'Are you absolutely sure? This will DELETE ALL IMAGES and TAGS. This cannot be undone!',
+      confirmText: 'Delete Everything',
+      variant: 'danger'
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -832,6 +842,9 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
           </div>
         </div>
       </div>
+
+      {/* Confirm Dialog */}
+      {confirmDialog}
     </div>
   );
 }

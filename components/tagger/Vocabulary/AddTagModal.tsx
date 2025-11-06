@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
+import { useToast } from '@/components/ui'
 
 interface VocabularyTag {
   id: string
@@ -39,6 +40,7 @@ interface AddTagModalProps {
 }
 
 export default function AddTagModal({ vocabConfig, onClose, onAdd, supabase }: AddTagModalProps) {
+  const toast = useToast()
   // Initialize with the first category from config
   const [category, setCategory] = useState(vocabConfig.structure.categories[0]?.key || '')
   const [tagValue, setTagValue] = useState('')
@@ -47,7 +49,7 @@ export default function AddTagModal({ vocabConfig, onClose, onAdd, supabase }: A
 
   const handleAdd = async () => {
     if (!tagValue.trim()) {
-      alert(ErrorMessages.VALIDATION_REQUIRED_FIELD('Tag name'))
+      toast.error('Validation error', ErrorMessages.VALIDATION_REQUIRED_FIELD('Tag name'))
       return
     }
 
@@ -80,11 +82,12 @@ export default function AddTagModal({ vocabConfig, onClose, onAdd, supabase }: A
 
     if (error) {
       console.error('Failed to add tag:', error)
-      alert(getErrorMessage(error, ErrorMessages.TAG_ADD_FAILED))
+      toast.error('Failed to add tag', getErrorMessage(error, ErrorMessages.TAG_ADD_FAILED))
       setIsAdding(false)
       return
     }
 
+    toast.success('Tag added', `"${tagValue}" has been added to the vocabulary`)
     onAdd(data)
     onClose()
   }

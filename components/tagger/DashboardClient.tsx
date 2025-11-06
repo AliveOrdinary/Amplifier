@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@/lib/supabase'
 import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
+import { useToast, useConfirmDialog } from '@/components/ui'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -43,6 +44,8 @@ interface DashboardClientProps {
 
 export default function DashboardClient({ stats }: DashboardClientProps) {
   const router = useRouter()
+  const toast = useToast()
+  const { confirmDialog, showConfirm } = useConfirmDialog()
   const [showAdminControls, setShowAdminControls] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
@@ -203,14 +206,19 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
       URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Error exporting data:', error)
-      alert(getErrorMessage(error, ErrorMessages.EXPORT_DATA_FAILED))
+      toast.error('Export failed', getErrorMessage(error, ErrorMessages.EXPORT_DATA_FAILED))
     }
   }
 
   const handleResetVocabulary = async () => {
-    if (!confirm('⚠️ This will delete all custom tags and reset to the original mock vocabulary. Continue?')) {
-      return
-    }
+    const confirmed = await showConfirm({
+      title: 'Reset Vocabulary',
+      message: 'This will delete all custom tags and reset to the original mock vocabulary. Continue?',
+      confirmText: 'Reset',
+      variant: 'danger'
+    })
+
+    if (!confirmed) return
 
     try {
       // Delete all existing vocabulary
@@ -708,6 +716,9 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
           </div>
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      {confirmDialog}
     </div>
   )
 }
