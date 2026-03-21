@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { VocabularyConfig } from './useVocabularyConfig'
 import type { UseImageTagsReturn, ImageTags } from './useImageTags'
 import type { UploadedImage } from './useImageUpload'
@@ -80,6 +80,14 @@ export function useAISuggestions({
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({})
   const [prefetchedSuggestions, setPrefetchedSuggestions] = useState<Map<string, AISuggestion>>(new Map())
   const [isPrefetching, setIsPrefetching] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort()
+    }
+  }, [])
 
   /**
    * Resize image for AI analysis (max 1200px, keep under 5MB limit)
@@ -91,6 +99,7 @@ export function useAISuggestions({
       const ctx = canvas.getContext('2d')
 
       img.onload = () => {
+        URL.revokeObjectURL(img.src)
         // Calculate dimensions (max width on longest side)
         let width = img.width
         let height = img.height
@@ -121,7 +130,10 @@ export function useAISuggestions({
         )
       }
 
-      img.onerror = () => reject(new Error('Failed to load image for AI'))
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src)
+        reject(new Error('Failed to load image for AI'))
+      }
       img.src = URL.createObjectURL(file)
     })
   }, [maxImageWidth])
@@ -197,6 +209,14 @@ export function useAISuggestions({
       }
 
       // NOT CACHED - Fetch normally
+      // Abort any previous in-flight request
+      abortControllerRef.current?.abort()
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
+      // 60-second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000)
+
       setIsLoading(prev => ({ ...prev, [imageId]: true }))
 
       console.log(`🤖 Getting AI suggestions for ${file.name}...`)
@@ -223,7 +243,9 @@ export function useAISuggestions({
           image: base64Image,
           vocabulary,
         }),
+        signal: controller.signal,
       })
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null)
@@ -257,6 +279,10 @@ export function useAISuggestions({
       }
 
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        console.log('🚫 AI suggestion request aborted')
+        return
+      }
       console.error('❌ Error getting AI suggestions:', error)
     } finally {
       setIsLoading(prev => ({ ...prev, [imageId]: false }))

@@ -82,6 +82,7 @@ export function useImageSaver({
       const ctx = canvas.getContext('2d')
 
       img.onload = () => {
+        URL.revokeObjectURL(img.src)
         // Calculate new dimensions
         let width = img.width
         let height = img.height
@@ -111,7 +112,10 @@ export function useImageSaver({
         )
       }
 
-      img.onerror = () => reject(new Error('Failed to load image'))
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src)
+        reject(new Error('Failed to load image'))
+      }
       img.src = URL.createObjectURL(file)
     })
   }, [thumbnailWidth])

@@ -132,15 +132,11 @@ export async function updateTagUsageForChanges(
         // Find removed tags (in old but not in new)
         const removed = Array.from(oldSet).filter(tag => !newSet.has(tag))
 
-        // Increment counts for added tags
-        for (const tag of added) {
-          await incrementTagUsage(supabase, dbCategory, tag, now)
-        }
-
-        // Decrement counts for removed tags
-        for (const tag of removed) {
-          await decrementTagUsage(supabase, dbCategory, tag)
-        }
+        // Increment and decrement counts in parallel
+        await Promise.all([
+          ...added.map(tag => incrementTagUsage(supabase, dbCategory, tag, now)),
+          ...removed.map(tag => decrementTagUsage(supabase, dbCategory, tag)),
+        ])
       }
     }
   } catch (error) {
@@ -180,19 +176,19 @@ export async function updateTagUsageForNewImage(
     const now = new Date().toISOString()
     const categories = vocabConfig?.structure?.categories || []
 
+    const promises: Promise<void>[] = []
     for (const category of categories) {
       const categoryKey = category.key
       const dbCategory = getDatabaseCategory(category.storage_path, categoryKey)
 
-      // Only process array-type categories
       if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
         const tagValues = Array.isArray(tags[categoryKey]) ? tags[categoryKey] : []
-
         for (const tag of tagValues) {
-          await incrementTagUsage(supabase, dbCategory, tag, now)
+          promises.push(incrementTagUsage(supabase, dbCategory, tag, now))
         }
       }
     }
+    await Promise.all(promises)
   } catch (error) {
     console.error('⚠️ Error updating tag usage for new image:', error)
     throw error
@@ -229,19 +225,19 @@ export async function updateTagUsageForDeletedImage(
   try {
     const categories = vocabConfig?.structure?.categories || []
 
+    const promises: Promise<void>[] = []
     for (const category of categories) {
       const categoryKey = category.key
       const dbCategory = getDatabaseCategory(category.storage_path, categoryKey)
 
-      // Only process array-type categories
       if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
         const tagValues = Array.isArray(tags[categoryKey]) ? tags[categoryKey] : []
-
         for (const tag of tagValues) {
-          await decrementTagUsage(supabase, dbCategory, tag)
+          promises.push(decrementTagUsage(supabase, dbCategory, tag))
         }
       }
     }
+    await Promise.all(promises)
   } catch (error) {
     console.error('⚠️ Error updating tag usage for deleted image:', error)
     throw error
@@ -280,18 +276,19 @@ export async function bulkIncrementTagUsage(
     const now = new Date().toISOString()
     const categories = vocabConfig?.structure?.categories || []
 
+    const promises: Promise<void>[] = []
     for (const category of categories) {
       const categoryKey = category.key
       const dbCategory = getDatabaseCategory(category.storage_path, categoryKey)
       const tagValues = tagsByCategory[categoryKey] || []
 
       for (const tag of tagValues) {
-        // Increment multiple times if needed
         for (let i = 0; i < count; i++) {
-          await incrementTagUsage(supabase, dbCategory, tag, now)
+          promises.push(incrementTagUsage(supabase, dbCategory, tag, now))
         }
       }
     }
+    await Promise.all(promises)
   } catch (error) {
     console.error('⚠️ Error in bulk increment tag usage:', error)
     throw error
