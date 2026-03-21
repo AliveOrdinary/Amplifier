@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode, useEffect } from 'react'
+import { ReactNode, useEffect, useRef, useCallback } from 'react'
 
 interface ModalProps {
   isOpen: boolean
@@ -27,19 +27,73 @@ export default function Modal({
   closeOnBackdropClick = true,
   closeOnEscape = true
 }: ModalProps) {
-  // Handle escape key
-  useEffect(() => {
-    if (!isOpen || !closeOnEscape) return
+  const modalRef = useRef<HTMLDivElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
 
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
-      }
+  // Focus trap: keep Tab/Shift+Tab within modal
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape' && closeOnEscape) {
+      onClose()
+      return
     }
 
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [isOpen, closeOnEscape, onClose])
+    if (e.key !== 'Tab') return
+
+    const modal = modalRef.current
+    if (!modal) return
+
+    const focusable = modal.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+
+    if (focusable.length === 0) return
+
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+
+    if (e.shiftKey) {
+      if (document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      }
+    } else {
+      if (document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+  }, [closeOnEscape, onClose])
+
+  // Manage focus: save previous, move into modal, restore on close
+  useEffect(() => {
+    if (isOpen) {
+      previousFocusRef.current = document.activeElement as HTMLElement
+      // Focus the modal container after render
+      requestAnimationFrame(() => {
+        const modal = modalRef.current
+        if (!modal) return
+        const firstFocusable = modal.querySelector<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+        if (firstFocusable) {
+          firstFocusable.focus()
+        } else {
+          modal.focus()
+        }
+      })
+    } else if (previousFocusRef.current) {
+      previousFocusRef.current.focus()
+      previousFocusRef.current = null
+    }
+  }, [isOpen])
+
+  // Handle keyboard events (escape + focus trap)
+  useEffect(() => {
+    if (!isOpen) return
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, handleKeyDown])
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -62,7 +116,12 @@ export default function Modal({
       onClick={closeOnBackdropClick ? onClose : undefined}
     >
       <div
-        className={`bg-gray-800 rounded-2xl ${sizeClasses[size]} w-full shadow-2xl border-2 border-gray-700 max-h-[90vh] overflow-hidden flex flex-col`}
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        tabIndex={-1}
+        className={`bg-gray-800 rounded-2xl ${sizeClasses[size]} w-full shadow-2xl border-2 border-gray-700 max-h-[90vh] overflow-hidden flex flex-col outline-none`}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -85,7 +144,7 @@ export function ModalHeader({ title, subtitle, onClose, icon }: ModalHeaderProps
   return (
     <div className="px-8 py-6 border-b-2 border-gray-700 flex items-start justify-between">
       <div>
-        <h2 className="text-3xl font-bold text-white">
+        <h2 id="modal-title" className="text-3xl font-bold text-white">
           {icon && <span className="mr-2">{icon}</span>}
           {title}
         </h2>

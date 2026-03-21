@@ -171,7 +171,7 @@ export default function BulkEditModal({ images, vocabulary, vocabConfig, onClose
   const hasSelections = Object.values(categoryTags).some(tags => tags.length > 0)
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8 border border-gray-700">
         {/* Header */}
         <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 z-10">

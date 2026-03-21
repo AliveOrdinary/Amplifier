@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { formatFileSize } from '@/lib/file-hash'
 
 interface DuplicateDetectionModalProps {
@@ -40,7 +41,7 @@ export default function DuplicateDetectionModal({
   }, [file])
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-700 shadow-2xl">
         {/* Header */}
         <div className="text-center mb-6">
@@ -87,11 +88,12 @@ export default function DuplicateDetectionModal({
                 </span>
               </div>
 
-              <div className="bg-gray-950 rounded-lg overflow-hidden border-2 border-blue-600 mb-3 aspect-square flex items-center justify-center">
-                <img
+              <div className="bg-gray-950 rounded-lg overflow-hidden border-2 border-blue-600 mb-3 aspect-square relative">
+                <Image
                   src={previewUrl}
                   alt="New upload"
-                  className="max-w-full max-h-full object-contain"
+                  fill
+                  className="object-contain"
                 />
               </div>
 
@@ -125,15 +127,16 @@ export default function DuplicateDetectionModal({
                 </span>
               </div>
 
-              <div className="bg-gray-950 rounded-lg overflow-hidden border-2 border-gray-600 mb-3 aspect-square flex items-center justify-center">
+              <div className="bg-gray-950 rounded-lg overflow-hidden border-2 border-gray-600 mb-3 aspect-square relative">
                 {existingImage.thumbnail_path ? (
-                  <img
+                  <Image
                     src={existingImage.thumbnail_path}
                     alt="Existing"
-                    className="max-w-full max-h-full object-contain"
+                    fill
+                    className="object-contain"
                   />
                 ) : (
-                  <div className="text-gray-500 text-sm">No preview available</div>
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">No preview available</div>
                 )}
               </div>
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import TagCheckbox from './TagCheckbox'
 import ImagePreview from './ImagePreview'
 
@@ -20,23 +21,8 @@ import {
 // UI components
 import DuplicateDetectionModal from './ImageTagger/DuplicateDetectionModal'
 import ErrorState from './ImageTagger/ErrorState'
-import Toast from './ImageTagger/Toast'
 import AddTagModal from './ImageTagger/AddTagModal'
-
-interface ImageTags {
-  [categoryKey: string]: string[] | string
-}
-
-interface UploadedImage {
-  id: string
-  file: File
-  previewUrl: string
-  filename: string
-  status: 'pending' | 'tagged' | 'skipped'
-  fileHash?: string
-  fileSize?: number
-  perceptualHash?: string
-}
+import { useToast } from '@/components/ui'
 
 export default function ImageTaggerClient() {
 
@@ -92,9 +78,7 @@ export default function ImageTaggerClient() {
 
   // ====== LOCAL STATE ======
   const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'skipped' | 'tagged'>('all')
-  const [showToast, setShowToast] = useState(false)
-  const [toastMessage, setToastMessage] = useState('')
-  const [toastType, setToastType] = useState<'success' | 'error'>('success')
+  const toast = useToast()
 
   // ====== COMPUTED VALUES ======
   const currentImageData = currentImage ? tags.getTagsForImage(currentImage.id, vocabConfig) : {}
@@ -229,26 +213,18 @@ export default function ImageTaggerClient() {
     navigation.setIsTaggingMode(false)
   }
 
-  // Toast helpers
-  const showToastMessage = (message: string, type: 'success' | 'error' = 'success') => {
-    setToastMessage(message)
-    setToastType(type)
-    setShowToast(true)
-    setTimeout(() => setShowToast(false), 3000)
-  }
-
   // ====== EFFECTS ======
 
   // Show save success/error toasts
   useEffect(() => {
     if (imageSaver.saveSuccess) {
-      showToastMessage('Image saved successfully!', 'success')
+      toast.success('Image saved successfully!')
     }
   }, [imageSaver.saveSuccess])
 
   useEffect(() => {
     if (imageSaver.saveError) {
-      showToastMessage(imageSaver.saveError, 'error')
+      toast.error(imageSaver.saveError)
     }
   }, [imageSaver.saveError])
 
@@ -321,15 +297,6 @@ export default function ImageTaggerClient() {
         />
       )}
 
-      {/* Toast Notifications */}
-      {showToast && (
-        <Toast
-          message={toastMessage}
-          type={toastType}
-          onDismiss={() => setShowToast(false)}
-        />
-      )}
-
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         {!isTaggingMode ? (
@@ -385,11 +352,12 @@ export default function ImageTaggerClient() {
                       key={image.id}
                       className="bg-gray-800 rounded-lg overflow-hidden shadow-xl hover:shadow-2xl transition-shadow border border-gray-700"
                     >
-                      <div className="aspect-square bg-gray-900 overflow-hidden">
-                        <img
+                      <div className="aspect-square bg-gray-900 overflow-hidden relative">
+                        <Image
                           src={image.previewUrl}
                           alt={image.filename}
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
                         />
                       </div>
                       <div className="p-2">
@@ -511,7 +479,7 @@ export default function ImageTaggerClient() {
                 </div>
 
                 {/* Right: Tag Form */}
-                <div className="bg-gray-800 rounded-lg p-6 overflow-y-auto" style={{ maxHeight: '80vh' }}>
+                <div className="bg-gray-800 rounded-lg p-6 overflow-y-auto max-h-[80vh]">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-semibold">Tags</h2>
 
