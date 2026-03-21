@@ -1,22 +1,16 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase';
+import { requireAuth } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
 // GET: Fetch current active vocabulary config
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+
   try {
-    // Use service role key for server-side API routes
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    const supabase = createServerClient();
 
     const { data: config, error } = await supabase
       .from('vocabulary_config')
@@ -41,10 +35,10 @@ export async function GET() {
     }
 
     return NextResponse.json({ config });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API] Vocabulary config failed:', error);
     return NextResponse.json(
-      { error: 'Failed to load vocabulary configuration', details: error.message },
+      { error: 'An unexpected error occurred' },
       { status: 500 }
     );
   }

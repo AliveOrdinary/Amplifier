@@ -1,15 +1,13 @@
-import { createClient } from '@supabase/supabase-js'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/api-auth'
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+
   try {
-    // Use service role key to bypass RLS policies
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY! // Admin key bypasses RLS
-    )
-
-    console.log('🗑️ Starting delete all images process...')
+    const supabase = createServerClient()
 
     // Step 1: Get all images
     const { data: images, error: fetchError } = await supabase
@@ -22,14 +20,11 @@ export async function DELETE() {
     }
 
     if (!images || images.length === 0) {
-      console.log('ℹ️ No images to delete')
       return NextResponse.json({
         message: 'No images to delete',
         deletedCount: 0
       })
     }
-
-    console.log(`📋 Found ${images.length} images to delete`)
 
     // Step 2: Delete from storage
     const storagePaths: string[] = []
@@ -54,7 +49,6 @@ export async function DELETE() {
     }
 
     if (storagePaths.length > 0) {
-      console.log(`🗂️ Deleting ${storagePaths.length} files from storage...`)
       const { error: storageError } = await supabase.storage
         .from('reference-images')
         .remove(storagePaths)
@@ -62,13 +56,10 @@ export async function DELETE() {
       if (storageError) {
         console.error('⚠️ Storage deletion error:', storageError)
         // Continue anyway - better to clean DB even if storage fails
-      } else {
-        console.log(`✅ Deleted ${storagePaths.length} files from storage`)
       }
     }
 
     // Step 3: Delete correction records (cascade cleanup)
-    console.log('🧹 Deleting tag correction records...')
     const imageIds = images.map(img => img.id)
 
     const { error: correctionsError } = await supabase
@@ -78,12 +69,9 @@ export async function DELETE() {
 
     if (correctionsError) {
       console.error('⚠️ Corrections deletion error:', correctionsError)
-    } else {
-      console.log('✅ Deleted correction records')
     }
 
     // Step 4: Delete from database
-    console.log('💾 Deleting image records from database...')
     const { error: deleteError } = await supabase
       .from('reference_images')
       .delete()
@@ -94,10 +82,7 @@ export async function DELETE() {
       throw deleteError
     }
 
-    console.log(`✅ Deleted ${images.length} images from database`)
-
     // Step 5: Reset tag vocabulary usage counts
-    console.log('🔄 Resetting tag vocabulary usage counts...')
     const { error: resetError } = await supabase
       .from('tag_vocabulary')
       .update({ times_used: 0, last_used_at: null })
@@ -105,11 +90,7 @@ export async function DELETE() {
 
     if (resetError) {
       console.error('⚠️ Vocabulary reset error:', resetError)
-    } else {
-      console.log('✅ Reset vocabulary usage counts')
     }
-
-    console.log(`🎉 Successfully deleted all ${images.length} images`)
 
     return NextResponse.json({
       success: true,
@@ -117,12 +98,12 @@ export async function DELETE() {
       deletedCount: images.length
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Delete all images error:', error)
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Failed to delete images'
+        error: 'An unexpected error occurred'
       },
       { status: 500 }
     )

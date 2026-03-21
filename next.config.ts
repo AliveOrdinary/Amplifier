@@ -1,3 +1,16 @@
+// Node.js 22+ exposes localStorage as a global, but throws SecurityError
+// without --localstorage-file. This breaks @supabase/auth-js which checks
+// for localStorage existence. Restore pre-22 behavior on the server.
+try {
+  globalThis.localStorage;
+} catch {
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: undefined,
+    writable: true,
+    configurable: true,
+  });
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Note: Removed 'output: export' to enable middleware and API routes for the tagger system
@@ -12,7 +25,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: '*.supabase.co',
       },
     ],
   },

@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import type { SearchReferencesRequest, SearchReferencesResponse, ReferenceImage } from '@/lib/types';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 // Note: This API route won't work with output: 'export' in production
 // For static export, vocabulary config should be fetched client-side from Supabase
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 30 requests per 15 minutes
+  const ip = getClientIp(request);
+  const rateLimited = checkRateLimit(ip, 'search-references', 30, 15 * 60 * 1000);
+  if (rateLimited) {
+    return NextResponse.json(
+      { images: [], error: 'Too many requests. Please try again later.' } as SearchReferencesResponse,
+      { status: 429, headers: { 'Retry-After': String(rateLimited.retryAfterSeconds) } }
+    );
+  }
+
   try {
     const { keywords }: SearchReferencesRequest = await request.json();
 
@@ -37,11 +48,12 @@ export async function POST(request: NextRequest) {
 
     const categories = config.structure.categories;
 
-    // 2. Fetch all tagged and approved images
+    // 2. Fetch tagged and approved images (limit to prevent unbounded queries)
     const { data: images, error } = await supabase
       .from('reference_images')
       .select('*')
-      .in('status', ['tagged', 'approved']);
+      .in('status', ['tagged', 'approved'])
+      .limit(500);
 
     if (error) {
       console.error('Error fetching images:', error);

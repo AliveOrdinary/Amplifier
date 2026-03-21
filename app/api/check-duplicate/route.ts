@@ -1,6 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/supabase'
 import { calculateSimilarity } from '@/lib/file-hash'
+import { requireAuth } from '@/lib/api-auth'
 
 /**
  * Duplicate Check API Endpoint
@@ -18,25 +19,6 @@ interface DuplicateCheckRequest {
   perceptualHash?: string
 }
 
-interface ExistingImage {
-  id: string
-  original_filename: string
-  tagged_at: string
-  status: string
-  file_hash: string | null
-  file_size: number | null
-  perceptual_hash: string | null
-  thumbnail_path: string | null
-}
-
-interface DuplicateCheckResponse {
-  isDuplicate: boolean
-  matchType?: 'exact' | 'similar' | 'filename'
-  confidence?: number
-  existingImage?: ExistingImage
-  message?: string
-}
-
 // Similarity threshold for perceptual hash (90% = very strict)
 // Adjust this value based on desired strictness:
 // - 95+ = Extremely strict (fewer false positives, might miss some duplicates)
@@ -46,6 +28,9 @@ interface DuplicateCheckResponse {
 const SIMILARITY_THRESHOLD = 90
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+
   try {
     const { filename, fileHash, fileSize, perceptualHash }: DuplicateCheckRequest = await request.json()
 
@@ -56,10 +41,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY! // Use service role for admin access
-    )
+    const supabase = createServerClient()
 
     // ============================================================
     // PRIORITY 1: Check by content hash (exact match)
@@ -76,7 +58,6 @@ export async function POST(request: NextRequest) {
       }
 
       if (hashMatch) {
-        console.log(`🎯 Exact duplicate found: ${hashMatch.original_filename}`)
         return NextResponse.json({
           isDuplicate: true,
           matchType: 'exact',
@@ -110,7 +91,6 @@ export async function POST(request: NextRequest) {
             const similarity = calculateSimilarity(perceptualHash, image.perceptual_hash)
 
             if (similarity >= SIMILARITY_THRESHOLD) {
-              console.log(`🎨 Visually similar image found: ${image.original_filename} (${similarity}% match)`)
               return NextResponse.json({
                 isDuplicate: true,
                 matchType: 'similar',
@@ -144,8 +124,6 @@ export async function POST(request: NextRequest) {
       // Check if it's likely the same file by comparing size
       const isSameSize = fileSize && filenameMatch.file_size === fileSize
 
-      console.log(`📄 Filename match found: ${filenameMatch.original_filename}${isSameSize ? ' (same size)' : ' (different size)'}`)
-
       return NextResponse.json({
         isDuplicate: true,
         matchType: 'filename',
@@ -160,15 +138,14 @@ export async function POST(request: NextRequest) {
     // ============================================================
     // No duplicates found
     // ============================================================
-    console.log(`✅ No duplicates found for: ${filename}`)
     return NextResponse.json({
       isDuplicate: false
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Duplicate check error:', error)
     return NextResponse.json(
-      { error: 'Failed to check for duplicates', details: error.message },
+      { error: 'An unexpected error occurred' },
       { status: 500 }
     )
   }

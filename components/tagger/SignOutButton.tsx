@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@/lib/supabase'
-import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
+import { getErrorMessage } from '@/lib/error-messages'
 import { useState } from 'react'
 
 export default function SignOutButton() {

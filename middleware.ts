@@ -5,8 +5,16 @@ import type { NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Only protect /tagger routes (not /briefing)
-  if (!pathname.startsWith('/tagger')) {
+  // Only protect /tagger routes and tagger API routes (not /briefing)
+  const isProtectedRoute =
+    pathname.startsWith('/tagger') ||
+    pathname.startsWith('/api/suggest-tags') ||
+    pathname.startsWith('/api/check-duplicate') ||
+    pathname.startsWith('/api/retrain-prompt') ||
+    pathname.startsWith('/api/admin/') ||
+    pathname.startsWith('/api/vocabulary-config')
+
+  if (!isProtectedRoute) {
     return NextResponse.next()
   }
 
@@ -14,6 +22,9 @@ export async function middleware(request: NextRequest) {
   if (pathname === '/tagger/login') {
     return NextResponse.next()
   }
+
+  // API routes return 401 instead of redirecting
+  const isApiRoute = pathname.startsWith('/api/')
 
   // Create response and Supabase client
   let response = NextResponse.next({
@@ -68,10 +79,13 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Check authentication
-  const { data: { session } } = await supabase.auth.getSession()
+  // Check authentication using getUser() (verifies with auth server, not just JWT)
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
+    if (isApiRoute) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     // Redirect to login with return URL
     const redirectUrl = new URL('/tagger/login', request.url)
     redirectUrl.searchParams.set('redirectTo', pathname)
@@ -84,5 +98,10 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/tagger/:path*',
+    '/api/suggest-tags',
+    '/api/check-duplicate',
+    '/api/retrain-prompt',
+    '/api/admin/:path*',
+    '/api/vocabulary-config/:path*',
   ]
 }

@@ -91,7 +91,7 @@ export default function BriefingClient() {
           setExtractedKeywords(savedKeywords || []);
           setEditedKeywords(savedEditedKeywords || []);
         }
-      } catch (e) {
+      } catch {
         console.error('Failed to load saved progress');
       }
     }
@@ -112,6 +112,7 @@ export default function BriefingClient() {
   };
 
   const handleExtractKeywords = async () => {
+    if (isLoading) return;
     setIsLoading(true);
     setError(null);
 
@@ -256,7 +257,7 @@ export default function BriefingClient() {
     localStorage.removeItem(STORAGE_KEY);
   };
 
-  if (isSubmitted && currentStep === 10) {
+  if (isSubmitted) {
     return <SuccessScreen onReset={resetForm} />;
   }
 
@@ -344,7 +345,7 @@ export default function BriefingClient() {
   function renderClientInfo() {
     return (
       <form onSubmit={(e) => { e.preventDefault(); handleNext(); }} className="space-y-6">
-        <h2 className="text-3xl font-rightserif font-bold mb-6">Let's get started</h2>
+        <h2 className="text-3xl font-rightserif font-bold mb-6">Let&apos;s get started</h2>
         <QuestionStep
           question="Your Name"
           value={responses.clientName}

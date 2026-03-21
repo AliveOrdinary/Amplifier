@@ -101,23 +101,17 @@ const ReferenceImageCard = memo(function ReferenceImageCard({ image, isFavorited
             </p>
           </div>
         )}
-        {image.matched_on && (
+        {image.matched_on && Object.keys(image.matched_on).length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
-            {image.matched_on.industries.slice(0, 2).map((tag, i) => (
-              <span key={`ind-${i}`} className="text-xs bg-purple-900 text-purple-200 px-1.5 py-0.5 rounded">
-                {tag}
-              </span>
-            ))}
-            {image.matched_on.styles.slice(0, 2).map((tag, i) => (
-              <span key={`style-${i}`} className="text-xs bg-blue-900 text-blue-200 px-1.5 py-0.5 rounded">
-                {tag}
-              </span>
-            ))}
-            {image.matched_on.moods.slice(0, 2).map((tag, i) => (
-              <span key={`mood-${i}`} className="text-xs bg-pink-900 text-pink-200 px-1.5 py-0.5 rounded">
-                {tag}
-              </span>
-            ))}
+            {Object.entries(image.matched_on)
+              .flatMap(([category, tags]) =>
+                (tags || []).slice(0, 2).map((tag, i) => (
+                  <span key={`${category}-${i}`} className="text-xs bg-white/10 text-gray-300 px-1.5 py-0.5 rounded">
+                    {tag}
+                  </span>
+                ))
+              )
+              .slice(0, 5)}
           </div>
         )}
       </div>

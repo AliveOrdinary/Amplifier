@@ -12,7 +12,7 @@ export default function KeywordExtraction({ onExtract, isLoading }: KeywordExtra
 
       <div className="bg-gray-900 border border-gray-800 rounded-lg p-8 mb-8">
         <p className="text-lg text-gray-300 mb-4">
-          We'll now use AI to analyze your responses and extract visual keywords that capture your brand's aesthetic.
+          We&apos;ll now use AI to analyze your responses and extract visual keywords that capture your brand&apos;s aesthetic.
         </p>
         <p className="text-md text-gray-400">
           These keywords will be used to curate a personalized visual gallery from our internal reference collection.

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import type { SendBriefingRequest, SendBriefingResponse, BriefingData, ReferenceImage } from '@/lib/types';
 import { z } from 'zod';
+import { escapeHtml } from '@/lib/html-utils';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 // Validation schema for briefing responses
 const briefingResponsesSchema = z.object({
@@ -45,12 +47,31 @@ const briefingDataSchema = z.object({
   responses: briefingResponsesSchema,
   extractedKeywords: z.array(z.string().max(100)).max(50, 'Too many keywords'),
   editedKeywords: z.array(z.string().max(100)).max(50, 'Too many keywords').optional(),
-  referenceImages: z.array(z.any()).max(200, 'Too many reference images'),
+  referenceImages: z.array(z.object({
+    id: z.string(),
+    thumbnail_path: z.string(),
+    storage_path: z.string(),
+    original_filename: z.string(),
+    notes: z.string().optional(),
+    match_score: z.number().optional(),
+    matched_keywords: z.array(z.string()).optional(),
+    matched_on: z.record(z.string(), z.array(z.string())).optional(),
+  }).passthrough()).max(200, 'Too many reference images'),
   favoritedImageIds: z.array(z.string()).max(100, 'Too many favorited images'),
   timestamp: z.string().or(z.number()),
 });
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 requests per 15 minutes
+  const ip = getClientIp(request)
+  const rateLimited = checkRateLimit(ip, 'send-briefing', 5, 15 * 60 * 1000)
+  if (rateLimited) {
+    return NextResponse.json(
+      { success: false, message: 'Too many requests. Please try again later.', error: 'Rate limit exceeded' } as SendBriefingResponse,
+      { status: 429, headers: { 'Retry-After': String(rateLimited.retryAfterSeconds) } }
+    )
+  }
+
   try {
     const body = await request.json();
     const { briefingData } = body as SendBriefingRequest;
@@ -151,7 +172,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         message: 'Failed to send briefing',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: 'An unexpected error occurred'
       } as SendBriefingResponse,
       { status: 500 }
     );
@@ -162,7 +183,6 @@ function generateEmailHTML(data: BriefingData): string {
   const { responses, extractedKeywords, editedKeywords, referenceImages, favoritedImageIds } = data;
   const keywords = editedKeywords && editedKeywords.length > 0 ? editedKeywords : extractedKeywords;
   const favoritedImages = referenceImages.filter(img => favoritedImageIds.includes(img.id));
-  const allReferenceImages = referenceImages || [];
 
   return `
 <!DOCTYPE html>
@@ -191,151 +211,151 @@ function generateEmailHTML(data: BriefingData): string {
   <h1>Visual Briefing Submission</h1>
 
   <div class="meta">
-    <p><strong>Client Name:</strong> ${responses.clientName}</p>
-    <p><strong>Email:</strong> ${responses.clientEmail}</p>
-    ${responses.projectName ? `<p><strong>Project:</strong> ${responses.projectName}</p>` : ''}
-    <p class="timestamp"><strong>Submitted:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
+    <p><strong>Client Name:</strong> ${escapeHtml(responses.clientName)}</p>
+    <p><strong>Email:</strong> ${escapeHtml(responses.clientEmail)}</p>
+    ${responses.projectName ? `<p><strong>Project:</strong> ${escapeHtml(responses.projectName)}</p>` : ''}
+    <p class="timestamp"><strong>Submitted:</strong> ${escapeHtml(new Date(data.timestamp).toLocaleString())}</p>
   </div>
 
   <h2>AI-Extracted Keywords</h2>
   <div class="keywords">
-    ${keywords.map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+    ${keywords.map(keyword => `<span class="keyword">${escapeHtml(keyword)}</span>`).join('')}
   </div>
 
   <h2>Brand Strategy & Positioning</h2>
   <div class="question">
     <strong>Visual Approach:</strong>
-    <div class="answer">${responses.visualApproach}</div>
+    <div class="answer">${escapeHtml(responses.visualApproach)}</div>
   </div>
   <div class="question">
     <strong>Creative Documents/Direction:</strong>
-    <div class="answer">${responses.creativeDocuments}</div>
+    <div class="answer">${escapeHtml(responses.creativeDocuments)}</div>
   </div>
   <div class="question">
     <strong>Problem Brand Solves:</strong>
-    <div class="answer">${responses.problemSolved}</div>
+    <div class="answer">${escapeHtml(responses.problemSolved)}</div>
   </div>
   <div class="question">
     <strong>Deeper Reason Beyond Profit:</strong>
-    <div class="answer">${responses.deeperReason}</div>
+    <div class="answer">${escapeHtml(responses.deeperReason)}</div>
   </div>
   <div class="question">
     <strong>Customer 3-Word Description:</strong>
-    <div class="answer">${responses.customerWords}</div>
+    <div class="answer">${escapeHtml(responses.customerWords)}</div>
   </div>
   <div class="question">
     <strong>True Differentiators:</strong>
-    <div class="answer">${responses.differentiators}</div>
+    <div class="answer">${escapeHtml(responses.differentiators)}</div>
   </div>
   ${responses.strategicThoughts ? `
   <div class="question">
     <strong>Additional Strategic Thoughts:</strong>
-    <div class="answer">${responses.strategicThoughts}</div>
+    <div class="answer">${escapeHtml(responses.strategicThoughts)}</div>
   </div>` : ''}
 
   <h2>Brand Personality & Tone</h2>
   <div class="question">
     <strong>Dinner Party Behavior:</strong>
-    <div class="answer">${responses.dinnerPartyBehavior}</div>
+    <div class="answer">${escapeHtml(responses.dinnerPartyBehavior)}</div>
   </div>
   <div class="question">
     <strong>Should NEVER Feel Like:</strong>
-    <div class="answer">${responses.neverFeelLike}</div>
+    <div class="answer">${escapeHtml(responses.neverFeelLike)}</div>
   </div>
   <div class="question">
     <strong>Energy/Mood to Communicate:</strong>
-    <div class="answer">${responses.energyMood}</div>
+    <div class="answer">${escapeHtml(responses.energyMood)}</div>
   </div>
   <div class="question">
     <strong>Brand Soundtrack Genre:</strong>
-    <div class="answer">${responses.soundtrackGenre}</div>
+    <div class="answer">${escapeHtml(responses.soundtrackGenre)}</div>
   </div>
   <div class="question">
     <strong>Artists/Collection Diversification:</strong>
-    <div class="answer">${responses.artistsDiversification}</div>
+    <div class="answer">${escapeHtml(responses.artistsDiversification)}</div>
   </div>
 
   <h2>Visual Identity & Style</h2>
   <div class="question">
     <strong>Color Associations:</strong>
-    <div class="answer">${responses.colorAssociations}</div>
+    <div class="answer">${escapeHtml(responses.colorAssociations)}</div>
   </div>
   <div class="question">
     <strong>Visual Style Preference:</strong>
-    <div class="answer">${responses.visualStyle}</div>
+    <div class="answer">${escapeHtml(responses.visualStyle)}</div>
   </div>
   <div class="question">
     <strong>Admired Brands:</strong>
-    <div class="answer">${responses.admiredBrands}</div>
+    <div class="answer">${escapeHtml(responses.admiredBrands)}</div>
   </div>
   <div class="question">
     <strong>Aesthetic Inspiration:</strong>
-    <div class="answer">${responses.aestheticInspiration}</div>
+    <div class="answer">${escapeHtml(responses.aestheticInspiration)}</div>
   </div>
   <div class="question">
     <strong>Decolonization Visual Communication:</strong>
-    <div class="answer">${responses.decolonizationVisual}</div>
+    <div class="answer">${escapeHtml(responses.decolonizationVisual)}</div>
   </div>
 
   <h2>Target Audience</h2>
   <div class="question">
     <strong>Audience Description:</strong>
-    <div class="answer">${responses.audienceDescription}</div>
+    <div class="answer">${escapeHtml(responses.audienceDescription)}</div>
   </div>
   <div class="question">
     <strong>Ideal Client:</strong>
-    <div class="answer">${responses.idealClient}</div>
+    <div class="answer">${escapeHtml(responses.idealClient)}</div>
   </div>
   <div class="question">
     <strong>Desired Feeling Upon Discovery:</strong>
-    <div class="answer">${responses.desiredFeeling}</div>
+    <div class="answer">${escapeHtml(responses.desiredFeeling)}</div>
   </div>
   <div class="question">
     <strong>Customer Frustrations:</strong>
-    <div class="answer">${responses.customerFrustrations}</div>
+    <div class="answer">${escapeHtml(responses.customerFrustrations)}</div>
   </div>
   ${responses.avoidCustomerTypes ? `
   <div class="question">
     <strong>Customer Types to Avoid:</strong>
-    <div class="answer">${responses.avoidCustomerTypes}</div>
+    <div class="answer">${escapeHtml(responses.avoidCustomerTypes)}</div>
   </div>` : ''}
   <div class="question">
     <strong>Brand's Role in Customer Lives:</strong>
-    <div class="answer">${responses.brandRole}</div>
+    <div class="answer">${escapeHtml(responses.brandRole)}</div>
   </div>
 
   <h2>Vision & Growth</h2>
   <div class="question">
     <strong>5-Year Brand Vision:</strong>
-    <div class="answer">${responses.fiveYearVision}</div>
+    <div class="answer">${escapeHtml(responses.fiveYearVision)}</div>
   </div>
   <div class="question">
     <strong>Expansion Plans:</strong>
-    <div class="answer">${responses.expansionPlans}</div>
+    <div class="answer">${escapeHtml(responses.expansionPlans)}</div>
   </div>
   <div class="question">
     <strong>Dream Partnerships:</strong>
-    <div class="answer">${responses.dreamPartnerships}</div>
+    <div class="answer">${escapeHtml(responses.dreamPartnerships)}</div>
   </div>
   <div class="question">
     <strong>Big Dream/Milestone:</strong>
-    <div class="answer">${responses.bigDream}</div>
+    <div class="answer">${escapeHtml(responses.bigDream)}</div>
   </div>
   <div class="question">
     <strong>Success Beyond Sales:</strong>
-    <div class="answer">${responses.successBeyondSales}</div>
+    <div class="answer">${escapeHtml(responses.successBeyondSales)}</div>
   </div>
   <div class="question">
     <strong>Long-term Focus:</strong>
-    <div class="answer">${responses.longTermFocus}</div>
+    <div class="answer">${escapeHtml(responses.longTermFocus)}</div>
   </div>
   <div class="question">
     <strong>Existing Collection Narrative:</strong>
-    <div class="answer">${responses.existingCollection}</div>
+    <div class="answer">${escapeHtml(responses.existingCollection)}</div>
   </div>
   <div class="question">
     <strong>Competitors:</strong>
-    <div class="answer">${responses.competitors}</div>
+    <div class="answer">${escapeHtml(responses.competitors)}</div>
   </div>
 
   <h2>Client-Selected Visual References</h2>
@@ -372,21 +392,18 @@ function formatReferenceImageItem(image: ReferenceImage): string {
                      matchScore >= 5 ? '✓ Good Match' :
                      '~ Related';
 
-  const tags = [
-    ...(image.matched_on?.industries || []),
-    ...(image.matched_on?.project_types || []),
-    ...(image.matched_on?.styles || []),
-    ...(image.matched_on?.moods || [])
-  ].slice(0, 5);
+  const tags = image.matched_on
+    ? Object.values(image.matched_on).flat().slice(0, 5)
+    : [];
 
   return `
     <div class="gallery-item">
-      <img src="${imageUrl}" alt="${filename}" />
+      <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(filename)}" />
       <div class="gallery-item-info">
-        <div><strong>${filename}</strong></div>
-        <div style="color: #666; font-size: 11px;">${matchBadge} (Score: ${matchScore.toFixed(1)})</div>
-        ${matchedKeywords.length > 0 ? `<div style="color: #888; font-size: 11px; margin-top: 4px;">Keywords: ${matchedKeywords.slice(0, 3).join(', ')}</div>` : ''}
-        ${tags.length > 0 ? `<div style="margin-top: 4px;">${tags.map(tag => `<span style="background: #eee; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-right: 2px;">${tag}</span>`).join('')}</div>` : ''}
+        <div><strong>${escapeHtml(filename)}</strong></div>
+        <div style="color: #666; font-size: 11px;">${escapeHtml(matchBadge)} (Score: ${matchScore.toFixed(1)})</div>
+        ${matchedKeywords.length > 0 ? `<div style="color: #888; font-size: 11px; margin-top: 4px;">Keywords: ${matchedKeywords.slice(0, 3).map(k => escapeHtml(k)).join(', ')}</div>` : ''}
+        ${tags.length > 0 ? `<div style="margin-top: 4px;">${tags.map(tag => `<span style="background: #eee; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-right: 2px;">${escapeHtml(String(tag))}</span>`).join('')}</div>` : ''}
       </div>
     </div>
   `;

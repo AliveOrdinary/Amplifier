@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// Legacy client for backward compatibility (used in existing client components)
+// Legacy client for backward compatibility
 // Uses the anon key which has RLS (Row Level Security) enabled
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 

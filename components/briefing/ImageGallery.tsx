@@ -34,9 +34,9 @@ export default function ImageGallery({
         <h2 className="text-3xl font-rightserif font-bold mb-4 text-white">Visual Gallery</h2>
         <p className="text-gray-300 mb-4">
           {totalImages > 0 ? (
-            <>We've curated {totalImages} images from our internal collection based on your keywords. Click the heart icon to favorite images that resonate with your vision.</>
+            <>We&apos;ve curated {totalImages} images from our internal collection based on your keywords. Click the heart icon to favorite images that resonate with your vision.</>
           ) : (
-            <>Our reference collection is currently being built. We'll discuss visual direction during our kickoff call.</>
+            <>Our reference collection is currently being built. We&apos;ll discuss visual direction during our kickoff call.</>
           )}
         </p>
 
@@ -51,11 +51,11 @@ export default function ImageGallery({
         <div className="text-center py-12 bg-gray-900 border border-gray-800 rounded-lg">
           <p className="text-xl mb-4">🎨 Building our collection...</p>
           <p className="text-gray-400 mb-6">
-            We're currently curating references for your project type.
+            We&apos;re currently curating references for your project type.
             Our design team is actively building this library.
           </p>
           <p className="text-sm text-gray-500 mb-6">
-            For now, we'll discuss visual direction during our kickoff call.
+            For now, we&apos;ll discuss visual direction during our kickoff call.
           </p>
           <button
             onClick={onNext}

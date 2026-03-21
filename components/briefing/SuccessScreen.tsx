@@ -35,7 +35,7 @@ export default function SuccessScreen({ onReset }: SuccessScreenProps) {
             Thank you for completing the visual briefing.
           </p>
           <p className="text-gray-400">
-            We've sent your responses and curated visual references to the studio team. They'll be in touch soon to discuss your project.
+            We&apos;ve sent your responses and curated visual references to the studio team. They&apos;ll be in touch soon to discuss your project.
           </p>
         </div>
 
@@ -48,11 +48,11 @@ export default function SuccessScreen({ onReset }: SuccessScreenProps) {
             </li>
             <li className="flex items-start">
               <span className="mr-2">2.</span>
-              <span>You'll receive a follow-up email within 2-3 business days</span>
+              <span>You&apos;ll receive a follow-up email within 2-3 business days</span>
             </li>
             <li className="flex items-start">
               <span className="mr-2">3.</span>
-              <span>We'll schedule a discovery call to discuss your project in detail</span>
+              <span>We&apos;ll schedule a discovery call to discuss your project in detail</span>
             </li>
           </ul>
         </div>

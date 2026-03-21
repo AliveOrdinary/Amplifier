@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase'
 import { z } from 'zod'
 import { base64ImageSchema, tagArraySchema } from '@/lib/validation'
 import { getEnhancedPromptSetting } from '@/lib/ai-settings'
+import { requireAuth } from '@/lib/api-auth'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
@@ -54,10 +55,12 @@ interface CorrectionAnalysis {
 
 // ========== IN-MEMORY CACHE ==========
 
+// Opportunistic in-memory cache. In serverless environments this cache may not
+// persist across invocations — it's a best-effort optimization, not a guarantee.
 let correctionCache: CorrectionAnalysis | null = null
 let cacheTimestamp: number = 0
 let lastImageCount: number = 0
-const CACHE_DURATION = 60 * 60 * 1000 // 1 hour
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes (short-lived for serverless)
 const CACHE_IMAGE_THRESHOLD = 5 // Invalidate cache after 5 new images
 
 // Helper function to create empty response with dynamic categories
@@ -89,9 +92,21 @@ function createEmptyResponse(
 // ========== MAIN POST HANDLER ==========
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+
+  // Parse body once before try/catch so it's available in the catch block
+  let body: { vocabulary?: TagVocabulary; image?: string } | null = null
   try {
-    // Parse request body
-    const body = await request.json()
+    body = await request.json()
+  } catch {
+    return NextResponse.json(
+      createEmptyResponse(null, 'low', 'Invalid request', 'Failed to parse request body'),
+      { status: 400 }
+    )
+  }
+
+  try {
 
     // Validate request with Zod
     const validationResult = suggestTagsRequestSchema.safeParse(body)
@@ -109,7 +124,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Add empty arrays for each category in the request
-      if (body.vocabulary && typeof body.vocabulary === 'object') {
+      if (body?.vocabulary && typeof body.vocabulary === 'object') {
         Object.keys(body.vocabulary).forEach(key => {
           emptyResponse[key] = []
         })
@@ -185,8 +200,8 @@ export async function POST(request: NextRequest) {
     // Extract response text
     const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
 
-    // Parse JSON response from Claude
-    const suggestions = parseTagSuggestions(responseText)
+    // Parse JSON response from Claude, filtering against vocabulary
+    const suggestions = parseTagSuggestions(responseText, vocabulary)
 
     // Add prompt version to response
     suggestions.promptVersion = promptVersion
@@ -195,20 +210,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error suggesting tags:', error)
-    
-    // Try to get vocabulary from body for error response
-    let vocab: TagVocabulary | null = null
-    try {
-      const body = await request.json()
-      vocab = body.vocabulary || null
-    } catch {}
-    
+
     return NextResponse.json(
       createEmptyResponse(
-        vocab,
+        body?.vocabulary || null,
         'low',
         'Failed to analyze image',
-        error instanceof Error ? error.message : 'Failed to suggest tags'
+        'An unexpected error occurred'
       ),
       { status: 500 }
     )
@@ -239,11 +247,8 @@ async function getCorrectionAnalysis(): Promise<CorrectionAnalysis | null> {
       cacheAge < CACHE_DURATION &&
       imageCountDelta < CACHE_IMAGE_THRESHOLD
     ) {
-      console.log('📊 Using cached correction analysis')
       return correctionCache
     }
-
-    console.log('🔄 Refreshing correction analysis cache...')
 
     // Fetch all corrections
     const { data: corrections, error: correctionsError } = await supabase
@@ -268,7 +273,6 @@ async function getCorrectionAnalysis(): Promise<CorrectionAnalysis | null> {
     const totalImages = corrections?.length || 0
 
     if (totalImages < 5) {
-      console.log('⏸ Not enough data for correction analysis (need at least 5 images)')
       return null
     }
 
@@ -308,51 +312,68 @@ async function getCorrectionAnalysis(): Promise<CorrectionAnalysis | null> {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
 
-    // Calculate overall accuracy
-    let totalSuggestions = 0
-    let totalAccepted = 0
+    // Calculate overall accuracy using ai_suggested_tags to count total AI suggestions
+    let totalAISuggested = 0
+    let totalRemoved = 0
     corrections?.forEach(correction => {
-      const added = correction.tags_added?.length || 0
+      // ai_suggested_tags contains the original AI suggestions per image
+      const aiSuggested = correction.ai_suggested_tags
+      if (aiSuggested && typeof aiSuggested === 'object') {
+        // Count total tags across all categories
+        Object.values(aiSuggested).forEach((tags: unknown) => {
+          if (Array.isArray(tags)) {
+            totalAISuggested += tags.length
+          }
+        })
+      }
       const removed = correction.tags_removed?.length || 0
-      totalSuggestions += added + removed
-      totalAccepted += (added + removed - removed)
+      totalRemoved += removed
     })
 
-    const accuracyRate = totalSuggestions > 0
-      ? Math.round((totalAccepted / totalSuggestions) * 100)
+    const totalAccepted = totalAISuggested - totalRemoved
+    const accuracyRate = totalAISuggested > 0
+      ? Math.round((Math.max(0, totalAccepted) / totalAISuggested) * 100)
       : 0
 
     // Calculate category-specific accuracy (dynamic categories)
     const categoryAccuracy: Record<string, number> = {}
-    const categoryStats: Record<string, { total: number, correct: number }> = {}
+    const categoryStats: Record<string, { suggested: number, removed: number }> = {}
 
     // Initialize category stats dynamically from vocabulary
     const uniqueCategories = new Set<string>()
     vocabulary?.forEach(v => uniqueCategories.add(v.category))
     uniqueCategories.forEach(cat => {
-      categoryStats[cat] = { total: 0, correct: 0 }
+      categoryStats[cat] = { suggested: 0, removed: 0 }
     })
 
-    // This is simplified - would need more detailed tracking in production
-    frequentlyMissed.forEach(pattern => {
-      const cat = pattern.category
-      if (!categoryStats[cat]) {
-        categoryStats[cat] = { total: 0, correct: 0 }
+    // Count AI suggestions per category from ai_suggested_tags
+    corrections?.forEach(correction => {
+      const aiSuggested = correction.ai_suggested_tags
+      if (aiSuggested && typeof aiSuggested === 'object') {
+        Object.entries(aiSuggested).forEach(([cat, tags]: [string, unknown]) => {
+          if (!categoryStats[cat]) {
+            categoryStats[cat] = { suggested: 0, removed: 0 }
+          }
+          if (Array.isArray(tags)) {
+            categoryStats[cat].suggested += tags.length
+          }
+        })
       }
-      categoryStats[cat].total += pattern.count
     })
 
+    // Count removals per category
     frequentlyWrong.forEach(pattern => {
       const cat = pattern.category
       if (!categoryStats[cat]) {
-        categoryStats[cat] = { total: 0, correct: 0 }
+        categoryStats[cat] = { suggested: 0, removed: 0 }
       }
-      categoryStats[cat].total += pattern.count
+      categoryStats[cat].removed += pattern.count
     })
 
     Object.entries(categoryStats).forEach(([cat, stats]) => {
-      categoryAccuracy[cat] = stats.total > 0
-        ? Math.round((stats.correct / stats.total) * 100)
+      const accepted = stats.suggested - stats.removed
+      categoryAccuracy[cat] = stats.suggested > 0
+        ? Math.round((Math.max(0, accepted) / stats.suggested) * 100)
         : 100
     })
 
@@ -370,8 +391,6 @@ async function getCorrectionAnalysis(): Promise<CorrectionAnalysis | null> {
     correctionCache = analysis
     cacheTimestamp = now
     lastImageCount = currentImageCount || 0
-
-    console.log(`✅ Correction analysis cached (${totalImages} images analyzed)`)
 
     return analysis
 
@@ -539,7 +558,7 @@ function generateWrongTagGuidance(wrongTags: CorrectionPattern[]): string {
 
   // Find categories with multiple wrong tags (pattern of misidentification)
   Object.entries(categoryIssues)
-    .filter(([_, patterns]) => patterns.length >= 2) // 2+ wrong tags in same category
+    .filter(([, patterns]) => patterns.length >= 2) // 2+ wrong tags in same category
     .slice(0, 3) // Top 3 problematic categories
     .forEach(([category, patterns]) => {
       const categoryLabel = category.replace(/_/g, ' ')
@@ -585,7 +604,7 @@ function generateActionableGuidance(corrections: CorrectionAnalysis): string {
 
 // ========== RESPONSE PARSING ==========
 
-function parseTagSuggestions(responseText: string): SuggestTagsResponse {
+function parseTagSuggestions(responseText: string, vocabulary?: TagVocabulary): SuggestTagsResponse {
   try {
     // Remove markdown code blocks if present
     let cleanedText = responseText.trim()
@@ -604,10 +623,20 @@ function parseTagSuggestions(responseText: string): SuggestTagsResponse {
       reasoning: '', // No longer generating reasoning to save API costs
     }
 
-    // Add all category arrays from parsed response
+    // Add category arrays, filtering against vocabulary to reject hallucinated tags
     Object.keys(parsed).forEach(key => {
       if (key !== 'confidence' && key !== 'reasoning') {
-        response[key] = Array.isArray(parsed[key]) ? parsed[key] : []
+        const rawTags = Array.isArray(parsed[key]) ? parsed[key] : []
+        if (vocabulary && vocabulary[key]) {
+          const validTags = rawTags.filter((tag: string) => vocabulary[key].includes(tag))
+          const hallucinated = rawTags.filter((tag: string) => !vocabulary[key].includes(tag))
+          if (hallucinated.length > 0) {
+            console.warn(`Filtered ${hallucinated.length} hallucinated tags from "${key}":`, hallucinated)
+          }
+          response[key] = validTags
+        } else {
+          response[key] = rawTags
+        }
       }
     })
 

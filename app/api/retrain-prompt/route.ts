@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { getEnhancedPromptSetting } from '@/lib/ai-settings'
+import { requireAuth } from '@/lib/api-auth'
 
 interface CorrectionPattern {
   tag: string
@@ -34,10 +35,11 @@ interface RetrainResponse {
  * - When you want to force the AI to learn from recent corrections
  * - To see updated learning patterns immediately
  */
-export async function POST() {
-  try {
-    console.log('🔄 Manual retrain triggered...')
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
 
+  try {
     const supabase = createServerClient()
 
     // Fetch all corrections
@@ -106,55 +108,72 @@ export async function POST() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
 
-    // Calculate overall accuracy
-    let totalSuggestions = 0
-    let totalAccepted = 0
+    // Calculate overall accuracy using ai_suggested_tags
+    let totalAISuggested = 0
+    let totalRemoved = 0
     corrections?.forEach(correction => {
-      const added = correction.tags_added?.length || 0
+      const aiSuggested = correction.ai_suggested_tags
+      if (aiSuggested && typeof aiSuggested === 'object') {
+        Object.values(aiSuggested).forEach((tags: unknown) => {
+          if (Array.isArray(tags)) {
+            totalAISuggested += tags.length
+          }
+        })
+      }
       const removed = correction.tags_removed?.length || 0
-      totalSuggestions += added + removed
-      totalAccepted += (added + removed - removed)
+      totalRemoved += removed
     })
 
-    const accuracyRate = totalSuggestions > 0
-      ? Math.round((totalAccepted / totalSuggestions) * 100)
+    const totalAccepted = totalAISuggested - totalRemoved
+    const accuracyRate = totalAISuggested > 0
+      ? Math.round((Math.max(0, totalAccepted) / totalAISuggested) * 100)
       : 0
 
-    // Calculate category-specific accuracy
+    // Calculate category-specific accuracy (dynamic categories)
     const categoryAccuracy: Record<string, number> = {}
-    const categoryStats: Record<string, { total: number, correct: number }> = {
-      industry: { total: 0, correct: 0 },
-      project_type: { total: 0, correct: 0 },
-      style: { total: 0, correct: 0 },
-      mood: { total: 0, correct: 0 },
-      elements: { total: 0, correct: 0 }
-    }
+    const categoryStats: Record<string, { suggested: number, removed: number }> = {}
 
-    frequentlyMissed.forEach(pattern => {
-      const cat = pattern.category
-      if (categoryStats[cat]) {
-        categoryStats[cat].total += pattern.count
+    // Initialize dynamically from vocabulary
+    const uniqueCategories = new Set<string>()
+    vocabulary?.forEach(v => uniqueCategories.add(v.category))
+    uniqueCategories.forEach(cat => {
+      categoryStats[cat] = { suggested: 0, removed: 0 }
+    })
+
+    // Count AI suggestions per category
+    corrections?.forEach(correction => {
+      const aiSuggested = correction.ai_suggested_tags
+      if (aiSuggested && typeof aiSuggested === 'object') {
+        Object.entries(aiSuggested).forEach(([cat, tags]: [string, unknown]) => {
+          if (!categoryStats[cat]) {
+            categoryStats[cat] = { suggested: 0, removed: 0 }
+          }
+          if (Array.isArray(tags)) {
+            categoryStats[cat].suggested += tags.length
+          }
+        })
       }
     })
 
+    // Count removals per category
     frequentlyWrong.forEach(pattern => {
       const cat = pattern.category
-      if (categoryStats[cat]) {
-        categoryStats[cat].total += pattern.count
+      if (!categoryStats[cat]) {
+        categoryStats[cat] = { suggested: 0, removed: 0 }
       }
+      categoryStats[cat].removed += pattern.count
     })
 
     Object.entries(categoryStats).forEach(([cat, stats]) => {
-      categoryAccuracy[cat] = stats.total > 0
-        ? Math.round((stats.correct / stats.total) * 100)
+      const accepted = stats.suggested - stats.removed
+      categoryAccuracy[cat] = stats.suggested > 0
+        ? Math.round((Math.max(0, accepted) / stats.suggested) * 100)
         : 100
     })
 
     // Note: The actual cache invalidation happens automatically in the suggest-tags route
     // when it detects new images or cache expiration. This endpoint just provides
     // visibility into what the next prompt will include.
-
-    console.log(`✅ Retrain analysis complete (${totalImages} images analyzed)`)
 
     return NextResponse.json({
       success: true,
@@ -175,7 +194,7 @@ export async function POST() {
       {
         success: false,
         message: 'Failed to retrain prompt',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: 'An unexpected error occurred'
       } as RetrainResponse,
       { status: 500 }
     )
@@ -187,7 +206,10 @@ export async function POST() {
  *
  * Get current learning status without triggering a retrain
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+
   try {
     const supabase = createServerClient()
 
@@ -221,7 +243,7 @@ export async function GET() {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: 'An unexpected error occurred'
       },
       { status: 500 }
     )

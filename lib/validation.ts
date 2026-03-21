@@ -11,56 +11,6 @@ import { z } from 'zod';
  */
 
 // ============================================================================
-// Briefing Form Validation
-// ============================================================================
-
-export const briefingEmailSchema = z.object({
-  email: z
-    .string()
-    .email('Invalid email address')
-    .max(100, 'Email must be less than 100 characters')
-    .trim()
-    .toLowerCase(),
-  studioEmail: z
-    .string()
-    .email('Invalid studio email address')
-    .max(100, 'Email must be less than 100 characters')
-    .trim()
-    .toLowerCase(),
-});
-
-export const questionnaireFieldSchema = z
-  .string()
-  .max(5000, 'Response must be less than 5000 characters')
-  .trim()
-  .optional();
-
-export const questionnaireSchema = z.object({
-  projectName: z
-    .string()
-    .min(1, 'Project name is required')
-    .max(200, 'Project name must be less than 200 characters')
-    .trim(),
-  companyName: z
-    .string()
-    .max(200, 'Company name must be less than 200 characters')
-    .trim()
-    .optional(),
-  industry: questionnaireFieldSchema,
-  projectGoals: questionnaireFieldSchema,
-  targetAudience: questionnaireFieldSchema,
-  competitors: questionnaireFieldSchema,
-  brandPersonality: questionnaireFieldSchema,
-  designPreferences: questionnaireFieldSchema,
-  mustHaveElements: questionnaireFieldSchema,
-  colorPreferences: questionnaireFieldSchema,
-  inspirationLinks: questionnaireFieldSchema,
-  timeline: questionnaireFieldSchema,
-  budget: questionnaireFieldSchema,
-  additionalInfo: questionnaireFieldSchema,
-});
-
-// ============================================================================
 // File Upload Validation
 // ============================================================================
 
@@ -240,23 +190,6 @@ export const vocabularyConfigSchema = z.object({
 });
 
 // ============================================================================
-// AI Suggestion Validation
-// ============================================================================
-
-export const aiSuggestionsSchema = z.object({
-  industries: tagArraySchema,
-  projectTypes: tagArraySchema,
-  styles: tagArraySchema,
-  moods: tagArraySchema,
-  elements: tagArraySchema,
-  confidence: z.enum(['low', 'medium', 'high']),
-  reasoning: z
-    .string()
-    .max(2000, 'Reasoning must be less than 2000 characters')
-    .optional(),
-});
-
-// ============================================================================
 // Search and Filter Validation
 // ============================================================================
 
@@ -338,8 +271,6 @@ export function generateSecureFilename(extension: string): string {
 // Type Exports
 // ============================================================================
 
-export type BriefingEmailInput = z.infer<typeof briefingEmailSchema>;
-export type QuestionnaireInput = z.infer<typeof questionnaireSchema>;
 export type ImageFileInput = z.infer<typeof imageFileSchema>;
 export type TagCategory = z.infer<typeof tagCategorySchema>;
 export type CreateTagInput = z.infer<typeof createTagSchema>;
@@ -347,7 +278,6 @@ export type UpdateTagInput = z.infer<typeof updateTagSchema>;
 export type ImageStatus = z.infer<typeof imageStatusSchema>;
 export type VocabularyConfigInput = z.infer<typeof vocabularyConfigSchema>;
 export type VocabularyCategory = z.infer<typeof vocabularyCategorySchema>;
-export type AISuggestionsInput = z.infer<typeof aiSuggestionsSchema>;
 export type SearchQuery = z.infer<typeof searchQuerySchema>;
 export type SortOrder = z.infer<typeof sortOrderSchema>;
 export type PaginationInput = z.infer<typeof paginationSchema>;

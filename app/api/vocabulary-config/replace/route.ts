@@ -1,26 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { vocabularyConfigSchema } from '@/lib/validation';
+import { requireAuth } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
-interface ReplaceVocabularyRequest {
-  structure: {
-    categories: Array<{
-      key: string;
-      label: string;
-      storage_type: 'array' | 'jsonb_array' | 'text';
-      storage_path: string;
-      search_weight: number;
-      description?: string;
-      placeholder?: string;
-    }>;
-  };
-  config_name: string;
-  description?: string;
-}
-
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = await request.json();
 
@@ -46,10 +34,8 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
 
     // Start replacement process
-    console.log('Starting vocabulary replacement...');
 
     // 1. Delete all images and their storage files
-    console.log('Deleting all images and storage files...');
     const { data: images, error: fetchError } = await supabase
       .from('reference_images')
       .select('id, storage_path, thumbnail_path');
@@ -95,7 +81,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Delete all tag corrections
-    console.log('Deleting all tag corrections...');
     const { error: deleteCorrectionsError } = await supabase
       .from('tag_corrections')
       .delete()
@@ -106,7 +91,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Delete all tags from vocabulary
-    console.log('Deleting all vocabulary tags...');
     const { error: deleteTagsError } = await supabase
       .from('tag_vocabulary')
       .delete()
@@ -117,7 +101,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Delete old vocabulary config
-    console.log('Deleting old vocabulary config...');
     const { error: deleteConfigError } = await supabase
       .from('vocabulary_config')
       .delete()
@@ -128,7 +111,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Sync database schema with new vocabulary structure
-    console.log('Syncing database schema with new vocabulary structure...');
 
     // Get current columns in reference_images table
     let currentColumns: any[] = [];
@@ -178,10 +160,8 @@ export async function POST(request: NextRequest) {
 
     // Add new columns if needed
     if (columnsToAdd.length > 0) {
-      console.log(`Adding ${columnsToAdd.length} new columns:`, columnsToAdd.map(c => c.name));
-
       for (const column of columnsToAdd) {
-        const { data: syncResult, error: syncError } = await supabase.rpc(
+        const { error: syncError } = await supabase.rpc(
           'sync_reference_images_schema',
           {
             column_name: column.name,
@@ -198,12 +178,10 @@ export async function POST(request: NextRequest) {
           }, { status: 500 });
         }
 
-        console.log(`Column ${column.name}: ${syncResult.action} - ${syncResult.message}`);
       }
     }
 
     // 6. Insert new vocabulary config
-    console.log('Inserting new vocabulary config...');
     const { data: newConfig, error: insertError } = await supabase
       .from('vocabulary_config')
       .insert({
@@ -225,7 +203,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Insert tags from categories (if provided)
-    console.log('Inserting tags from categories...');
     let totalTagsInserted = 0;
 
     for (const category of structure.categories) {
@@ -265,9 +242,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`Inserted ${totalTagsInserted} tags across categories`);
-    console.log('Vocabulary replacement completed successfully');
-
     return NextResponse.json({
       success: true,
       message: 'Vocabulary replaced successfully. System is ready for fresh tagging.',
@@ -283,8 +257,7 @@ export async function POST(request: NextRequest) {
     console.error('Error in vocabulary replacement:', error);
     return NextResponse.json({
       success: false,
-      error: 'Failed to replace vocabulary',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      error: 'An unexpected error occurred'
     }, { status: 500 });
   }
 }
