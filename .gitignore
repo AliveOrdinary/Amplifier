@@ -46,10 +46,15 @@ yarn-error.log*
 *.sln
 *.sw?
 .claude
+CLAUDE.md
 
 # System files
 .DS_Store
 Thumbs.db
+
+# Backup files
+*.backup
+*.backup.*
 
 # Optional: if you're using TypeScript and want to ignore compiled JS files
 # (assuming your source .ts files are in the same directory)
