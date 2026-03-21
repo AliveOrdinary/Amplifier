@@ -33,7 +33,7 @@ export default function AddCategoryModal({ newCategory, setNewCategory, onSubmit
               Category Key *
             </label>
             <p className="text-xs text-gray-400 mb-2">
-              💡 Lowercase with underscores only (e.g., "color_palette")
+              💡 Lowercase with underscores only (e.g., &quot;color_palette&quot;)
             </p>
             <input
               type="text"
@@ -126,7 +126,7 @@ export default function AddCategoryModal({ newCategory, setNewCategory, onSubmit
               value={newCategory.search_weight}
               onChange={(e) => setNewCategory({
                 ...newCategory,
-                search_weight: parseInt(e.target.value)
+                search_weight: parseInt(e.target.value, 10) || 1
               })}
               className="w-full border-2 border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-gray-900 text-white placeholder-gray-500 transition-all hover:border-gray-500"
               required

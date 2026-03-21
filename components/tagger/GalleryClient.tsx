@@ -2,64 +2,22 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { createClientComponentClient } from '@/lib/supabase'
-import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
 import Image from 'next/image'
 import ImageDetailModal from './Gallery/ImageDetailModal'
 import EditImageModal from './Gallery/EditImageModal'
 import BulkEditModal from './Gallery/BulkEditModal'
-import { getDatabaseCategory } from '@/lib/vocabulary-utils'
-
-interface ReferenceImage {
-  id: string
-  storage_path: string
-  thumbnail_path: string
-  original_filename: string
-  notes: string | null
-  status: string
-  tagged_at: string
-  updated_at: string
-  ai_suggested_tags: any
-  ai_confidence_score: number | null
-  ai_reasoning: string | null
-  // Dynamic category fields from vocabulary config
-  [key: string]: any
-}
+import { getImageValue } from '@/lib/vocabulary-utils'
+import type { TaggerReferenceImage, VocabularyCategory, VocabularyConfig, TagVocabulary, TagVocabularyRow } from '@/lib/types/tagger'
 
 interface GalleryClientProps {
-  images: ReferenceImage[]
-}
-
-interface VocabularyCategory {
-  key: string
-  label: string
-  description: string
-  placeholder: string
-  storage_path: string
-  storage_type: 'array' | 'jsonb_array' | 'text'
-  search_weight: number
-}
-
-interface VocabularyConfig {
-  structure: {
-    categories: VocabularyCategory[]
-  }
-}
-
-interface TagVocabulary {
-  [categoryKey: string]: string[]
-}
-
-interface TagVocabularyRow {
-  category: string
-  tag_value: string
-  sort_order: number
+  images: TaggerReferenceImage[]
 }
 
 export default function GalleryClient({ images: initialImages }: GalleryClientProps) {
   const supabase = createClientComponentClient()
-  const [images, setImages] = useState<ReferenceImage[]>(initialImages)
-  const [selectedImage, setSelectedImage] = useState<ReferenceImage | null>(null)
-  const [editingImage, setEditingImage] = useState<ReferenceImage | null>(null)
+  const [images, setImages] = useState<TaggerReferenceImage[]>(initialImages)
+  const [selectedImage, setSelectedImage] = useState<TaggerReferenceImage | null>(null)
+  const [editingImage, setEditingImage] = useState<TaggerReferenceImage | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'updated'>('newest')
 
@@ -117,7 +75,8 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
     const loadVocabulary = async () => {
       try {
         // Fetch all active tags, sorted by category and sort_order
-        const { data, error } = await supabase
+        const client = createClientComponentClient()
+        const { data, error } = await client
           .from('tag_vocabulary')
           .select('category, tag_value, sort_order')
           .eq('is_active', true)
@@ -133,8 +92,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
         // Create a mapping from database category to config category key
         const dbCategoryToConfigKey: Record<string, string> = {}
         vocabConfig.structure.categories.forEach(category => {
-          const dbCategory = getDatabaseCategory(category.storage_path, category.key)
-          dbCategoryToConfigKey[dbCategory] = category.key
+          dbCategoryToConfigKey[category.key] = category.key
         })
 
         // Group tags by config category key (not database category)
@@ -162,22 +120,6 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
 
     loadVocabulary()
   }, [vocabConfig])
-
-  // Helper function to get value from image based on storage_path
-  const getImageValue = (image: ReferenceImage, storagePath: string): any => {
-    if (storagePath.includes('.')) {
-      // Nested path like "tags.style"
-      const parts = storagePath.split('.')
-      let value: any = image
-      for (const part of parts) {
-        value = value?.[part]
-      }
-      return value
-    } else {
-      // Direct path like "industries"
-      return image[storagePath]
-    }
-  }
 
   // Extract unique values for each category filter
   const categoryFilterOptions = useMemo(() => {
@@ -214,7 +156,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
   const filteredImages = useMemo(() => {
     if (!vocabConfig) return images
 
-    let filtered = images.filter(img => {
+    const filtered = images.filter(img => {
       // Search filter
       const matchesSearch = searchQuery === '' ||
         img.original_filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -257,14 +199,14 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
   }, [images, searchQuery, categoryFilters, sortBy, vocabConfig])
 
   // Handle image update after edit
-  const handleImageUpdate = (updatedImage: ReferenceImage) => {
+  const handleImageUpdate = (updatedImage: TaggerReferenceImage) => {
     setImages(prev => prev.map(img => img.id === updatedImage.id ? updatedImage : img))
     setEditingImage(null)
     setSelectedImage(null)
   }
 
   // Handle bulk update
-  const handleBulkUpdate = (updatedImages: ReferenceImage[]) => {
+  const handleBulkUpdate = (updatedImages: TaggerReferenceImage[]) => {
     const updateMap = new Map(updatedImages.map(img => [img.id, img]))
     setImages(prev => prev.map(img => updateMap.get(img.id) || img))
     setSelectedImageIds(new Set())
@@ -345,7 +287,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
             <label className="block text-sm font-semibold text-gray-300 mb-2">Sort By</label>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'updated')}
               className="w-full px-4 py-3 border-2 border-gray-600 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium transition-colors"
             >
               <option value="newest">📅 Newest First</option>
@@ -522,7 +464,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
 
 // Image Card Component
 interface ImageCardProps {
-  image: ReferenceImage
+  image: TaggerReferenceImage
   vocabConfig: VocabularyConfig
   isSelected: boolean
   onToggleSelect: () => void
@@ -530,24 +472,10 @@ interface ImageCardProps {
 }
 
 function ImageCard({ image, vocabConfig, isSelected, onToggleSelect, onClick }: ImageCardProps) {
-  // Helper function to get value from image based on storage_path
-  const getImageValue = (storagePath: string): any => {
-    if (storagePath.includes('.')) {
-      const parts = storagePath.split('.')
-      let value: any = image
-      for (const part of parts) {
-        value = value?.[part]
-      }
-      return value
-    } else {
-      return image[storagePath]
-    }
-  }
-
   // Collect all tags from all categories dynamically
   const allTags: string[] = []
   vocabConfig.structure.categories.forEach(category => {
-    const value = getImageValue(category.storage_path)
+    const value = getImageValue(image, category.storage_path)
     if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
       if (Array.isArray(value)) {
         allTags.push(...value)

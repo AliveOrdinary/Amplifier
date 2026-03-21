@@ -9,34 +9,7 @@ import MergeTagModal from './Vocabulary/MergeTagModal'
 import AddTagModal from './Vocabulary/AddTagModal'
 import AddCategoryModal from './Vocabulary/AddCategoryModal'
 import EditCategoryModal from './Vocabulary/EditCategoryModal'
-
-interface VocabularyTag {
-  id: string
-  category: string
-  tag_value: string
-  description: string | null
-  sort_order: number
-  is_active: boolean
-  times_used: number
-  last_used_at: string | null
-  created_at: string
-}
-
-interface VocabularyCategory {
-  key: string
-  label: string
-  description: string
-  placeholder: string
-  storage_path: string
-  storage_type: 'array' | 'jsonb_array' | 'text'
-  search_weight: number
-}
-
-interface VocabularyConfig {
-  structure: {
-    categories: VocabularyCategory[]
-  }
-}
+import type { VocabularyTag, VocabularyCategory, VocabularyConfig } from '@/lib/types/tagger'
 
 interface VocabularyClientProps {
   tags: VocabularyTag[]
@@ -602,7 +575,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       {/* All Tags View */}
       {activeView === 'all' && (
         <div className="space-y-6">
-          {Object.entries(tagsByCategory).filter(([_, categoryTags]) => categoryTags.length > 0).length === 0 ? (
+          {Object.entries(tagsByCategory).filter(([, categoryTags]) => categoryTags.length > 0).length === 0 ? (
             <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
               <div className="text-4xl mb-4">📝</div>
               <h3 className="text-xl font-semibold text-white mb-2">No tags yet</h3>
@@ -616,7 +589,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
             </div>
           ) : (
             Object.entries(tagsByCategory)
-              .filter(([_, categoryTags]) => categoryTags.length > 0) // Only show categories with tags
+              .filter(([, categoryTags]) => categoryTags.length > 0) // Only show categories with tags
               .map(([category, categoryTags]) => (
             <div key={category} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden shadow-xl">
               <div className="px-6 py-4 bg-gradient-to-r from-gray-900 to-gray-800 border-b border-gray-700">
@@ -652,7 +625,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
                   </thead>
                   <tbody className="bg-gray-800 divide-y divide-gray-700">
                     {categoryTags.map(tag => (
-                      <tr key={tag.id} className={!tag.is_active ? 'bg-gray-900/50 opacity-60' : 'hover:bg-gray-750 transition-colors'}>
+                      <tr key={tag.id} className={!tag.is_active ? 'bg-gray-900/50 opacity-60' : 'hover:bg-gray-700 transition-colors'}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-semibold text-white">{tag.tag_value}</div>
                         </td>

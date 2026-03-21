@@ -3,52 +3,18 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
-import { getImageValue, buildUpdateObject } from '@/lib/vocabulary-utils'
+import { getImageValue } from '@/lib/vocabulary-utils'
 import { updateTagUsageForChanges } from '@/lib/tag-usage-utils'
 import { useToast } from '@/components/ui'
-
-interface ReferenceImage {
-  id: string
-  storage_path: string
-  thumbnail_path: string
-  original_filename: string
-  notes: string | null
-  status: string
-  tagged_at: string
-  updated_at: string
-  ai_suggested_tags: any
-  ai_confidence_score: number | null
-  ai_reasoning: string | null
-  [key: string]: any
-}
-
-interface VocabularyCategory {
-  key: string
-  label: string
-  description: string
-  placeholder: string
-  storage_path: string
-  storage_type: 'array' | 'jsonb_array' | 'text'
-  search_weight: number
-}
-
-interface VocabularyConfig {
-  structure: {
-    categories: VocabularyCategory[]
-  }
-}
-
-interface TagVocabulary {
-  [categoryKey: string]: string[]
-}
+import type { TaggerReferenceImage, VocabularyConfig, TagVocabulary, TaggerSupabaseClient } from '@/lib/types/tagger'
 
 interface EditImageModalProps {
-  image: ReferenceImage
+  image: TaggerReferenceImage
   vocabulary: TagVocabulary
   vocabConfig: VocabularyConfig
   onClose: () => void
-  onSave: (updatedImage: ReferenceImage) => void
-  supabase: any
+  onSave: (updatedImage: TaggerReferenceImage) => void
+  supabase: TaggerSupabaseClient
 }
 
 export default function EditImageModal({ image, vocabulary, vocabConfig, onClose, onSave, supabase }: EditImageModalProps) {
@@ -156,7 +122,7 @@ export default function EditImageModal({ image, vocabulary, vocabConfig, onClose
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-gray-800 rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto my-8 border border-gray-700">
         {/* Header */}
         <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between z-10">

@@ -8,8 +8,6 @@ import { useToast, useConfirmDialog } from '@/components/ui'
 import Link from 'next/link'
 import Image from 'next/image'
 
-const supabase = createClientComponentClient()
-
 interface DashboardStats {
   images: {
     total: number
@@ -43,6 +41,7 @@ interface DashboardClientProps {
 }
 
 export default function DashboardClient({ stats }: DashboardClientProps) {
+  const supabase = createClientComponentClient()
   const router = useRouter()
   const toast = useToast()
   const { confirmDialog, showConfirm } = useConfirmDialog()
@@ -65,8 +64,6 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
     setDeleteProgress('Starting deletion...')
 
     try {
-      console.log('🗑️ Calling delete all images API...')
-
       const response = await fetch('/api/admin/delete-all-images', {
         method: 'DELETE',
       })
@@ -84,7 +81,6 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
         return
       }
 
-      console.log(`✅ Successfully deleted ${data.deletedCount} images`)
       setDeleteProgress(`Successfully deleted ${data.deletedCount} images!`)
 
       // Wait a moment to show success message
@@ -128,7 +124,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
 
       // Filter to only duplicates (more than 1 image with same filename)
       const dupes = Object.entries(grouped)
-        .filter(([_, imgs]) => imgs.length > 1)
+        .filter(([, imgs]) => imgs.length > 1)
         .map(([filename, imgs]) => ({ filename, images: imgs }))
 
       setDuplicates(dupes)
@@ -359,7 +355,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
               ))}
               <div className="flex justify-between items-center pt-2 border-t border-gray-700">
                 <span className="text-gray-400">Never Used:</span>
-                <span className="font-semibold text-gray-500 bg-gray-750 px-2 py-0.5 rounded">{stats.vocabulary.neverUsed}</span>
+                <span className="font-semibold text-gray-500 bg-gray-700 px-2 py-0.5 rounded">{stats.vocabulary.neverUsed}</span>
               </div>
             </div>
           </div>
@@ -584,7 +580,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
 
       {/* Delete All Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-gray-800 rounded-lg max-w-md w-full p-6 border border-gray-700">
             <div className="text-center mb-6">
               <div className="text-6xl mb-4">⚠️</div>
@@ -645,7 +641,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
 
       {/* Duplicates Modal */}
       {showDuplicates && (
-        <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8 border border-gray-700">
             <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
               <h3 className="text-2xl font-bold text-white">

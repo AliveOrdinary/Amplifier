@@ -3,40 +3,10 @@
 import { useMemo } from 'react'
 import Image from 'next/image'
 import { getImageValue } from '@/lib/vocabulary-utils'
-
-interface ReferenceImage {
-  id: string
-  storage_path: string
-  thumbnail_path: string
-  original_filename: string
-  notes: string | null
-  status: string
-  tagged_at: string
-  updated_at: string
-  ai_suggested_tags: any
-  ai_confidence_score: number | null
-  ai_reasoning: string | null
-  [key: string]: any
-}
-
-interface VocabularyCategory {
-  key: string
-  label: string
-  description: string
-  placeholder: string
-  storage_path: string
-  storage_type: 'array' | 'jsonb_array' | 'text'
-  search_weight: number
-}
-
-interface VocabularyConfig {
-  structure: {
-    categories: VocabularyCategory[]
-  }
-}
+import type { TaggerReferenceImage, VocabularyConfig } from '@/lib/types/tagger'
 
 interface ImageDetailModalProps {
-  image: ReferenceImage
+  image: TaggerReferenceImage
   vocabConfig: VocabularyConfig
   onClose: () => void
   onEdit: () => void
@@ -44,15 +14,18 @@ interface ImageDetailModalProps {
 
 export default function ImageDetailModal({ image, vocabConfig, onClose, onEdit }: ImageDetailModalProps) {
   // Collect actual tags dynamically
-  const actualTags: Record<string, string[]> = {}
-  vocabConfig.structure.categories.forEach(category => {
-    const value = getImageValue(image, category.storage_path)
-    if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
-      actualTags[category.key] = Array.isArray(value) ? value : []
-    } else if (category.storage_type === 'text') {
-      actualTags[category.key] = value ? [value] : []
-    }
-  })
+  const actualTags = useMemo(() => {
+    const tags: Record<string, string[]> = {}
+    vocabConfig.structure.categories.forEach(category => {
+      const value = getImageValue(image, category.storage_path)
+      if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+        tags[category.key] = Array.isArray(value) ? value : []
+      } else if (category.storage_type === 'text') {
+        tags[category.key] = value ? [value] : []
+      }
+    })
+    return tags
+  }, [image, vocabConfig])
 
   const corrections = useMemo(() => {
     const aiSuggested = image.ai_suggested_tags
@@ -84,7 +57,7 @@ export default function ImageDetailModal({ image, vocabConfig, onClose, onEdit }
   }, [image.ai_suggested_tags, actualTags])
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-gray-800 rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto my-8 border border-gray-700">
         {/* Header */}
         <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between z-10">

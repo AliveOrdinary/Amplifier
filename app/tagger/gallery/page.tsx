@@ -1,39 +1,14 @@
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@/lib/supabase'
 import GalleryClient from '@/components/tagger/GalleryClient'
 import Link from 'next/link'
+import type { TaggerReferenceImage } from '@/lib/types/tagger'
 
 // Disable caching - always fetch fresh data
 export const revalidate = 0
 export const dynamic = 'force-dynamic'
 
-// Server-side Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
-
-interface ReferenceImage {
-  id: string
-  storage_path: string
-  thumbnail_path: string
-  original_filename: string
-  notes: string | null
-  status: string
-  tagged_at: string
-  updated_at: string
-  ai_suggested_tags: any
-  ai_confidence_score: number | null
-  ai_reasoning: string | null
-  // Dynamic category fields from vocabulary config
-  [key: string]: any
-}
-
-async function getTaggedImages(): Promise<ReferenceImage[]> {
+async function getTaggedImages(): Promise<TaggerReferenceImage[]> {
+  const supabaseAdmin = createServerClient()
   const { data, error } = await supabaseAdmin
     .from('reference_images')
     .select('*')

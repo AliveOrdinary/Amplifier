@@ -39,7 +39,7 @@ export default function EditCategoryModal({ category, onClose, onSave }: EditCat
         {/* Header */}
         <div className="px-8 py-6 border-b-2 border-gray-700">
           <h2 className="text-3xl font-bold text-white">✏️ Edit Category</h2>
-          <p className="text-gray-300 mt-2">Update properties for "{category.label}"</p>
+          <p className="text-gray-300 mt-2">Update properties for &quot;{category.label}&quot;</p>
         </div>
 
         {/* Info Banner */}
@@ -108,7 +108,7 @@ export default function EditCategoryModal({ category, onClose, onSave }: EditCat
               min="1"
               max="10"
               value={searchWeight}
-              onChange={(e) => setSearchWeight(parseInt(e.target.value))}
+              onChange={(e) => setSearchWeight(parseInt(e.target.value, 10) || 1)}
               className="w-full border-2 border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-gray-900 text-white transition-all hover:border-gray-500"
               required
             />

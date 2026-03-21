@@ -1,23 +1,12 @@
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@/lib/supabase'
 import AIAnalyticsClient from '@/components/tagger/AIAnalyticsClient'
 import Link from 'next/link'
-import { VocabularyCategory } from '@/lib/validation'
+import type { VocabularyCategory } from '@/lib/types/tagger'
 import { getImageValue } from '@/lib/vocabulary-utils'
 
 // Disable caching - always fetch fresh data
 export const revalidate = 0
 export const dynamic = 'force-dynamic'
-
-// Server-side Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
 
 // Type definitions
 interface TagCategoryStats {
@@ -56,18 +45,6 @@ interface ImageAnalysis {
   tagged_at: string
 }
 
-interface VocabularyConfig {
-  structure: {
-    categories: Array<{
-      key: string
-      label: string
-      storage_path: string
-      storage_type: 'array' | 'jsonb_array' | 'text'
-      search_weight: number
-    }>
-  }
-}
-
 interface AIAnalytics {
   overallMetrics: {
     totalImagesAnalyzed: number
@@ -83,10 +60,11 @@ interface AIAnalytics {
   confidenceBuckets: ConfidenceBucket[]
   imageAnalysis: ImageAnalysis[]
   insights: string[]
-  vocabConfig: VocabularyConfig // Add config to pass to client
+  vocabConfig: { structure: { categories: VocabularyCategory[] } }
 }
 
 async function getAIAnalytics(): Promise<AIAnalytics> {
+  const supabaseAdmin = createServerClient()
   try {
     // Fetch active vocabulary config
     const { data: vocabConfig, error: configError } = await supabaseAdmin

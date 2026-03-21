@@ -2,36 +2,9 @@
 
 import { useState } from 'react'
 import { ErrorMessages, getErrorMessage } from '@/lib/error-messages'
-import { getImageValue, setImageValue } from '@/lib/vocabulary-utils'
+import { getImageValue } from '@/lib/vocabulary-utils'
 import { useToast, useConfirmDialog } from '@/components/ui'
-
-interface VocabularyTag {
-  id: string
-  category: string
-  tag_value: string
-  description: string | null
-  sort_order: number
-  is_active: boolean
-  times_used: number
-  last_used_at: string | null
-  created_at: string
-}
-
-interface VocabularyCategory {
-  key: string
-  label: string
-  description: string
-  placeholder: string
-  storage_path: string
-  storage_type: 'array' | 'jsonb_array' | 'text'
-  search_weight: number
-}
-
-interface VocabularyConfig {
-  structure: {
-    categories: VocabularyCategory[]
-  }
-}
+import type { VocabularyTag, VocabularyConfig, TaggerSupabaseClient } from '@/lib/types/tagger'
 
 interface MergeTagModalProps {
   sourceTag: VocabularyTag
@@ -39,7 +12,7 @@ interface MergeTagModalProps {
   vocabConfig: VocabularyConfig
   onClose: () => void
   onMerge: (sourceId: string) => void
-  supabase: any
+  supabase: TaggerSupabaseClient
 }
 
 export default function MergeTagModal({ sourceTag, allTags, vocabConfig, onClose, onMerge, supabase }: MergeTagModalProps) {
@@ -161,7 +134,7 @@ export default function MergeTagModal({ sourceTag, allTags, vocabConfig, onClose
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
       <div className="bg-gray-800 rounded-lg max-w-md w-full p-6 border border-gray-700">
         <h2 className="text-xl font-bold text-white mb-4">Merge Tag</h2>
 

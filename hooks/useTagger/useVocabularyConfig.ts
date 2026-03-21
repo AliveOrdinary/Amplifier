@@ -1,22 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import type { VocabularyCategory, VocabularyConfig } from '@/lib/types/tagger'
 
-export interface VocabularyCategory {
-  key: string
-  label: string
-  description: string
-  placeholder: string
-  storage_path: string
-  storage_type: 'array' | 'jsonb_array' | 'text'
-  search_weight: number
-}
-
-export interface VocabularyConfig {
-  structure: {
-    categories: VocabularyCategory[]
-  }
-}
+export type { VocabularyCategory, VocabularyConfig }
 
 export interface UseVocabularyConfigReturn {
   config: VocabularyConfig | null

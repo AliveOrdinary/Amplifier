@@ -1,35 +1,14 @@
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@/lib/supabase'
 import VocabularyClient from '@/components/tagger/VocabularyClient'
 import Link from 'next/link'
+import type { VocabularyTag } from '@/lib/types/tagger'
 
 // Disable caching - always fetch fresh data
 export const revalidate = 0
 export const dynamic = 'force-dynamic'
 
-// Server-side Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
-
-interface VocabularyTag {
-  id: string
-  category: string
-  tag_value: string
-  description: string | null
-  sort_order: number
-  is_active: boolean
-  times_used: number
-  last_used_at: string | null
-  created_at: string
-}
-
 async function getVocabularyTags(): Promise<VocabularyTag[]> {
+  const supabaseAdmin = createServerClient()
   const { data, error } = await supabaseAdmin
     .from('tag_vocabulary')
     .select('*')

@@ -2,35 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@/lib/supabase';
-import { ErrorMessages, getErrorMessage } from '@/lib/error-messages';
-import { useToast, useConfirmDialog } from '@/components/ui';
+import { useConfirmDialog } from '@/components/ui';
 import Link from 'next/link';
-
-const supabase = createClientComponentClient();
-
-interface VocabularyCategory {
-  key: string;
-  label: string;
-  storage_type: 'array' | 'jsonb_array' | 'text';
-  storage_path: string;
-  search_weight: number;
-  description?: string;
-  placeholder?: string;
-}
-
-interface VocabularyConfig {
-  id: string;
-  config_name: string;
-  description: string | null;
-  structure: {
-    categories: VocabularyCategory[];
-  };
-  created_at: string;
-  updated_at: string;
-}
+import type { VocabularyConfigRow } from '@/lib/types/tagger';
 
 export default function VocabularyConfigClient() {
-  const [currentConfig, setCurrentConfig] = useState<VocabularyConfig | null>(null);
+  const supabase = createClientComponentClient();
+  const [currentConfig, setCurrentConfig] = useState<VocabularyConfigRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReplaceModal, setShowReplaceModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -192,7 +170,7 @@ export default function VocabularyConfigClient() {
               </thead>
               <tbody className="divide-y divide-gray-700">
                 {currentConfig.structure.categories.map((cat: any) => (
-                  <tr key={cat.key} className="hover:bg-gray-750 transition-colors bg-gray-800">
+                  <tr key={cat.key} className="hover:bg-gray-700 transition-colors bg-gray-800">
                     <td className="py-5 px-6 font-semibold text-white">{cat.label}</td>
                     <td className="py-5 px-6">
                       <span className="font-mono text-sm text-blue-300 bg-blue-900/50 px-2 py-1 rounded border border-blue-700">
@@ -312,13 +290,11 @@ export default function VocabularyConfigClient() {
 
 // Replace Vocabulary Modal Component
 function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const toast = useToast();
   const { confirmDialog, showConfirm } = useConfirmDialog();
   const [inputMethod, setInputMethod] = useState<'paste' | 'upload'>('paste');
   const [pastedJson, setPastedJson] = useState('');
   const [parseError, setParseError] = useState<string | null>(null);
   const [parseSuccess, setParseSuccess] = useState(false);
-  const [jsonFile, setJsonFile] = useState<File | null>(null);
   const [newStructure, setNewStructure] = useState<any>(null);
   const [configName, setConfigName] = useState('');
   const [description, setDescription] = useState('');
@@ -356,7 +332,6 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setJsonFile(file);
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -374,7 +349,7 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
         if (json.config_name) setConfigName(json.config_name);
         if (json.description) setDescription(json.description);
         setError(null);
-      } catch (err) {
+      } catch {
         setError('Invalid JSON file');
         setNewStructure(null);
       }
@@ -591,7 +566,7 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-700">
         <div className="p-10">
           <h2 className="text-3xl font-bold text-white mb-8">Replace Vocabulary Configuration</h2>
