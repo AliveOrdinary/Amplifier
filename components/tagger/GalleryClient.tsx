@@ -58,7 +58,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
         })
         setCategoryFilters(initialFilters)
       } catch (error) {
-        console.error('❌ Error loading vocabulary config:', error)
+        console.error('Error loading vocabulary config:', error)
         setConfigError(error instanceof Error ? error.message : 'Failed to load vocabulary config')
       } finally {
         setConfigLoading(false)
@@ -101,7 +101,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
           const configKey = dbCategoryToConfigKey[dbCategory]
           
           if (!configKey) {
-            console.warn(`⚠️ No config mapping found for database category: ${dbCategory}`)
+            console.warn(`No config mapping found for database category: ${dbCategory}`)
             return acc
           }
           
@@ -114,7 +114,7 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
 
         setVocabulary(groupedVocabulary)
       } catch (error) {
-        console.error('❌ Error loading vocabulary:', error)
+        console.error('Error loading vocabulary:', error)
       }
     }
 
@@ -239,20 +239,18 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
   // Show loading state while config is loading
   if (configLoading) {
     return (
-      <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-        <div className="text-4xl mb-4">⏳</div>
-        <h3 className="text-xl font-semibold text-white mb-2">Loading gallery...</h3>
-        <p className="text-gray-300">Fetching vocabulary configuration</p>
+      <div className="bg-gray-900 rounded-lg p-12 text-center border border-gray-800">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+        <p className="text-sm text-gray-400">Loading gallery...</p>
       </div>
     )
   }
 
   if (configError) {
     return (
-      <div className="bg-gray-800 rounded-lg p-12 text-center border border-red-700">
-        <div className="text-4xl mb-4">❌</div>
-        <h3 className="text-xl font-semibold text-red-300 mb-2">Configuration Error</h3>
-        <p className="text-red-400">{configError}</p>
+      <div className="bg-gray-900 rounded-lg p-12 text-center border border-red-900">
+        <h3 className="text-base font-medium text-red-300 mb-1">Configuration Error</h3>
+        <p className="text-sm text-red-400">{configError}</p>
       </div>
     )
   }
@@ -264,88 +262,77 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
   return (
     <div className="space-y-8">
       {/* Filters and Controls */}
-      <div className="bg-gray-800 rounded-xl p-8 shadow-xl border border-gray-700">
-        {/* Header */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-white mb-2">Filter Gallery</h2>
-          <p className="text-sm text-gray-300">Search and filter your reference images</p>
-        </div>
-
+      <div className="bg-gray-900 rounded-lg p-6 border border-gray-800">
         {/* Search and Sort Row */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex gap-4 mb-4">
           <div className="flex-1">
-            <label className="block text-sm font-semibold text-gray-300 mb-2">Search</label>
             <input
               type="text"
-              placeholder="🔍 Search by filename or notes..."
+              placeholder="Search by filename or notes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-600 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-500"
+              className="w-full px-3 py-2 border border-gray-700 bg-gray-950 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm placeholder-gray-500"
             />
           </div>
-          <div className="w-56">
-            <label className="block text-sm font-semibold text-gray-300 mb-2">Sort By</label>
+          <div className="w-48">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'updated')}
-              className="w-full px-4 py-3 border-2 border-gray-600 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium transition-colors"
+              className="w-full px-3 py-2 border border-gray-700 bg-gray-950 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
-              <option value="newest">📅 Newest First</option>
-              <option value="oldest">📅 Oldest First</option>
-              <option value="updated">🔄 Recently Updated</option>
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="updated">Recently Updated</option>
             </select>
           </div>
         </div>
 
         {/* Dynamic Filter Row */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-300 mb-3">Filter by Categories</label>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {vocabConfig.structure.categories.map(category => (
-              <div key={category.key}>
-                <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wide mb-2">
-                  {category.label}
-                </label>
-                <select
-                  value={categoryFilters[category.key] || 'all'}
-                  onChange={(e) => setCategoryFilters(prev => ({
-                    ...prev,
-                    [category.key]: e.target.value
-                  }))}
-                  className="w-full px-4 py-3 border-2 border-gray-600 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-semibold transition-colors hover:border-gray-500 cursor-pointer"
-                >
-                  <option value="all" className="font-semibold">
-                    ✨ All {category.label} ({images.length})
-                  </option>
-                  {(categoryFilterOptions[category.key] || []).map(value => {
-                    const count = images.filter(img => {
-                      const imgValue = getImageValue(img, category.storage_path)
-                      if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
-                        return Array.isArray(imgValue) && imgValue.includes(value)
-                      } else {
-                        return imgValue === value
-                      }
-                    }).length
-                    return (
-                      <option key={value} value={value} className="font-medium">
-                        {value} ({count} images)
-                      </option>
-                    )
-                  })}
-                </select>
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-4">
+          {vocabConfig.structure.categories.map(category => (
+            <div key={category.key}>
+              <label className="block text-xs text-gray-500 mb-1">
+                {category.label}
+              </label>
+              <select
+                value={categoryFilters[category.key] || 'all'}
+                onChange={(e) => setCategoryFilters(prev => ({
+                  ...prev,
+                  [category.key]: e.target.value
+                }))}
+                className="w-full px-3 py-2 border border-gray-700 bg-gray-950 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm cursor-pointer"
+              >
+                <option value="all">
+                  All {category.label}
+                </option>
+                {(categoryFilterOptions[category.key] || []).map(value => {
+                  const count = images.filter(img => {
+                    const imgValue = getImageValue(img, category.storage_path)
+                    if (category.storage_type === 'array' || category.storage_type === 'jsonb_array') {
+                      return Array.isArray(imgValue) && imgValue.includes(value)
+                    } else {
+                      return imgValue === value
+                    }
+                  }).length
+                  return (
+                    <option key={value} value={value}>
+                      {value} ({count})
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+          ))}
         </div>
 
         {/* Results count and bulk actions */}
-        <div className="mt-6 pt-6 border-t-2 border-gray-700 flex items-center justify-between">
+        <div className="pt-4 border-t border-gray-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-white">
-              Showing {filteredImages.length} of {images.length} images
+            <span className="text-sm text-gray-400">
+              {filteredImages.length} of {images.length} images
             </span>
             {selectedImageIds.size > 0 && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-600 text-white border border-blue-500">
+              <span className="text-sm text-blue-400">
                 {selectedImageIds.size} selected
               </span>
             )}
@@ -354,23 +341,23 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
           {selectedImageIds.size === 0 ? (
             <button
               onClick={selectAll}
-              className="px-4 py-2 text-sm text-blue-400 hover:text-blue-300 hover:bg-gray-700 rounded-lg font-semibold transition-colors"
+              className="px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-lg transition-colors"
             >
               Select All
             </button>
           ) : (
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={clearSelection}
-                className="px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg font-semibold transition-colors"
+                className="px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-lg transition-colors"
               >
-                Clear Selection
+                Clear
               </button>
               <button
                 onClick={() => setShowBulkEdit(true)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:shadow-md transition-all font-semibold text-sm"
+                className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
               >
-                ✏️ Edit Selected ({selectedImageIds.size})
+                Edit Selected ({selectedImageIds.size})
               </button>
             </div>
           )}
@@ -379,33 +366,22 @@ export default function GalleryClient({ images: initialImages }: GalleryClientPr
 
       {/* Image Grid */}
       {filteredImages.length === 0 ? (
-        <div className="bg-gray-800 rounded-xl p-16 text-center border-2 border-dashed border-gray-600 shadow-sm">
-          <div className="text-7xl mb-6">🔍</div>
-          <h3 className="text-2xl font-bold text-white mb-3">No images found</h3>
-          <p className="text-gray-300 text-lg mb-6">Try adjusting your filters or search query</p>
+        <div className="bg-gray-900 rounded-lg p-12 text-center border border-dashed border-gray-800">
+          <p className="text-base text-white mb-2">No images found</p>
+          <p className="text-sm text-gray-500 mb-4">Try adjusting your filters or search query</p>
           <button
             onClick={() => {
               setSearchQuery('')
               setCategoryFilters({})
             }}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:shadow-md transition-all font-semibold"
+            className="px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 text-sm font-medium transition-colors"
           >
-            🔄 Clear All Filters
+            Clear All Filters
           </button>
         </div>
       ) : (
         <div>
-          <div className="mb-6">
-            <h3 className="text-2xl font-bold text-white">
-              {filteredImages.length === images.length ? 'All Images' : 'Filtered Results'}
-            </h3>
-            <p className="text-gray-300 mt-1">
-              {filteredImages.length === images.length 
-                ? `Viewing all ${images.length} images in your collection`
-                : `Found ${filteredImages.length} images matching your criteria`}
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredImages.map((image) => (
               <ImageCard
                 key={image.id}
@@ -486,9 +462,9 @@ function ImageCard({ image, vocabConfig, isSelected, onToggleSelect, onClick }: 
   })
 
   return (
-    <div className="bg-gray-800 rounded-xl overflow-hidden shadow-xl border border-gray-700 hover:shadow-2xl transition-all duration-200 group relative">
+    <div className="bg-gray-900 rounded-lg overflow-hidden border border-gray-800 group relative">
       {/* Selection Checkbox */}
-      <div className="absolute top-3 left-3 z-10">
+      <div className="absolute top-2 left-2 z-10">
         <input
           type="checkbox"
           checked={isSelected}
@@ -496,70 +472,57 @@ function ImageCard({ image, vocabConfig, isSelected, onToggleSelect, onClick }: 
             e.stopPropagation()
             onToggleSelect()
           }}
-          className="w-6 h-6 rounded-md border-2 border-gray-600 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm bg-gray-900"
+          className="w-5 h-5 rounded border border-gray-600 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer bg-gray-900"
         />
       </div>
 
       {/* Thumbnail */}
       <div
         onClick={onClick}
-        className="aspect-square bg-gray-900 overflow-hidden relative cursor-pointer"
+        className="aspect-square bg-gray-950 overflow-hidden relative cursor-pointer"
       >
         <Image
           src={image.thumbnail_path || image.storage_path}
           alt={image.original_filename}
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          className="object-cover group-hover:scale-110 transition-transform duration-300"
+          className="object-cover"
         />
 
-        {/* Hover Overlay - Improved Readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center p-4">
-          <div className="text-center">
-            {/* Main Action */}
-            <div className="mb-4 pb-4 border-b border-white/30">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg">
-                <span className="text-gray-900 font-bold text-sm">👁️ Click to View Details</span>
-              </div>
+        {/* Hover Overlay */}
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {allTags.slice(0, 3).map((tag, idx) => (
+                <span key={idx} className="px-2 py-0.5 bg-black/70 text-white rounded text-xs">
+                  {tag}
+                </span>
+              ))}
+              {allTags.length > 3 && (
+                <span className="px-2 py-0.5 bg-black/70 text-gray-300 rounded text-xs">
+                  +{allTags.length - 3}
+                </span>
+              )}
             </div>
-            
-            {/* Tags Preview */}
-            {allTags.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-white/80 text-xs font-semibold uppercase tracking-wide">Tags Preview</p>
-                <div className="flex flex-wrap gap-2 justify-center max-w-xs">
-                  {allTags.slice(0, 4).map((tag, idx) => (
-                    <span key={idx} className="px-3 py-1 bg-white/90 backdrop-blur-sm text-gray-900 rounded-full text-xs font-semibold shadow-md">
-                      {tag}
-                    </span>
-                  ))}
-                  {allTags.length > 4 && (
-                    <span className="px-3 py-1 bg-blue-500/90 backdrop-blur-sm text-white rounded-full text-xs font-bold shadow-md">
-                      +{allTags.length - 4} more
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
       {/* Info */}
-      <div className="p-4 bg-gradient-to-b from-gray-800 to-gray-900">
-        <p className="text-sm font-semibold text-white truncate mb-1" title={image.original_filename}>
+      <div className="p-3">
+        <p className="text-sm text-white truncate mb-1" title={image.original_filename}>
           {image.original_filename}
         </p>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">
-            📅 {new Date(image.tagged_at).toLocaleDateString('en-US', {
-              year: 'numeric',
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">
+            {new Date(image.tagged_at).toLocaleDateString('en-US', {
               month: 'short',
-              day: 'numeric'
+              day: 'numeric',
+              year: 'numeric'
             })}
           </span>
           {allTags.length > 0 && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-600 text-white border border-blue-500">
+            <span className="text-xs text-gray-500">
               {allTags.length} tags
             </span>
           )}

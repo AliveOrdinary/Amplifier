@@ -56,7 +56,7 @@ export default function EditTagModal({ tag, onClose, onSave, supabase }: EditTag
 
   return (
     <Modal isOpen={true} onClose={onClose} size="md">
-      <ModalHeader title="Edit Tag" icon="✏️" onClose={onClose} />
+      <ModalHeader title="Edit Tag" onClose={onClose} />
 
       <ModalContent>
         <div className="space-y-4">

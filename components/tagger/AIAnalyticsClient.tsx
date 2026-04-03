@@ -120,17 +120,17 @@ export default function AIAnalyticsClient({ analytics }: AIAnalyticsClientProps)
         setEnhancedMode(enabled)
         setToggleMessage(
           enabled
-            ? '✅ Enhanced mode enabled! New AI suggestions will learn from your corrections.'
-            : '✅ Enhanced mode disabled. AI will use baseline prompts.'
+            ? 'Enhanced mode enabled! New AI suggestions will learn from your corrections.'
+            : 'Enhanced mode disabled. AI will use baseline prompts.'
         )
 
         // Clear message after 5 seconds
         setTimeout(() => setToggleMessage(null), 5000)
       } else {
-        setToggleMessage(`❌ Failed to toggle mode: ${error.message}`)
+        setToggleMessage(`Failed to toggle mode: ${error.message}`)
       }
     } catch (error) {
-      setToggleMessage(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setToggleMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsTogglingMode(false)
     }
@@ -148,12 +148,12 @@ export default function AIAnalyticsClient({ analytics }: AIAnalyticsClientProps)
       const data = await response.json()
 
       if (data.success) {
-        setRetrainMessage(`✅ ${data.message}`)
+        setRetrainMessage(`${data.message}`)
       } else {
-        setRetrainMessage(`❌ ${data.message || data.error}`)
+        setRetrainMessage(`${data.message || data.error}`)
       }
     } catch (error) {
-      setRetrainMessage(`❌ Failed to regenerate prompt: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setRetrainMessage(`Failed to regenerate prompt: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsRetraining(false)
     }
@@ -207,11 +207,11 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
     <div className="space-y-12">
       {/* Prompt Monitoring & Controls */}
       <section>
-        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg shadow-lg p-6">
+        <div className="bg-gray-900 border border-gray-800 text-white rounded-lg p-6">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h2 className="text-2xl font-bold mb-2">🧠 AI Prompt Learning Status</h2>
-              <p className="text-indigo-100 text-sm">
+              <h2 className="text-2xl font-bold mb-2">AI Prompt Learning Status</h2>
+              <p className="text-gray-400 text-sm">
                 The AI learns from your corrections to improve future tag suggestions
               </p>
             </div>
@@ -226,7 +226,7 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
 
           {retrainMessage && (
             <div className={`mb-4 p-3 rounded ${
-              retrainMessage.startsWith('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              !retrainMessage.startsWith('Failed') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
             }`}>
               {retrainMessage}
             </div>
@@ -234,16 +234,16 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
 
           {toggleMessage && (
             <div className={`mb-4 p-3 rounded ${
-              toggleMessage.startsWith('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              toggleMessage.startsWith('Enhanced') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
             }`}>
               {toggleMessage}
             </div>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <div className="bg-white/10 backdrop-blur rounded-lg p-4">
+            <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
-                <div className="text-sm text-indigo-100">Prompt Version</div>
+                <div className="text-sm text-gray-400">Prompt Version</div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -258,7 +258,7 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
               <div className="text-2xl font-bold">
                 {enhancedMode ? 'Enhanced' : 'Baseline'}
               </div>
-              <div className="text-xs text-indigo-200 mt-1">
+              <div className="text-xs text-gray-500 mt-1">
                 {enhancedMode
                   ? 'Learning from corrections'
                   : 'Original prompt (no learning)'}
@@ -270,31 +270,31 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
               )}
             </div>
 
-            <div className="bg-white/10 backdrop-blur rounded-lg p-4">
-              <div className="text-sm text-indigo-100 mb-1">Training Data</div>
+            <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
+              <div className="text-sm text-gray-400 mb-1">Training Data</div>
               <div className="text-2xl font-bold">
                 {analytics.overallMetrics.totalImagesAnalyzed} images
               </div>
-              <div className="text-xs text-indigo-200 mt-1">
+              <div className="text-xs text-gray-500 mt-1">
                 {analytics.overallMetrics.totalImagesAnalyzed < 5
                   ? `Need ${5 - analytics.overallMetrics.totalImagesAnalyzed} more for enhancement`
                   : 'Ready for enhanced prompts'}
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur rounded-lg p-4">
-              <div className="text-sm text-indigo-100 mb-1">Cache Status</div>
+            <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
+              <div className="text-sm text-gray-400 mb-1">Cache Status</div>
               <div className="text-2xl font-bold">Active</div>
-              <div className="text-xs text-indigo-200 mt-1">
+              <div className="text-xs text-gray-500 mt-1">
                 Updates every 5 images or 1 hour
               </div>
             </div>
           </div>
 
           {analytics.overallMetrics.totalImagesAnalyzed >= 5 && (
-            <div className="mt-4 p-3 bg-white/10 backdrop-blur rounded">
-              <div className="text-sm font-medium mb-2">💡 Quick Tip:</div>
-              <div className="text-sm text-indigo-100">
+            <div className="mt-4 p-3 bg-gray-950 border border-gray-800 rounded">
+              <div className="text-sm font-medium mb-2">Quick Tip:</div>
+              <div className="text-sm text-gray-400">
                 {enhancedMode
                   ? 'Enhanced prompts are enabled! The AI is learning from your corrections. Click "Regenerate Prompt" above to refresh with the latest patterns.'
                   : 'Toggle the switch above to enable enhanced prompts. The AI will learn from your corrections and make better suggestions!'}
@@ -309,18 +309,18 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
         <h2 className="text-3xl font-bold text-white mb-6">Overall Performance</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Images */}
-          <div className="bg-gray-800 rounded-xl shadow-xl p-6 border border-gray-700 hover:shadow-2xl transition-shadow">
-            <div className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Images Analyzed</div>
-            <div className="text-5xl font-bold text-white mb-2">
+          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 transition-colors">
+            <div className="text-sm font-semibold text-gray-400 mb-2">Images Analyzed</div>
+            <div className="text-3xl font-bold text-white mb-2">
               {analytics.overallMetrics.totalImagesAnalyzed}
             </div>
             <div className="text-xs text-gray-400 mt-1">with AI suggestions</div>
           </div>
 
           {/* Average Confidence */}
-          <div className="bg-gray-800 rounded-xl shadow-xl p-6 border border-gray-700 hover:shadow-2xl transition-shadow">
-            <div className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Avg AI Confidence</div>
-            <div className="text-5xl font-bold text-blue-400 mb-3">
+          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 transition-colors">
+            <div className="text-sm font-semibold text-gray-400 mb-2">Avg AI Confidence</div>
+            <div className="text-3xl font-bold text-blue-400 mb-3">
               {analytics.overallMetrics.averageConfidence}%
             </div>
             <div className="w-full bg-gray-700 rounded-full h-3 mt-2">
@@ -332,9 +332,9 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
           </div>
 
           {/* Overall Accuracy */}
-          <div className="bg-gray-800 rounded-xl shadow-xl p-6 border border-gray-700 hover:shadow-2xl transition-shadow">
-            <div className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Overall Accuracy</div>
-            <div className={`text-5xl font-bold mb-3 ${
+          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 transition-colors">
+            <div className="text-sm font-semibold text-gray-400 mb-2">Overall Accuracy</div>
+            <div className={`text-3xl font-bold mb-3 ${
               analytics.overallMetrics.overallAccuracy >= 80 ? 'text-green-400' :
               analytics.overallMetrics.overallAccuracy >= 60 ? 'text-yellow-400' :
               'text-red-400'
@@ -354,16 +354,16 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
           </div>
 
           {/* Accuracy Trend */}
-          <div className="bg-gray-800 rounded-xl shadow-xl p-6 border border-gray-700 hover:shadow-2xl transition-shadow">
-            <div className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Accuracy Trend</div>
-            <div className={`text-5xl font-bold mb-3 ${
+          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 transition-colors">
+            <div className="text-sm font-semibold text-gray-400 mb-2">Accuracy Trend</div>
+            <div className={`text-3xl font-bold mb-3 ${
               analytics.overallMetrics.accuracyTrend === 'improving' ? 'text-green-400' :
               analytics.overallMetrics.accuracyTrend === 'declining' ? 'text-red-400' :
               'text-gray-400'
             }`}>
-              {analytics.overallMetrics.accuracyTrend === 'improving' ? '📈' :
-               analytics.overallMetrics.accuracyTrend === 'declining' ? '📉' :
-               '➡️'}
+              {analytics.overallMetrics.accuracyTrend === 'improving' ? 'Improving' :
+               analytics.overallMetrics.accuracyTrend === 'declining' ? 'Declining' :
+               'Stable'}
             </div>
             <div className="text-sm mt-1">
               <span className={`font-bold ${
@@ -383,7 +383,7 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
       {/* Category Breakdown */}
       <section>
         <h2 className="text-3xl font-bold text-white mb-6">Tag Category Performance</h2>
-        <div className="bg-gray-800 rounded-xl shadow-xl p-8 border border-gray-700">
+        <div className="bg-gray-900 rounded-xl p-8 border border-gray-800">
           <div className="space-y-6">
             {analytics.categoryBreakdown.map(cat => {
               const maxValue = Math.max(cat.avgSuggestedByAI, cat.avgSelectedByDesigner, 5)
@@ -443,21 +443,21 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
         {/* Missed Tags */}
         <section>
           <h2 className="text-3xl font-bold text-white mb-6">Tags AI Frequently Misses</h2>
-          <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 overflow-hidden">
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
             {analytics.missedTags.length === 0 ? (
               <div className="p-12 text-center">
-                <div className="text-6xl mb-4">📊</div>
+                <div className="text-2xl mb-4 text-gray-500">No data</div>
                 <p className="text-gray-400 font-medium">No missed tags data available yet</p>
               </div>
             ) : (
               <table className="w-full">
-                <thead className="bg-gray-900 border-b-2 border-gray-700">
+                <thead className="bg-gray-900 border-b border-gray-800">
                   <tr>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300 uppercase tracking-wide">Rank</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wide">Tag</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wide">Category</th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300 uppercase tracking-wide">Count</th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300 uppercase tracking-wide">Rate</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300">Rank</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300">Tag</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300">Category</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300">Count</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300">Rate</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
@@ -491,21 +491,21 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
         {/* Wrong Suggestions */}
         <section>
           <h2 className="text-3xl font-bold text-white mb-6">Tags AI Wrongly Suggests</h2>
-          <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 overflow-hidden">
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
             {analytics.wrongTags.length === 0 ? (
               <div className="p-12 text-center">
-                <div className="text-6xl mb-4">📊</div>
+                <div className="text-2xl mb-4 text-gray-500">No data</div>
                 <p className="text-gray-400 font-medium">No wrong suggestions data available yet</p>
               </div>
             ) : (
               <table className="w-full">
-                <thead className="bg-gray-900 border-b-2 border-gray-700">
+                <thead className="bg-gray-900 border-b border-gray-800">
                   <tr>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300 uppercase tracking-wide">Rank</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wide">Tag</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wide">Category</th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300 uppercase tracking-wide">Count</th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300 uppercase tracking-wide">Rate</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300">Rank</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300">Tag</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300">Category</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300">Count</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300">Rate</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
@@ -540,7 +540,7 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
       {/* Confidence vs Accuracy Correlation */}
       <section>
         <h2 className="text-3xl font-bold text-white mb-6">Confidence vs Accuracy Correlation</h2>
-        <div className="bg-gray-800 rounded-xl shadow-xl p-8 border border-gray-700">
+        <div className="bg-gray-900 rounded-xl p-8 border border-gray-800">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {analytics.confidenceBuckets.map(bucket => (
               <div key={bucket.range} className="text-center">
@@ -584,14 +584,11 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
       {/* Actionable Insights */}
       <section>
         <h2 className="text-3xl font-bold text-white mb-6">Actionable Insights</h2>
-        <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 rounded-xl shadow-xl p-8 border-2 border-indigo-600">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8">
           <div className="space-y-3">
             {analytics.insights.map((insight, index) => (
-              <div key={index} className="flex gap-3 items-start">
-                <div className="text-lg">{insight.charAt(0)}</div>
-                <div className="flex-1 text-sm text-gray-300 leading-relaxed">
-                  {insight.substring(2)}
-                </div>
+              <div key={index} className="text-sm text-gray-300 leading-relaxed">
+                {insight}
               </div>
             ))}
           </div>
@@ -606,26 +603,26 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
             onClick={handleExportPDF}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:shadow-md transition-all duration-200 text-sm font-semibold"
           >
-            📊 Export Report
+            Export Report
           </button>
         </div>
-        <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 overflow-hidden">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
           {analytics.imageAnalysis.length === 0 ? (
             <div className="p-12 text-center">
-              <div className="text-6xl mb-4">📊</div>
+              <div className="text-2xl mb-4 text-gray-500">No data</div>
               <p className="text-gray-400 font-medium">No image analysis data available yet</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-900 border-b-2 border-gray-700">
+                <thead className="bg-gray-900 border-b border-gray-800">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wide">Image</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wide">Filename</th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300 uppercase tracking-wide">AI Confidence</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wide">Corrections</th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300 uppercase tracking-wide">Correction %</th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300 uppercase tracking-wide">Actions</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300">Image</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300">Filename</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300">AI Confidence</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300">Corrections</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300">Correction %</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-300">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
@@ -709,7 +706,7 @@ ${analytics.insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
       {/* Image Detail Modal */}
       {selectedImage && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-700">
+          <div className="bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-800">
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-xl font-bold text-white">Image Analysis Details</h3>

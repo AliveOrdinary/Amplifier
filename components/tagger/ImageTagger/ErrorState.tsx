@@ -12,9 +12,8 @@ export default function ErrorState({
   onRetry
 }: ErrorStateProps) {
   return (
-    <div className="bg-red-900/50 border border-red-600 rounded-lg p-6 text-center">
-      <div className="text-4xl mb-4">⚠️</div>
-      <h3 className="text-lg font-semibold text-red-300 mb-2">
+    <div className="bg-red-900/30 border border-red-900 rounded-lg p-6 text-center">
+      <h3 className="text-base font-medium text-red-300 mb-2">
         {title}
       </h3>
       <p className="text-red-400 mb-4">{message}</p>

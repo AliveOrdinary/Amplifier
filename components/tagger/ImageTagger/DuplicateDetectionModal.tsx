@@ -42,15 +42,10 @@ export default function DuplicateDetectionModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-700 shadow-2xl">
+      <div className="bg-gray-900 rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-800">
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="text-6xl mb-3">
-            {matchType === 'exact' && '⚠️'}
-            {matchType === 'similar' && 'ℹ️'}
-            {matchType === 'filename' && 'ℹ️'}
-          </div>
-          <h3 className="text-2xl font-bold text-white mb-2">
+          <h3 className="text-lg font-semibold text-white mb-2">
             {matchType === 'exact' && 'Duplicate Image Detected'}
             {matchType === 'similar' && 'Visually Similar Image Found'}
             {matchType === 'filename' && 'Matching Filename Found'}
@@ -75,12 +70,12 @@ export default function DuplicateDetectionModal({
         </div>
 
         {/* Side-by-side comparison */}
-        <div className="bg-gray-900 border-2 border-gray-700 rounded-lg p-4 mb-6">
+        <div className="bg-gray-950 border border-gray-800 rounded-lg p-4 mb-6">
           <div className="grid grid-cols-2 gap-6">
             {/* New Image */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                <p className="text-xs text-gray-500">
                   New Upload
                 </p>
                 <span className="px-2 py-0.5 bg-blue-900/50 text-blue-300 text-xs font-semibold rounded border border-blue-700">
@@ -88,13 +83,14 @@ export default function DuplicateDetectionModal({
                 </span>
               </div>
 
-              <div className="bg-gray-950 rounded-lg overflow-hidden border-2 border-blue-600 mb-3 aspect-square relative">
+              <div className="bg-gray-950 rounded-lg overflow-hidden border border-blue-800 mb-3 aspect-square relative">
+                {previewUrl && (
                 <Image
                   src={previewUrl}
                   alt="New upload"
                   fill
                   className="object-contain"
-                />
+                />)}
               </div>
 
               <div className="space-y-1">
@@ -113,7 +109,7 @@ export default function DuplicateDetectionModal({
             {/* Existing Image */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                <p className="text-xs text-gray-500">
                   In Library
                 </p>
                 <span className={`px-2 py-0.5 text-xs font-semibold rounded border ${
@@ -127,7 +123,7 @@ export default function DuplicateDetectionModal({
                 </span>
               </div>
 
-              <div className="bg-gray-950 rounded-lg overflow-hidden border-2 border-gray-600 mb-3 aspect-square relative">
+              <div className="bg-gray-950 rounded-lg overflow-hidden border border-gray-700 mb-3 aspect-square relative">
                 {existingImage.thumbnail_path ? (
                   <Image
                     src={existingImage.thumbnail_path}
@@ -158,10 +154,9 @@ export default function DuplicateDetectionModal({
         </div>
 
         {/* Match details */}
-        <div className="bg-blue-900/50 border border-blue-600 rounded-lg p-3 mb-6">
+        <div className="bg-gray-950 border border-gray-800 rounded-lg p-3 mb-6">
           <div className="flex items-start gap-2">
-            <span className="text-blue-400 text-lg flex-shrink-0">ℹ️</span>
-            <div className="text-sm text-blue-200">
+            <div className="text-sm text-gray-300">
               {matchType === 'exact' && (
                 <p>
                   <strong className="text-blue-300">Exact match:</strong> The file content is identical (same SHA-256 hash).
@@ -195,8 +190,7 @@ export default function DuplicateDetectionModal({
             Skip This Image
           </button>
 
-          {/* Only show "Upload Anyway" for non-exact matches or low confidence */}
-          {(matchType !== 'exact' && confidence < 95) && (
+          {matchType !== 'exact' && (
             <button
               onClick={onKeep}
               className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-base"
@@ -207,7 +201,7 @@ export default function DuplicateDetectionModal({
 
           <button
             onClick={onViewExisting}
-            className="w-full px-4 py-3 border-2 border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 transition-colors font-semibold text-base flex items-center justify-center gap-2"
+            className="w-full px-4 py-3 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm flex items-center justify-center gap-2"
           >
             <span>View Existing Image in Gallery</span>
             <span>→</span>

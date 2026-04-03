@@ -1,6 +1,5 @@
 import { createServerClient } from '@/lib/supabase'
 import AIAnalyticsClient from '@/components/tagger/AIAnalyticsClient'
-import Link from 'next/link'
 import type { VocabularyCategory } from '@/lib/types/tagger'
 import { getImageValue } from '@/lib/vocabulary-utils'
 
@@ -315,7 +314,7 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
     const frequentlyMissed = missedTags.filter(t => t.percentage > 30)
     if (frequentlyMissed.length > 0) {
       insights.push(
-        `🎯 AI frequently misses "${frequentlyMissed[0].tag}" (${frequentlyMissed[0].count} times, ${frequentlyMissed[0].percentage}% of images). Consider adding this tag to the priority list in the AI prompt.`
+        `AI frequently misses "${frequentlyMissed[0].tag}" (${frequentlyMissed[0].count} times, ${frequentlyMissed[0].percentage}% of images). Consider adding this tag to the priority list in the AI prompt.`
       )
     }
 
@@ -323,7 +322,7 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
     const frequentlyWrong = wrongTags.filter(t => t.percentage > 40)
     if (frequentlyWrong.length > 0) {
       insights.push(
-        `⚠️ AI over-suggests "${frequentlyWrong[0].tag}" (removed ${frequentlyWrong[0].count} times, ${frequentlyWrong[0].percentage}% of images). Add to cautionary list.`
+        `AI over-suggests "${frequentlyWrong[0].tag}" (removed ${frequentlyWrong[0].count} times, ${frequentlyWrong[0].percentage}% of images). Add to cautionary list.`
       )
     }
 
@@ -333,7 +332,7 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
     if (highConfBucket.imageCount > 0 && lowConfBucket.imageCount > 0) {
       if (Math.abs(highConfBucket.correctionRate - lowConfBucket.correctionRate) < 10) {
         insights.push(
-          `📊 Confidence scores may not be well calibrated. High confidence images have ${highConfBucket.correctionRate}% correction rate vs ${lowConfBucket.correctionRate}% for low confidence.`
+          `Confidence scores may not be well calibrated. High confidence images have ${highConfBucket.correctionRate}% correction rate vs ${lowConfBucket.correctionRate}% for low confidence.`
         )
       }
     }
@@ -341,11 +340,11 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
     // Insight: Accuracy trend
     if (accuracyTrend === 'improving') {
       insights.push(
-        `📈 AI accuracy is improving over time! Recent images show ${Math.abs(trendPercentage).toFixed(1)}% better accuracy than earlier images.`
+        `AI accuracy is improving over time. Recent images show ${Math.abs(trendPercentage).toFixed(1)}% better accuracy than earlier images.`
       )
     } else if (accuracyTrend === 'declining') {
       insights.push(
-        `📉 AI accuracy is declining. Recent images show ${Math.abs(trendPercentage).toFixed(1)}% worse accuracy. Consider reviewing recent tag patterns.`
+        `AI accuracy is declining. Recent images show ${Math.abs(trendPercentage).toFixed(1)}% worse accuracy. Consider reviewing recent tag patterns.`
       )
     }
 
@@ -358,16 +357,16 @@ async function getAIAnalytics(): Promise<AIAnalytics> {
     , categoryBreakdown[0])
 
     insights.push(
-      `✅ AI performs best on ${bestCategory.category} tags (${bestCategory.accuracy.toFixed(1)}% accuracy).`
+      `AI performs best on ${bestCategory.category} tags (${bestCategory.accuracy.toFixed(1)}% accuracy).`
     )
     insights.push(
-      `⚙️ AI needs improvement on ${worstCategory.category} tags (${worstCategory.accuracy.toFixed(1)}% accuracy). Consider providing more examples.`
+      `AI needs improvement on ${worstCategory.category} tags (${worstCategory.accuracy.toFixed(1)}% accuracy). Consider providing more examples.`
     )
 
     // Insight: Data needs
     if (totalImages < 50) {
       insights.push(
-        `📚 You have ${totalImages} images analyzed. Upload at least 50 similar images to see more meaningful patterns and trends.`
+        `You have ${totalImages} images analyzed. Upload at least 50 similar images to see more meaningful patterns and trends.`
       )
     }
 
@@ -417,24 +416,12 @@ export default async function AIAnalyticsPage() {
   const analytics = await getAIAnalytics()
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <Link
-            href="/tagger/dashboard"
-            className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:bg-gray-800 px-4 py-2 rounded-lg transition-colors font-semibold mb-6"
-          >
-            <span>←</span>
-            <span>Back to Dashboard</span>
-          </Link>
-          <h1 className="text-4xl font-bold text-white mb-2">AI Learning Analytics</h1>
-          <p className="text-gray-300 font-medium">
-            Understand how Claude AI is performing with tag suggestions
-          </p>
-        </div>
-
-        <AIAnalyticsClient analytics={analytics} />
+    <div className="container mx-auto px-4 py-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-white">Analytics</h1>
+        <p className="text-sm text-gray-400 mt-1">AI tag suggestion performance</p>
       </div>
+      <AIAnalyticsClient analytics={analytics} />
     </div>
   )
 }

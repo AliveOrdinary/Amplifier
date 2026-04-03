@@ -11,10 +11,9 @@ export default function LoginClient() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [redirectTo, setRedirectTo] = useState('/tagger/dashboard')
+  const [redirectTo, setRedirectTo] = useState('/tagger')
 
   useEffect(() => {
-    // Get the redirect URL from query params if present
     const redirect = searchParams.get('redirectTo')
     if (redirect) {
       setRedirectTo(redirect)
@@ -39,7 +38,6 @@ export default function LoginClient() {
       }
 
       if (data.session) {
-        // Redirect to original destination or dashboard
         router.push(redirectTo)
         router.refresh()
       }
@@ -52,40 +50,35 @@ export default function LoginClient() {
   }
 
   return (
-    <div className="w-full max-w-lg">
-      <div className="bg-gray-800 rounded-2xl shadow-2xl border-2 border-gray-700 overflow-hidden">
+    <div className="w-full max-w-md">
+      <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
         {/* Header */}
-        <div className="px-8 py-8 bg-gradient-to-br from-blue-600 to-blue-700 text-center">
-          <div className="text-6xl mb-4">🔐</div>
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Welcome Back
+        <div className="px-8 py-6 border-b border-gray-800">
+          <h1 className="text-2xl font-semibold text-white mb-1">
+            Sign In
           </h1>
-          <p className="text-blue-100 text-lg">
-            Sign in to access the tagging system
+          <p className="text-sm text-gray-400">
+            Access the tagging system
           </p>
         </div>
 
         {/* Content */}
-        <div className="px-8 py-8">
+        <div className="px-8 py-6">
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-900/50 border-2 border-red-600 rounded-lg">
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">⚠️</span>
-                <p className="text-sm text-red-300 font-medium pt-1">{error}</p>
-              </div>
+            <div className="mb-6 p-3 bg-red-900/30 border border-red-800 rounded-lg">
+              <p className="text-sm text-red-300">{error}</p>
             </div>
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email Input */}
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-bold text-white mb-3 uppercase tracking-wide"
+                className="block text-sm font-medium text-gray-300 mb-2"
               >
-                Email Address
+                Email
               </label>
               <input
                 id="email"
@@ -94,17 +87,16 @@ export default function LoginClient() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="w-full px-4 py-3 border-2 border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-900 text-white placeholder-gray-500 transition-all hover:border-gray-500"
+                className="w-full px-3 py-2 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-950 text-white placeholder-gray-500 text-sm"
                 placeholder="your.email@example.com"
                 disabled={loading}
               />
             </div>
 
-            {/* Password Input */}
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-bold text-white mb-3 uppercase tracking-wide"
+                className="block text-sm font-medium text-gray-300 mb-2"
               >
                 Password
               </label>
@@ -115,28 +107,20 @@ export default function LoginClient() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full px-4 py-3 border-2 border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-900 text-white placeholder-gray-500 transition-all hover:border-gray-500"
+                className="w-full px-3 py-2 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-950 text-white placeholder-gray-500 text-sm"
                 placeholder="Enter your password"
                 disabled={loading}
               />
             </div>
 
-            {/* Sign In Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-3.5 px-6 rounded-lg hover:bg-blue-700 hover:shadow-lg focus:ring-4 focus:ring-blue-900/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg mt-8"
+              className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm mt-2"
             >
-              {loading ? '⏳ Signing in...' : '🚀 Sign In'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
-        </div>
-
-        {/* Footer */}
-        <div className="px-8 py-6 bg-gray-900 border-t-2 border-gray-700 text-center">
-          <p className="text-sm text-gray-400 font-medium">
-            🔒 Protected system - authorized users only
-          </p>
         </div>
       </div>
     </div>

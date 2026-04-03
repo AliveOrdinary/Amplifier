@@ -13,32 +13,13 @@ interface UploadedImage {
 
 interface ImagePreviewProps {
   image: UploadedImage;
-  currentIndex: number;
-  totalImages: number;
-  onPrevious: () => void;
-  onNext: () => void;
-  onSkip: () => void;
-  onSaveAndNext: () => Promise<void>;
-  isSaving: boolean;
 }
 
-const ImagePreview = memo(function ImagePreview({
-  image,
-  currentIndex,
-  totalImages,
-  onPrevious,
-  onNext,
-  onSkip,
-  onSaveAndNext,
-  isSaving
-}: ImagePreviewProps) {
-  const isFirstImage = currentIndex === 0;
-  const isLastImage = currentIndex === totalImages - 1;
-
+const ImagePreview = memo(function ImagePreview({ image }: ImagePreviewProps) {
   return (
-    <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 p-6 space-y-6">
+    <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
       {/* Image Container */}
-      <div className="bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center border border-gray-700 relative" style={{ maxHeight: '70vh', minHeight: '400px' }}>
+      <div className="bg-gray-950 flex items-center justify-center relative" style={{ maxHeight: '70vh', minHeight: '400px' }}>
         <Image
           src={image.previewUrl}
           alt={image.filename}
@@ -49,83 +30,16 @@ const ImagePreview = memo(function ImagePreview({
         />
       </div>
 
-      {/* Filename */}
-      <div className="border-t border-gray-700 pt-4">
-        <p className="text-sm font-semibold text-white truncate" title={image.filename}>
+      {/* Filename + status */}
+      <div className="px-4 py-3 flex items-center justify-between">
+        <p className="text-sm font-medium text-white truncate" title={image.filename}>
           {image.filename}
         </p>
         {image.status === 'skipped' && (
-          <span className="inline-block mt-2 px-2 py-1 bg-orange-900/50 text-orange-300 text-xs font-medium rounded border border-orange-700">
-            Skipped
-          </span>
+          <span className="text-amber-400 text-xs flex-shrink-0 ml-2">Skipped</span>
         )}
         {image.status === 'tagged' && (
-          <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-green-900/50 text-green-300 text-xs font-medium rounded border border-green-700">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            Already Tagged
-          </span>
-        )}
-      </div>
-
-      {/* Navigation Buttons */}
-      <div className="flex gap-3 border-t border-gray-700 pt-4">
-        <button
-          onClick={onPrevious}
-          disabled={isFirstImage}
-          className={`flex-1 px-4 py-3 border-2 rounded-lg font-medium transition-all ${
-            isFirstImage
-              ? 'border-gray-700 text-gray-600 cursor-not-allowed bg-gray-900'
-              : 'border-gray-600 text-white bg-gray-800 hover:bg-gray-700 hover:border-gray-500'
-          }`}
-        >
-          ← Previous
-        </button>
-
-        {image.status !== 'tagged' ? (
-          <>
-            <button
-              onClick={onSkip}
-              className="flex-1 px-4 py-3 border-2 border-orange-600 text-orange-300 bg-orange-900/30 rounded-lg font-medium hover:bg-orange-900/50 hover:border-orange-500 transition-all"
-            >
-              Skip
-            </button>
-
-            <button
-              onClick={onSaveAndNext}
-              disabled={isSaving}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                isSaving
-                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md'
-              }`}
-            >
-              {isSaving ? (
-                <span className="flex items-center justify-center space-x-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <span>Saving...</span>
-                </span>
-              ) : (
-                <span>Save & Next →</span>
-              )}
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={onNext}
-            disabled={isLastImage}
-            className={`flex-1 px-4 py-3 border-2 rounded-lg font-medium transition-all ${
-              isLastImage
-                ? 'border-gray-700 text-gray-600 cursor-not-allowed bg-gray-900'
-                : 'border-gray-600 text-white bg-gray-800 hover:bg-gray-700 hover:border-gray-500'
-            }`}
-          >
-            Next →
-          </button>
+          <span className="text-green-400 text-xs flex-shrink-0 ml-2">Tagged</span>
         )}
       </div>
     </div>

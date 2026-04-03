@@ -1,6 +1,5 @@
 import { createServerClient } from '@/lib/supabase'
 import DashboardClient from '@/components/tagger/DashboardClient'
-import SignOutButton from '@/components/tagger/SignOutButton'
 
 // Disable caching - always fetch fresh data
 export const revalidate = 0
@@ -135,21 +134,8 @@ export default async function DashboardPage() {
   const stats = await getDashboardStats()
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header with Sign Out Button */}
-        <div className="mb-8 flex justify-between items-start">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Reference Image Tagger</h1>
-            <p className="text-gray-300 font-medium">
-              Manage your design reference library with AI-powered tagging
-            </p>
-          </div>
-          <SignOutButton />
-        </div>
-
-        <DashboardClient stats={stats} />
-      </div>
+    <div className="container mx-auto px-4 py-6">
+      <DashboardClient stats={stats} />
     </div>
   )
 }

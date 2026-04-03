@@ -1,6 +1,5 @@
 import { createServerClient } from '@/lib/supabase'
 import VocabularyClient from '@/components/tagger/VocabularyClient'
-import Link from 'next/link'
 import type { VocabularyTag } from '@/lib/types/tagger'
 
 // Disable caching - always fetch fresh data
@@ -27,24 +26,12 @@ export default async function VocabularyPage() {
   const tags = await getVocabularyTags()
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <Link
-            href="/tagger/dashboard"
-            className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:bg-gray-800 px-4 py-2 rounded-lg transition-colors font-semibold mb-6"
-          >
-            <span>←</span>
-            <span>Back to Dashboard</span>
-          </Link>
-          <h1 className="text-4xl font-bold text-white mb-2">Tag Vocabulary Management</h1>
-          <p className="text-gray-300 font-medium">
-            Manage your reference image tagging vocabulary
-          </p>
-        </div>
-
-        <VocabularyClient tags={tags} />
+    <div className="container mx-auto px-4 py-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-white">Vocabulary</h1>
+        <p className="text-sm text-gray-400 mt-1">Manage your tagging vocabulary</p>
       </div>
+      <VocabularyClient tags={tags} />
     </div>
   )
 }

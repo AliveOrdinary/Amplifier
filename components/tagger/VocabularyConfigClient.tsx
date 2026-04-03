@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@/lib/supabase';
 import { useConfirmDialog } from '@/components/ui';
-import Link from 'next/link';
 import type { VocabularyConfigRow } from '@/lib/types/tagger';
 
 export default function VocabularyConfigClient() {
@@ -54,22 +53,20 @@ export default function VocabularyConfigClient() {
       };
       const configText = JSON.stringify(configToCopy, null, 2);
       await navigator.clipboard.writeText(configText);
-      alert('✅ Configuration copied to clipboard!');
+      alert('Configuration copied to clipboard.');
     } catch (error) {
       console.error('Failed to copy configuration:', error);
-      alert('❌ Failed to copy to clipboard. Please try selecting and copying the text manually.');
+      alert('Failed to copy to clipboard. Please try selecting and copying the text manually.');
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900">
-        <div className="container mx-auto p-8">
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mx-auto mb-4"></div>
-              <p className="text-gray-300 font-medium">Loading configuration...</p>
-            </div>
+      <div className="container mx-auto p-8">
+        <div className="flex items-center justify-center py-16">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-300 font-medium">Loading configuration...</p>
           </div>
         </div>
       </div>
@@ -78,47 +75,34 @@ export default function VocabularyConfigClient() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-900">
-        <div className="container mx-auto p-8">
-          <div className="bg-red-900/50 border-2 border-red-600 rounded-xl p-8 text-center">
-            <div className="text-6xl mb-4">⚠️</div>
-            <p className="text-red-300 font-semibold text-lg">{error}</p>
-          </div>
+      <div className="container mx-auto p-8">
+        <div className="bg-red-900/50 border border-red-600 rounded-lg p-8 text-center">
+          <p className="text-red-300 font-semibold text-lg">{error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
       <div className="container mx-auto p-8 max-w-7xl space-y-10">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Vocabulary Configuration</h1>
-            <p className="text-gray-300 text-lg font-medium">
-              Manage the structure of your tagging system
-            </p>
-          </div>
-          <Link
-            href="/tagger/dashboard"
-            className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:bg-gray-800 px-4 py-2 rounded-lg transition-colors font-semibold"
-          >
-            <span>←</span>
-            <span>Back to Dashboard</span>
-          </Link>
+        <div>
+          <h1 className="text-2xl font-semibold text-white mb-2">Vocabulary Configuration</h1>
+          <p className="text-gray-300 text-lg font-medium">
+            Manage the structure of your tagging system
+          </p>
         </div>
 
       {/* Current Config */}
       {currentConfig && (
-        <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-10">
+        <div className="bg-gray-900 rounded-lg border border-gray-800 p-10">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-white">Current Configuration</h2>
+            <h2 className="text-lg font-semibold text-white">Current Configuration</h2>
             <button
               onClick={handleCopyConfig}
-              className="px-4 py-2 border-2 border-gray-600 text-white rounded-lg hover:bg-gray-700 hover:border-gray-500 transition-colors font-semibold flex items-center gap-2"
+              className="px-4 py-2 border border-gray-600 text-white rounded-lg hover:bg-gray-700 hover:border-gray-500 transition-colors font-semibold flex items-center gap-2"
             >
-              📋 Copy JSON
+              Copy JSON
             </button>
           </div>
 
@@ -155,11 +139,11 @@ export default function VocabularyConfigClient() {
             </div>
           </div>
 
-          <h3 className="text-2xl font-bold text-white mb-6">Category Structure</h3>
-          <div className="overflow-x-auto rounded-lg border-2 border-gray-700 shadow-sm">
+          <h3 className="text-lg font-semibold text-white mb-6">Category Structure</h3>
+          <div className="overflow-x-auto rounded-lg border border-gray-800">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="bg-gray-700 border-b-2 border-gray-600">
+                <tr className="bg-gray-700 border-b border-gray-600">
                   <th className="text-left py-4 px-6 font-semibold text-sm uppercase tracking-wide text-gray-300">Category</th>
                   <th className="text-left py-4 px-6 font-semibold text-sm uppercase tracking-wide text-gray-300">Storage Path</th>
                   <th className="text-center py-4 px-6 font-semibold text-sm uppercase tracking-wide text-gray-300">Type</th>
@@ -168,9 +152,9 @@ export default function VocabularyConfigClient() {
                   <th className="text-left py-4 px-6 font-semibold text-sm uppercase tracking-wide text-gray-300">Description</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody className="divide-y divide-gray-800">
                 {currentConfig.structure.categories.map((cat: any) => (
-                  <tr key={cat.key} className="hover:bg-gray-700 transition-colors bg-gray-800">
+                  <tr key={cat.key} className="hover:bg-gray-700 transition-colors bg-gray-900">
                     <td className="py-5 px-6 font-semibold text-white">{cat.label}</td>
                     <td className="py-5 px-6">
                       <span className="font-mono text-sm text-blue-300 bg-blue-900/50 px-2 py-1 rounded border border-blue-700">
@@ -225,16 +209,13 @@ export default function VocabularyConfigClient() {
       )}
 
       {/* Replace Configuration */}
-      <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-10">
-        <h2 className="text-3xl font-bold text-white mb-8">Replace Vocabulary</h2>
+      <div className="bg-gray-900 rounded-lg border border-gray-800 p-10">
+        <h2 className="text-lg font-semibold text-white mb-8">Replace Vocabulary</h2>
 
-        <div className="bg-gradient-to-br from-yellow-900/30 to-orange-900/30 border-2 border-yellow-600 rounded-xl p-8 mb-8 shadow-sm">
+        <div className="bg-gray-900 border border-amber-800 rounded-lg p-8 mb-8">
           <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 text-4xl">
-              ⚠️
-            </div>
             <div className="flex-1">
-              <h3 className="text-2xl font-bold text-yellow-400 mb-4">Warning: Destructive Action</h3>
+              <h3 className="text-lg font-semibold text-yellow-400 mb-4">Warning: Destructive Action</h3>
               <p className="text-sm font-semibold text-yellow-300 mb-4">
                 Replacing the vocabulary will permanently:
               </p>
@@ -256,9 +237,9 @@ export default function VocabularyConfigClient() {
                   <span><strong>Reset the entire system</strong> for fresh tagging with new structure</span>
                 </li>
               </ul>
-              <div className="bg-red-900/50 border-2 border-red-600 rounded-lg p-4">
+              <div className="bg-red-900/50 border border-red-600 rounded-lg p-4">
                 <p className="text-sm text-red-300 font-bold">
-                  ⛔ This action cannot be undone. Only use during test phase.
+                  This action cannot be undone. Only use during test phase.
                 </p>
               </div>
             </div>
@@ -267,9 +248,9 @@ export default function VocabularyConfigClient() {
 
         <button
           onClick={() => setShowReplaceModal(true)}
-          className="bg-red-600 text-white px-8 py-4 rounded-xl hover:bg-red-700 hover:shadow-lg transition-all duration-200 font-bold text-lg"
+          className="bg-red-600 text-white px-8 py-4 rounded-lg hover:bg-red-700 hover:shadow-lg transition-all duration-200 font-bold text-lg"
         >
-          🔄 Replace with New Vocabulary
+          Replace with New Vocabulary
         </button>
       </div>
 
@@ -283,7 +264,6 @@ export default function VocabularyConfigClient() {
           }}
         />
       )}
-    </div>
     </div>
   );
 }
@@ -437,7 +417,7 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
       }
 
       alert(
-        `✅ Vocabulary replaced successfully!\n\n` +
+        `Vocabulary replaced successfully.\n\n` +
         `${result.stats?.images_deleted || 0} images deleted\n` +
         `${result.stats?.storage_files_deleted || 0} storage files removed\n` +
         `${result.stats?.tags_inserted || 0} tags inserted\n\n` +
@@ -567,9 +547,9 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-700">
+      <div className="bg-gray-900 rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-800">
         <div className="p-10">
-          <h2 className="text-3xl font-bold text-white mb-8">Replace Vocabulary Configuration</h2>
+          <h2 className="text-lg font-semibold text-white mb-8">Replace Vocabulary Configuration</h2>
 
           {error && (
             <div className="bg-red-900/50 border border-red-600 rounded-lg p-4 mb-6">
@@ -594,7 +574,7 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
                     : 'text-gray-300 hover:text-white'
                 }`}
               >
-                📋 Paste JSON
+                Paste JSON
               </button>
               <button
                 onClick={() => {
@@ -608,7 +588,7 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
                     : 'text-gray-300 hover:text-white'
                 }`}
               >
-                📁 Upload File
+                Upload File
               </button>
             </div>
 
@@ -640,7 +620,7 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
   }
 }`}
                     rows={18}
-                    className="w-full px-4 py-3 border-2 border-gray-600 rounded-lg text-sm font-mono bg-gray-900 text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-600 resize-none"
+                    className="w-full px-4 py-3 border border-gray-600 rounded-lg text-sm font-mono bg-gray-900 text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-600 resize-none"
                   />
                   <p className="text-xs text-gray-400 mt-2">
                     {pastedJson.length} characters
@@ -648,9 +628,8 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
                 </div>
 
                 {parseError && (
-                  <div className="bg-red-900/50 border-2 border-red-600 rounded-lg p-4">
+                  <div className="bg-red-900/50 border border-red-600 rounded-lg p-4">
                     <div className="flex items-start gap-3">
-                      <span className="text-red-400 text-xl flex-shrink-0">⚠️</span>
                       <div>
                         <p className="font-semibold text-red-300 mb-1">Invalid JSON</p>
                         <p className="text-sm text-red-200">{parseError}</p>
@@ -660,11 +639,10 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
                 )}
 
                 {parseSuccess && (
-                  <div className="bg-green-900/50 border-2 border-green-600 rounded-lg p-4">
+                  <div className="bg-green-900/50 border border-green-600 rounded-lg p-4">
                     <div className="flex items-start gap-3">
-                      <span className="text-green-400 text-xl flex-shrink-0">✅</span>
                       <div>
-                        <p className="font-semibold text-green-300 mb-1">Configuration Loaded!</p>
+                        <p className="font-semibold text-green-300 mb-1">Configuration Loaded</p>
                         <p className="text-sm text-green-200">
                           Found {newStructure?.structure?.categories?.length || 0} categories.
                           Scroll down to review and confirm.
@@ -682,11 +660,10 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
                   >
                     {uploading ? (
                       <span className="flex items-center justify-center gap-2">
-                        <span className="animate-spin">⏳</span>
                         Processing...
                       </span>
                     ) : (
-                      '✅ Validate & Load'
+                      'Validate & Load'
                     )}
                   </button>
                   <button
@@ -696,15 +673,14 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
                       setParseSuccess(false);
                     }}
                     disabled={uploading}
-                    className="px-6 py-3 border-2 border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors font-semibold"
+                    className="px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors font-semibold"
                   >
                     Clear
                   </button>
                 </div>
 
-                <div className="bg-blue-900/50 border-2 border-blue-600 rounded-lg p-4">
+                <div className="bg-blue-900/50 border border-blue-600 rounded-lg p-4">
                   <div className="flex gap-3">
-                    <span className="text-blue-400 text-xl flex-shrink-0">💡</span>
                     <div>
                       <p className="text-sm text-blue-300 font-medium mb-1">Tip</p>
                       <p className="text-sm text-blue-200">
@@ -741,12 +717,12 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
             )}
 
             {/* Download Template (visible for both tabs) */}
-            <div className="mt-4 pt-4 border-t border-gray-700">
+            <div className="mt-4 pt-4 border-t border-gray-800">
               <button
                 onClick={downloadTemplate}
                 className="text-sm text-blue-400 hover:text-blue-300 hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors font-semibold"
               >
-                📥 Download Template
+                Download Template
               </button>
             </div>
           </div>
@@ -799,11 +775,11 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-4 pt-6 border-t-2 border-gray-700 mt-8">
+          <div className="flex justify-end gap-4 pt-6 border-t border-gray-800 mt-8">
             <button
               onClick={onClose}
               disabled={uploading}
-              className="px-6 py-3 border-2 border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 font-semibold"
+              className="px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 font-semibold"
             >
               Cancel
             </button>
@@ -812,7 +788,7 @@ function ReplaceVocabularyModal({ onClose, onSuccess }: { onClose: () => void; o
               disabled={!newStructure || !configName.trim() || uploading}
               className="px-8 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 hover:shadow-lg transition-all duration-200 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {uploading ? 'Replacing...' : '⚠️ Replace & Delete All Data'}
+              {uploading ? 'Replacing...' : 'Replace & Delete All Data'}
             </button>
           </div>
         </div>

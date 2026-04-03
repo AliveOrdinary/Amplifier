@@ -65,7 +65,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       setVocabConfig(config)
       setCategories(config.structure.categories)
     } catch (error) {
-      console.error('❌ Error loading vocabulary config:', error)
+      console.error('Error loading vocabulary config:', error)
       setConfigError(error instanceof Error ? error.message : 'Failed to load vocabulary config')
     } finally {
       setConfigLoading(false)
@@ -402,9 +402,8 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
   // Show loading state while config is loading
   if (configLoading) {
     return (
-      <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-        <div className="text-4xl mb-4">⏳</div>
-        <h3 className="text-xl font-semibold text-white mb-2">Loading vocabulary...</h3>
+      <div className="bg-gray-900 rounded-lg p-12 text-center border border-gray-800">
+        <h3 className="text-xl font-medium text-white mb-2">Loading vocabulary...</h3>
         <p className="text-gray-300">Fetching vocabulary configuration</p>
       </div>
     )
@@ -412,9 +411,8 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
 
   if (configError) {
     return (
-      <div className="bg-gray-800 rounded-lg p-12 text-center border border-red-700">
-        <div className="text-4xl mb-4">❌</div>
-        <h3 className="text-xl font-semibold text-red-300 mb-2">Configuration Error</h3>
+      <div className="bg-gray-900 rounded-lg p-12 text-center border border-red-700">
+        <h3 className="text-xl font-medium text-red-300 mb-2">Configuration Error</h3>
         <p className="text-red-400">{configError}</p>
       </div>
     )
@@ -434,7 +432,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               activeView === 'categories'
                 ? 'bg-blue-600 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
+                : 'bg-gray-900 text-gray-300 hover:bg-gray-700 border border-gray-800'
             }`}
           >
             Categories ({categories.length})
@@ -444,7 +442,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               activeView === 'all'
                 ? 'bg-blue-600 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
+                : 'bg-gray-900 text-gray-300 hover:bg-gray-700 border border-gray-800'
             }`}
           >
             All Tags ({tags.length})
@@ -454,7 +452,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               activeView === 'analytics'
                 ? 'bg-blue-600 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
+                : 'bg-gray-900 text-gray-300 hover:bg-gray-700 border border-gray-800'
             }`}
           >
             Analytics
@@ -482,9 +480,8 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       {activeView === 'categories' && (
         <div className="space-y-6">
           {categories.length === 0 ? (
-            <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-              <div className="text-4xl mb-4">📂</div>
-              <h3 className="text-xl font-semibold text-white mb-2">No categories yet</h3>
+            <div className="bg-gray-900 rounded-lg p-12 text-center border border-gray-800">
+              <h3 className="text-xl font-medium text-white mb-2">No categories yet</h3>
               <p className="text-gray-300 mb-6">Get started by adding your first category</p>
               <button
                 onClick={() => setShowAddCategoryModal(true)}
@@ -498,12 +495,12 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
               const categoryTagCount = tags.filter(t => t.category === category.key).length
               
               return (
-                <div key={category.key} className="bg-gray-800 rounded-lg border-2 border-gray-700 overflow-hidden shadow-xl hover:shadow-2xl transition-shadow">
+                <div key={category.key} className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden transition-colors">
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl font-bold text-white">{category.label}</h3>
+                          <h3 className="text-xl font-semibold text-white">{category.label}</h3>
                           <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded font-mono">
                             {category.key}
                           </span>
@@ -521,7 +518,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
                         <div className="grid grid-cols-2 gap-3 text-sm text-gray-300 mb-3">
                           <div>
                             <span className="font-medium text-gray-400">Storage Path:</span>
-                            <span className="ml-2 font-mono bg-gray-900 px-2 py-0.5 rounded text-white">{category.storage_path}</span>
+                            <span className="ml-2 font-mono bg-gray-950 px-2 py-0.5 rounded text-white">{category.storage_path}</span>
                           </div>
                           <div>
                             <span className="font-medium text-gray-400">Search Weight:</span>
@@ -544,7 +541,7 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
                         
                         <div className="mt-3 flex items-center gap-4">
                           <span className="inline-flex items-center text-sm font-medium text-white bg-gray-700 px-3 py-1.5 rounded-full border border-gray-600">
-                            📝 {categoryTagCount} {categoryTagCount === 1 ? 'tag' : 'tags'}
+                            {categoryTagCount} {categoryTagCount === 1 ? 'tag' : 'tags'}
                           </span>
                         </div>
                       </div>
@@ -576,9 +573,8 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       {activeView === 'all' && (
         <div className="space-y-6">
           {Object.entries(tagsByCategory).filter(([, categoryTags]) => categoryTags.length > 0).length === 0 ? (
-            <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-              <div className="text-4xl mb-4">📝</div>
-              <h3 className="text-xl font-semibold text-white mb-2">No tags yet</h3>
+            <div className="bg-gray-900 rounded-lg p-12 text-center border border-gray-800">
+              <h3 className="text-xl font-medium text-white mb-2">No tags yet</h3>
               <p className="text-gray-300 mb-6">Get started by adding your first tag</p>
               <button
                 onClick={() => setShowAddModal(true)}
@@ -591,9 +587,9 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
             Object.entries(tagsByCategory)
               .filter(([, categoryTags]) => categoryTags.length > 0) // Only show categories with tags
               .map(([category, categoryTags]) => (
-            <div key={category} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden shadow-xl">
-              <div className="px-6 py-4 bg-gradient-to-r from-gray-900 to-gray-800 border-b border-gray-700">
-                <h2 className="text-xl font-bold text-white">
+            <div key={category} className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+              <div className="px-6 py-4 bg-gray-900 border-b border-gray-800">
+                <h2 className="text-lg font-semibold text-white">
                   {categoryLabels[category as keyof typeof categoryLabels]} 
                   <span className="ml-2 text-sm font-normal text-gray-400">({categoryTags.length} tags)</span>
                 </h2>
@@ -601,33 +597,33 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
 
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-900 border-b-2 border-gray-700">
+                  <thead className="bg-gray-950 border-b border-gray-800">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wide">
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300">
                         Tag Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wide">
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300">
                         Description
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wide">
+                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-300">
                         Times Used
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wide">
+                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-300">
                         Last Used
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wide">
+                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-300">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-300 uppercase tracking-wide">
+                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-300">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-gray-800 divide-y divide-gray-700">
+                  <tbody className="bg-gray-900 divide-y divide-gray-800">
                     {categoryTags.map(tag => (
-                      <tr key={tag.id} className={!tag.is_active ? 'bg-gray-900/50 opacity-60' : 'hover:bg-gray-700 transition-colors'}>
+                      <tr key={tag.id} className={!tag.is_active ? 'bg-gray-950/50 opacity-60' : 'hover:bg-gray-800 transition-colors'}>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-semibold text-white">{tag.tag_value}</div>
+                          <div className="text-sm font-medium text-white">{tag.tag_value}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-300 max-w-xs truncate">
@@ -724,11 +720,11 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
       {activeView === 'analytics' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Most Used Tags */}
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-white mb-4">Most Used Tags</h3>
+          <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
+            <h3 className="text-lg font-medium text-white mb-4">Most Used Tags</h3>
             <div className="space-y-2">
               {analytics.mostUsed.map((tag, idx) => (
-                <div key={tag.id} className="flex items-center justify-between py-2 border-b border-gray-700">
+                <div key={tag.id} className="flex items-center justify-between py-2 border-b border-gray-800">
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium text-gray-400 w-6">#{idx + 1}</span>
                     <div>
@@ -743,11 +739,11 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
           </div>
 
           {/* Least Used Tags */}
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-white mb-4">Least Used Tags</h3>
+          <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
+            <h3 className="text-lg font-medium text-white mb-4">Least Used Tags</h3>
             <div className="space-y-2">
               {analytics.leastUsed.map((tag, idx) => (
-                <div key={tag.id} className="flex items-center justify-between py-2 border-b border-gray-700">
+                <div key={tag.id} className="flex items-center justify-between py-2 border-b border-gray-800">
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium text-gray-400 w-6">#{idx + 1}</span>
                     <div>
@@ -762,14 +758,14 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
           </div>
 
           {/* Recently Added Tags */}
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-white mb-4">Recently Added (Last 30 Days)</h3>
+          <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
+            <h3 className="text-lg font-medium text-white mb-4">Recently Added (Last 30 Days)</h3>
             <div className="space-y-2">
               {analytics.recentlyAdded.length === 0 ? (
                 <p className="text-sm text-gray-400">No tags added in the last 30 days</p>
               ) : (
                 analytics.recentlyAdded.map(tag => (
-                  <div key={tag.id} className="flex items-center justify-between py-2 border-b border-gray-700">
+                  <div key={tag.id} className="flex items-center justify-between py-2 border-b border-gray-800">
                     <div>
                       <p className="text-sm font-medium text-white">{tag.tag_value}</p>
                       <p className="text-xs text-gray-400 capitalize">{tag.category.replace('_', ' ')}</p>
@@ -784,14 +780,14 @@ export default function VocabularyClient({ tags: initialTags }: VocabularyClient
           </div>
 
           {/* Never Used Tags */}
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-white mb-4">Never Used Tags</h3>
+          <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
+            <h3 className="text-lg font-medium text-white mb-4">Never Used Tags</h3>
             <div className="space-y-2">
               {analytics.neverUsed.length === 0 ? (
                 <p className="text-sm text-gray-400">All tags have been used at least once!</p>
               ) : (
                 analytics.neverUsed.map(tag => (
-                  <div key={tag.id} className="flex items-center justify-between py-2 border-b border-gray-700">
+                  <div key={tag.id} className="flex items-center justify-between py-2 border-b border-gray-800">
                     <div>
                       <p className="text-sm font-medium text-white">{tag.tag_value}</p>
                       <p className="text-xs text-gray-400 capitalize">{tag.category.replace('_', ' ')}</p>

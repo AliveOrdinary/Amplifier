@@ -41,7 +41,6 @@ interface AddTagModalProps {
 
 export default function AddTagModal({ vocabConfig, onClose, onAdd, supabase }: AddTagModalProps) {
   const toast = useToast()
-  // Initialize with the first category from config
   const [category, setCategory] = useState(vocabConfig.structure.categories[0]?.key || '')
   const [tagValue, setTagValue] = useState('')
   const [description, setDescription] = useState('')
@@ -55,7 +54,6 @@ export default function AddTagModal({ vocabConfig, onClose, onAdd, supabase }: A
 
     setIsAdding(true)
 
-    // Get max sort_order for this category
     const { data: existingTags } = await supabase
       .from('tag_vocabulary')
       .select('sort_order')
@@ -94,24 +92,21 @@ export default function AddTagModal({ vocabConfig, onClose, onAdd, supabase }: A
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-800 rounded-2xl max-w-lg w-full shadow-2xl border-2 border-gray-700">
+      <div className="bg-gray-900 rounded-lg max-w-lg w-full border border-gray-800">
         {/* Header */}
-        <div className="px-8 py-6 border-b-2 border-gray-700">
-          <h2 className="text-3xl font-bold text-white">✨ Add New Tag</h2>
-          <p className="text-gray-300 mt-2">Create a new tag for your vocabulary</p>
+        <div className="px-6 py-5 border-b border-gray-800">
+          <h2 className="text-lg font-semibold text-white">Add New Tag</h2>
+          <p className="text-sm text-gray-400 mt-1">Create a new tag for your vocabulary</p>
         </div>
 
         {/* Content */}
-        <div className="px-8 py-6 space-y-6">
-          {/* Category Selection */}
+        <div className="px-6 py-5 space-y-5">
           <div>
-            <label className="block text-sm font-bold text-white mb-3 uppercase tracking-wide">
-              Category *
-            </label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Category *</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-900 text-white font-semibold transition-all hover:border-gray-500 cursor-pointer"
+              className="w-full px-3 py-2 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-950 text-white text-sm cursor-pointer transition-colors"
             >
               {vocabConfig.structure.categories.map(cat => (
                 <option key={cat.key} value={cat.key}>
@@ -121,51 +116,47 @@ export default function AddTagModal({ vocabConfig, onClose, onAdd, supabase }: A
             </select>
           </div>
 
-          {/* Tag Name */}
           <div>
-            <label className="block text-sm font-bold text-white mb-3 uppercase tracking-wide">
-              Tag Name *
-            </label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Tag Name *</label>
             <input
               type="text"
               value={tagValue}
               onChange={(e) => setTagValue(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-900 text-white placeholder-gray-500 transition-all hover:border-gray-500"
+              className="w-full px-3 py-2 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-950 text-white placeholder-gray-600 text-sm transition-colors"
               placeholder="e.g., minimalist, luxury, modern..."
               autoFocus
             />
           </div>
 
-          {/* Description */}
           <div>
-            <label className="block text-sm font-bold text-white mb-3 uppercase tracking-wide">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Description
-              <span className="text-gray-400 text-xs font-normal ml-2 lowercase">(optional)</span>
+              <span className="text-gray-500 text-xs font-normal ml-2">(optional)</span>
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-4 py-3 border-2 border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-900 text-white placeholder-gray-500 transition-all hover:border-gray-500 resize-none"
+              className="w-full px-3 py-2 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-950 text-white placeholder-gray-600 text-sm transition-colors resize-none"
               placeholder="Add a helpful description for this tag..."
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-6 bg-gray-900 rounded-b-2xl border-t-2 border-gray-700 flex gap-3">
+        <div className="px-6 py-4 bg-gray-950 rounded-b-lg border-t border-gray-800 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-6 py-3 bg-gray-700 border-2 border-gray-600 text-white rounded-lg hover:bg-gray-600 hover:border-gray-500 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             onClick={handleAdd}
             disabled={isAdding || !tagValue.trim()}
-            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:shadow-lg transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isAdding ? '⏳ Adding...' : '✓ Add Tag'}
+            {isAdding ? 'Adding...' : 'Add Tag'}
           </button>
         </div>
       </div>

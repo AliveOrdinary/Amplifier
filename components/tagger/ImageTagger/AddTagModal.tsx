@@ -71,7 +71,7 @@ export default function AddTagModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg shadow-2xl max-w-md w-full mx-4 border border-gray-700">
+      <div className="bg-gray-900 rounded-lg max-w-md w-full mx-4 border border-gray-800">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
           <h3 className="text-lg font-semibold text-white">

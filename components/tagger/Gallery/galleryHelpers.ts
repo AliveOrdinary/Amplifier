@@ -52,7 +52,7 @@ export async function updateTagUsageForChanges(
             p_last_used_at: now
           })
           if (error) {
-            console.error(`⚠️ Error incrementing usage for ${dbCategory}:${tag}:`, error)
+            console.error(`Error incrementing usage for ${dbCategory}:${tag}:`, error)
           }
         }
 
@@ -63,12 +63,12 @@ export async function updateTagUsageForChanges(
             p_tag_value: tag
           })
           if (error) {
-            console.error(`⚠️ Error decrementing usage for ${dbCategory}:${tag}:`, error)
+            console.error(`Error decrementing usage for ${dbCategory}:${tag}:`, error)
           }
         }
       }
     }
   } catch (error) {
-    console.error('⚠️ Error updating tag usage counts:', error)
+    console.error('Error updating tag usage counts:', error)
   }
 }

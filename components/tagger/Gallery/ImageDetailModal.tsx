@@ -217,7 +217,7 @@ export default function ImageDetailModal({ image, vocabConfig, onClose, onEdit }
                       )}
 
                       {corrections.added.length === 0 && corrections.removed.length === 0 && (
-                        <p className="text-xs text-green-700">✓ All AI suggestions accepted</p>
+                        <p className="text-xs text-green-400">All AI suggestions accepted</p>
                       )}
                     </div>
                   )}
