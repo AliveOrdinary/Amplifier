@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, memo } from 'react';
-import { motion } from 'framer-motion';
 import Image from 'next/image';
 import type { ReferenceImage } from '@/lib/types';
 
@@ -20,20 +19,16 @@ const ReferenceImageCard = memo(function ReferenceImageCard({ image, isFavorited
   const matchScore = image.match_score || 0;
   const matchedKeywords = image.matched_keywords || [];
 
-  // Determine match quality badge
   const getMatchBadge = () => {
-    if (matchScore >= 10) return { text: '⭐ Excellent', color: 'bg-green-500' };
-    if (matchScore >= 5) return { text: '✓ Good', color: 'bg-blue-500' };
-    return { text: '~ Related', color: 'bg-gray-500' };
+    if (matchScore >= 10) return { text: 'Excellent', className: 'bg-green-900/50 text-green-300 border border-green-700' };
+    if (matchScore >= 5) return { text: 'Good match', className: 'bg-blue-900/50 text-blue-300 border border-blue-700' };
+    return { text: 'Related', className: 'bg-gray-800 text-gray-300 border border-gray-700' };
   };
 
   const badge = getMatchBadge();
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+    <div
       className="relative group mb-4"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -66,26 +61,28 @@ const ReferenceImageCard = memo(function ReferenceImageCard({ image, isFavorited
         )}
 
         {/* Match score badge */}
-        <div className={`absolute top-3 left-3 ${badge.color} text-white px-2 py-1 rounded text-xs font-bold`}>
+        <div className={`absolute top-3 left-3 ${badge.className} px-2 py-1 rounded text-xs font-medium`}>
           {badge.text}
         </div>
 
         {/* Overlay with favorite button */}
         <div
-          className={`absolute inset-0 bg-black transition-opacity duration-300 ${
-            isHovered || isFavorited ? 'bg-opacity-40' : 'bg-opacity-0'
+          className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${
+            isHovered || isFavorited ? 'opacity-100' : 'opacity-0'
           }`}
         >
           <button
             onClick={onToggleFavorite}
-            className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+            className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
               isFavorited
-                ? 'bg-red-500 text-white scale-110'
-                : 'bg-white text-gray-700 hover:bg-red-500 hover:text-white'
-            } ${isHovered || isFavorited ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
+                ? 'bg-red-500 text-white'
+                : 'bg-white/90 text-gray-600 hover:bg-red-500 hover:text-white'
+            }`}
             aria-label={isFavorited ? 'Unfavorite' : 'Favorite'}
           >
-            {isFavorited ? '❤️' : '🤍'}
+            <svg className="w-4 h-4" fill={isFavorited ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
           </button>
         </div>
       </div>
@@ -115,7 +112,7 @@ const ReferenceImageCard = memo(function ReferenceImageCard({ image, isFavorited
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 });
 

@@ -36,24 +36,26 @@ export default function KeywordEditor({ keywords, onChange, onSearch, isLoading 
 
       <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
         <p className="text-gray-300 mb-4">
-          Review and edit these AI-extracted keywords. You can add, remove, or modify them to better match your vision.
+          Review and edit these keywords. You can add, remove, or modify them to better match your vision.
         </p>
       </div>
 
       <div className="mb-8">
-        <div className="flex flex-wrap gap-3 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           {keywords.map((keyword, index) => (
             <div
               key={keyword}
-              className="bg-white text-black px-4 py-2 rounded-full flex items-center gap-2 group"
+              className="bg-gray-800 text-white border border-gray-700 px-3 py-1.5 rounded-lg flex items-center gap-2"
             >
-              <span>{keyword}</span>
+              <span className="text-sm">{keyword}</span>
               <button
                 onClick={() => handleRemove(index)}
-                className="text-black hover:text-red-600 transition-colors font-bold"
+                className="text-gray-400 hover:text-red-400 transition-colors"
                 aria-label={`Remove ${keyword}`}
               >
-                ×
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
           ))}
@@ -66,12 +68,12 @@ export default function KeywordEditor({ keywords, onChange, onSearch, isLoading 
             onChange={(e) => setNewKeyword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())}
             placeholder="Add a keyword..."
-            className="flex-1 px-4 py-3 border-2 border-gray-700 bg-black text-white rounded-md focus:border-white focus:outline-none transition-colors placeholder:text-gray-500"
+            className="flex-1 px-4 py-3 border border-gray-700 bg-gray-950 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder:text-gray-500"
           />
           <button
             onClick={handleAdd}
             type="button"
-            className="px-6 py-3 border-2 border-white text-white rounded-md hover:bg-gray-900 transition-colors font-bold"
+            className="px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:text-white hover:border-gray-400 transition-colors font-medium"
           >
             Add
           </button>
@@ -81,7 +83,7 @@ export default function KeywordEditor({ keywords, onChange, onSearch, isLoading 
       <form onSubmit={handleSubmit}>
         {isLoading ? (
           <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
+            <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-blue-400 mb-4"></div>
             <p className="text-gray-400">Searching our curated collection for visual references...</p>
           </div>
         ) : (
@@ -89,9 +91,9 @@ export default function KeywordEditor({ keywords, onChange, onSearch, isLoading 
             <button
               type="submit"
               disabled={keywords.length === 0}
-              className="px-8 py-4 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-bold text-lg disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed"
+              className="px-8 py-4 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium text-lg disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed"
             >
-              Search Reference Gallery →
+              Search Reference Gallery
             </button>
           </div>
         )}

@@ -8,10 +8,10 @@ interface SuccessScreenProps {
 
 export default function SuccessScreen({ onReset }: SuccessScreenProps) {
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center px-4">
+    <div className="flex items-center justify-center px-4 py-20">
       <div className="max-w-2xl mx-auto text-center">
         <div className="mb-8">
-          <div className="inline-block p-4 bg-green-900 rounded-full mb-6">
+          <div className="inline-block p-4 bg-green-500/10 rounded-full mb-6">
             <svg
               className="w-16 h-16 text-green-400"
               fill="none"
@@ -60,14 +60,14 @@ export default function SuccessScreen({ onReset }: SuccessScreenProps) {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={onReset}
-            className="px-8 py-3 border-2 border-white text-white rounded-md hover:bg-gray-900 transition-colors font-bold"
+            className="px-8 py-3 border border-gray-600 text-gray-300 rounded-lg hover:text-white hover:border-gray-400 transition-colors font-medium"
           >
             Start New Briefing
           </button>
 
           <Link
             href="/"
-            className="px-8 py-3 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-bold inline-block"
+            className="px-8 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium inline-block"
           >
             Return Home
           </Link>

@@ -41,15 +41,15 @@ export default function ImageGallery({
         </p>
 
         {favoritedCount > 0 && (
-          <div className="bg-white text-black px-4 py-2 rounded-full inline-block font-bold">
+          <span className="text-sm text-blue-400 font-medium">
             {favoritedCount} image{favoritedCount !== 1 ? 's' : ''} favorited
-          </div>
+          </span>
         )}
       </div>
 
       {totalImages === 0 ? (
         <div className="text-center py-12 bg-gray-900 border border-gray-800 rounded-lg">
-          <p className="text-xl mb-4">🎨 Building our collection...</p>
+          <p className="text-lg text-gray-300 mb-4">Building our collection...</p>
           <p className="text-gray-400 mb-6">
             We&apos;re currently curating references for your project type.
             Our design team is actively building this library.
@@ -59,9 +59,9 @@ export default function ImageGallery({
           </p>
           <button
             onClick={onNext}
-            className="px-8 py-3 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-bold"
+            className="px-8 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium"
           >
-            Continue to Review →
+            Continue to Review
           </button>
         </div>
       ) : (
@@ -81,19 +81,19 @@ export default function ImageGallery({
             ))}
           </Masonry>
 
-          <div className="flex justify-between items-center mt-12 pt-8 border-t-2 border-gray-800">
+          <div className="flex justify-between items-center mt-12 pt-8 border-t border-gray-800">
             <button
               onClick={onRegenerate}
-              className="px-6 py-3 border-2 border-white text-white rounded-md hover:bg-gray-900 transition-colors font-bold"
+              className="px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:text-white hover:border-gray-400 transition-colors font-medium"
             >
-              ← Edit Keywords & Regenerate
+              Edit Keywords
             </button>
 
             <button
               onClick={onNext}
-              className="px-8 py-3 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-bold"
+              className="px-8 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium"
             >
-              Continue to Review →
+              Continue to Review
             </button>
           </div>
         </>

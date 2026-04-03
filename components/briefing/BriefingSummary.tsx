@@ -113,11 +113,11 @@ export default function BriefingSummary({
       </div>
 
       {/* Keywords */}
-      <div className="mb-8 p-6 bg-gray-900 border-2 border-gray-800 rounded-lg">
-        <h3 className="text-xl font-bold mb-4 text-white">Visual Keywords</h3>
+      <div className="mb-8 p-6 bg-gray-900 border border-gray-800 rounded-lg">
+        <h3 className="text-lg font-semibold mb-4 text-white">Visual Keywords</h3>
         <div className="flex flex-wrap gap-2">
           {keywords.map((keyword) => (
-            <span key={keyword} className="bg-white text-black px-4 py-2 rounded-full text-sm font-medium">
+            <span key={keyword} className="bg-gray-800 text-white border border-gray-700 px-3 py-1.5 rounded-lg text-sm">
               {keyword}
             </span>
           ))}
@@ -126,19 +126,19 @@ export default function BriefingSummary({
 
       {/* Favorited Images */}
       {favoritedImages.length > 0 && (
-        <div className="mb-8 p-6 bg-gray-900 border-2 border-gray-800 rounded-lg">
-          <h3 className="text-xl font-bold mb-4 text-white">
+        <div className="mb-8 p-6 bg-gray-900 border border-gray-800 rounded-lg">
+          <h3 className="text-lg font-semibold mb-4 text-white">
             Selected Visual References ({favoritedImages.length})
           </h3>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
             {favoritedImages.map(image => (
-              <div key={image.id} className="relative w-full h-24">
+              <div key={image.id} className="relative w-full h-28">
                 <Image
                   src={image.thumbnail_path}
                   alt={image.original_filename}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  className="object-cover rounded-md border border-gray-700"
+                  className="object-cover rounded-lg border border-gray-700"
                 />
               </div>
             ))}
@@ -147,23 +147,25 @@ export default function BriefingSummary({
       )}
 
       {/* Collapsible Sections */}
-      <div className="space-y-4 mb-8">
+      <div className="space-y-3 mb-8">
         {sections.map((section) => (
-          <div key={section.title} className="border-2 border-gray-800 rounded-lg overflow-hidden">
+          <div key={section.title} className="border border-gray-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleSection(section.title)}
               className="w-full px-6 py-4 bg-gray-900 hover:bg-gray-800 transition-colors flex items-center justify-between"
             >
-              <h3 className="text-lg font-bold text-left text-white">{section.title}</h3>
-              <span className="text-2xl text-white">{expandedSections.has(section.title) ? '−' : '+'}</span>
+              <h3 className="text-base font-semibold text-left text-white">{section.title}</h3>
+              <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedSections.has(section.title) ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
 
             {expandedSections.has(section.title) && (
-              <div className="px-6 py-4 bg-black border-t border-gray-800 space-y-4">
+              <div className="px-6 py-4 bg-gray-950 border-t border-gray-800 space-y-4">
                 {section.items.map((item, itemIndex) => (
                   <div key={itemIndex}>
-                    <p className="font-medium text-white mb-1">{item.label}</p>
-                    <p className="text-gray-300 pl-4 border-l-2 border-gray-700">{item.value}</p>
+                    <p className="text-sm font-medium text-gray-400 mb-1">{item.label}</p>
+                    <p className="text-gray-300 pl-4 border-l border-gray-700">{item.value}</p>
                   </div>
                 ))}
               </div>
@@ -173,24 +175,24 @@ export default function BriefingSummary({
       </div>
 
       {/* Actions */}
-      <div className="flex justify-between items-center pt-6 border-t-2 border-gray-800">
+      <div className="flex justify-between items-center pt-6 border-t border-gray-800">
         <button
           onClick={onBack}
           disabled={isLoading}
-          className="px-6 py-3 border-2 border-white text-white rounded-md hover:bg-gray-900 transition-colors font-bold disabled:opacity-50"
+          className="px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:text-white hover:border-gray-400 transition-colors font-medium disabled:opacity-50"
         >
-          ← Back to Gallery
+          Back to Gallery
         </button>
 
         {isLoading ? (
           <div className="flex items-center gap-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400"></div>
             <span className="text-gray-400">Submitting...</span>
           </div>
         ) : (
           <button
             onClick={onSubmit}
-            className="px-8 py-3 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-bold"
+            className="px-8 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium"
           >
             Submit Briefing
           </button>

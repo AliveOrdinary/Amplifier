@@ -9,7 +9,7 @@ export const metadata = {
 export default function BriefingPage() {
   return (
     <Layout>
-      <div className="pt-20">
+      <div className="pt-20 bg-gray-950">
         <BriefingClient />
       </div>
     </Layout>

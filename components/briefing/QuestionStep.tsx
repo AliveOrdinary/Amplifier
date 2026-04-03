@@ -19,7 +19,7 @@ export default function QuestionStep({
   helpText,
   type = 'textarea'
 }: QuestionStepProps) {
-  const inputClasses = "w-full px-4 py-3 border-2 border-gray-700 bg-black text-white rounded-md focus:border-white focus:outline-none transition-colors font-montreal placeholder:text-gray-500";
+  const inputClasses = "w-full px-4 py-3 border border-gray-700 bg-gray-950 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors placeholder:text-gray-500";
 
   return (
     <div className="mb-8">
@@ -39,8 +39,8 @@ export default function QuestionStep({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           required={required}
-          rows={6}
-          className={`${inputClasses} resize-y min-h-[120px]`}
+          rows={3}
+          className={`${inputClasses} resize-y`}
         />
       ) : (
         <input

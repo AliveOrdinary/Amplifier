@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import StepIndicator from './StepIndicator';
 import QuestionStep from './QuestionStep';
 import KeywordExtraction from './KeywordExtraction';
@@ -20,7 +19,8 @@ const STEP_LABELS = [
   'Vision',
   'Keywords',
   'Gallery',
-  'Review'
+  'Review',
+  'Submit'
 ];
 
 const STORAGE_KEY = 'briefing_progress';
@@ -71,6 +71,12 @@ export default function BriefingClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [savedProgress, setSavedProgress] = useState<{
+    currentStep: number;
+    responses: QuestionnaireResponses;
+    extractedKeywords: string[];
+    editedKeywords: string[];
+  } | null>(null);
 
   // Auto-save progress to localStorage
   useEffect(() => {
@@ -84,18 +90,28 @@ export default function BriefingClient() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        const { currentStep: savedStep, responses: savedResponses, extractedKeywords: savedKeywords, editedKeywords: savedEditedKeywords } = JSON.parse(saved);
-        if (confirm('Continue from where you left off?')) {
-          setCurrentStep(savedStep);
-          setResponses(savedResponses);
-          setExtractedKeywords(savedKeywords || []);
-          setEditedKeywords(savedEditedKeywords || []);
-        }
+        const parsed = JSON.parse(saved);
+        setSavedProgress(parsed);
       } catch {
         console.error('Failed to load saved progress');
       }
     }
   }, []);
+
+  const handleRestoreProgress = () => {
+    if (savedProgress) {
+      setCurrentStep(savedProgress.currentStep);
+      setResponses(savedProgress.responses);
+      setExtractedKeywords(savedProgress.extractedKeywords || []);
+      setEditedKeywords(savedProgress.editedKeywords || []);
+      setSavedProgress(null);
+    }
+  };
+
+  const handleDiscardProgress = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setSavedProgress(null);
+  };
 
   const updateResponse = (field: keyof QuestionnaireResponses, value: string) => {
     setResponses(prev => ({ ...prev, [field]: value }));
@@ -262,27 +278,37 @@ export default function BriefingClient() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white py-12 px-4">
+    <div className="min-h-screen bg-gray-950 text-white py-12 px-4">
       <div className="max-w-5xl mx-auto">
-        <StepIndicator currentStep={currentStep} totalSteps={9} stepLabels={STEP_LABELS} />
+        <StepIndicator currentStep={currentStep} totalSteps={10} stepLabels={STEP_LABELS} />
 
         {error && (
-          <div className="bg-red-900 border-2 border-red-500 text-red-200 px-4 py-3 rounded mb-6">
+          <div className="bg-red-900/50 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg mb-6">
             {error}
           </div>
         )}
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentStep}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            {renderStep()}
-          </motion.div>
-        </AnimatePresence>
+        {savedProgress && (
+          <div className="bg-gray-900 border border-gray-700 rounded-lg px-5 py-4 mb-6 flex items-center justify-between gap-4">
+            <p className="text-sm text-gray-300">You have saved progress from a previous session.</p>
+            <div className="flex gap-3 shrink-0">
+              <button
+                onClick={handleDiscardProgress}
+                className="px-4 py-2 text-sm border border-gray-600 text-gray-400 rounded-lg hover:text-white hover:border-gray-400 transition-colors"
+              >
+                Start Fresh
+              </button>
+              <button
+                onClick={handleRestoreProgress}
+                className="px-4 py-2 text-sm bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        )}
+
+        {renderStep()}
       </div>
     </div>
   );
@@ -370,8 +396,8 @@ export default function BriefingClient() {
           helpText="Optional"
         />
         <div className="flex justify-end pt-6">
-          <button type="submit" className="px-8 py-3 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-bold">
-            Next →
+          <button type="submit" className="px-8 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium">
+            Next
           </button>
         </div>
       </form>
@@ -419,11 +445,11 @@ export default function BriefingClient() {
           required={false}
         />
         <div className="flex justify-between pt-6">
-          <button type="button" onClick={handleBack} className="px-8 py-3 border-2 border-white text-white rounded-md hover:bg-gray-900 transition-colors font-bold">
-            ← Back
+          <button type="button" onClick={handleBack} className="px-8 py-3 border border-gray-600 text-gray-300 rounded-lg hover:text-white hover:border-gray-400 transition-colors font-medium">
+            Back
           </button>
-          <button type="submit" className="px-8 py-3 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-bold">
-            Next →
+          <button type="submit" className="px-8 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium">
+            Next
           </button>
         </div>
       </form>
@@ -460,11 +486,11 @@ export default function BriefingClient() {
           onChange={(v) => updateResponse('artistsDiversification', v)}
         />
         <div className="flex justify-between pt-6">
-          <button type="button" onClick={handleBack} className="px-8 py-3 border-2 border-white text-white rounded-md hover:bg-gray-900 transition-colors font-bold">
-            ← Back
+          <button type="button" onClick={handleBack} className="px-8 py-3 border border-gray-600 text-gray-300 rounded-lg hover:text-white hover:border-gray-400 transition-colors font-medium">
+            Back
           </button>
-          <button type="submit" className="px-8 py-3 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-bold">
-            Next →
+          <button type="submit" className="px-8 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium">
+            Next
           </button>
         </div>
       </form>
@@ -501,11 +527,11 @@ export default function BriefingClient() {
           onChange={(v) => updateResponse('decolonizationVisual', v)}
         />
         <div className="flex justify-between pt-6">
-          <button type="button" onClick={handleBack} className="px-8 py-3 border-2 border-white text-white rounded-md hover:bg-gray-900 transition-colors font-bold">
-            ← Back
+          <button type="button" onClick={handleBack} className="px-8 py-3 border border-gray-600 text-gray-300 rounded-lg hover:text-white hover:border-gray-400 transition-colors font-medium">
+            Back
           </button>
-          <button type="submit" className="px-8 py-3 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-bold">
-            Next →
+          <button type="submit" className="px-8 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium">
+            Next
           </button>
         </div>
       </form>
@@ -548,11 +574,11 @@ export default function BriefingClient() {
           onChange={(v) => updateResponse('brandRole', v)}
         />
         <div className="flex justify-between pt-6">
-          <button type="button" onClick={handleBack} className="px-8 py-3 border-2 border-white text-white rounded-md hover:bg-gray-900 transition-colors font-bold">
-            ← Back
+          <button type="button" onClick={handleBack} className="px-8 py-3 border border-gray-600 text-gray-300 rounded-lg hover:text-white hover:border-gray-400 transition-colors font-medium">
+            Back
           </button>
-          <button type="submit" className="px-8 py-3 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-bold">
-            Next →
+          <button type="submit" className="px-8 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium">
+            Next
           </button>
         </div>
       </form>
@@ -604,11 +630,11 @@ export default function BriefingClient() {
           onChange={(v) => updateResponse('competitors', v)}
         />
         <div className="flex justify-between pt-6">
-          <button type="button" onClick={handleBack} className="px-8 py-3 border-2 border-white text-white rounded-md hover:bg-gray-900 transition-colors font-bold">
-            ← Back
+          <button type="button" onClick={handleBack} className="px-8 py-3 border border-gray-600 text-gray-300 rounded-lg hover:text-white hover:border-gray-400 transition-colors font-medium">
+            Back
           </button>
-          <button type="submit" className="px-8 py-3 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-bold">
-            Next →
+          <button type="submit" className="px-8 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium">
+            Next
           </button>
         </div>
       </form>
