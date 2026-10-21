@@ -50,11 +50,27 @@ async function guardedGet(rawUrl: string, expect: "any" | "image"): Promise<GetR
   for (let hop = 0; hop < 5; hop++) {
     await assertPublicHost(url.hostname);
 
-    const response = await fetch(url, {
-      redirect: "manual",
-      headers: { "user-agent": USER_AGENT, accept: "image/*,text/html;q=0.9,*/*;q=0.5" },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        redirect: "manual",
+        headers: { "user-agent": USER_AGENT, accept: "image/*,text/html;q=0.9,*/*;q=0.5" },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+    } catch (error) {
+      const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+      throw new RemoteFetchError(
+        timedOut
+          ? "That site took too long to answer. Try again, or use the browser extension."
+          : "Couldn't reach that site from the studio; some sites block it. Use the browser extension, or save the image and upload it.",
+      );
+    }
+
+    if (response.status === 401 || response.status === 403 || response.status === 429) {
+      throw new RemoteFetchError(
+        "That site blocks downloads from the studio. Use the browser extension, or save the image and upload it.",
+      );
+    }
 
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location");
