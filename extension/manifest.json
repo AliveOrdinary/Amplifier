@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Amplifier Library",
+  "version": "1.0.0",
+  "description": "Right-click any image to add it to the Amplifier studio library.",
+  "permissions": ["contextMenus", "storage", "notifications"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "action": { "default_title": "Amplifier Library settings" },
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" }
+}

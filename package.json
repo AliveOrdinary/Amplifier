@@ -6,9 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:extension": "rm -f public/amplifier-extension.zip && cd extension && zip -qrX ../public/amplifier-extension.zip . -x '.*'"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.0.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "geist": "^1.8.1",
@@ -16,6 +18,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
+    "sharp": "^0.35.5",
     "zod": "^4.6.7"
   },
   "devDependencies": {

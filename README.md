@@ -20,6 +20,21 @@ cp .env.example .env.local   # fill in the Supabase values
 npm run dev
 ```
 
+## Environment variables
+
+| Variable | Used for |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Everything |
+| `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`) | The browser extension's ingest endpoint |
+| `ANTHROPIC_API_KEY` | Scoring library images |
+| `AMPLIFIER_SCORING_MODEL` | Optional. Defaults to `claude-sonnet-5-5` |
+
+## Library
+
+Images come in four ways: upload or drop in Studio › Library, paste an image or page link, the Chrome extension (right-click › Add to Amplifier library), or the Android share sheet once the studio is installed as an app. Each image is resized (1600px display, 480px thumbnail), checked for exact and near duplicates, and scored by Claude on the eight dimensions. Members review and correct scores from the keyboard.
+
+The Chrome extension lives in `extension/`. After changing it, run `npm run build:extension` to refresh `public/amplifier-extension.zip`, which the library page links to.
+
 ## Database
 
 Migrations are in `supabase/migrations`, applied in filename order:
@@ -27,6 +42,7 @@ Migrations are in `supabase/migrations`, applied in filename order:
 1. `…01_drop_v1.sql` deletes the v1 tagger and briefing tables and their data. Afterwards, empty and delete the old `reference-images` bucket under Storage.
 2. `…02_core_schema.sql` creates the v2 tables, row level security and the `library` and `portfolio` storage buckets.
 3. `…03_seed_studio.sql` adds the studio, the eight taste dimensions and the question templates. Safe to re-run.
+4. `…04_library.sql` adds image processing columns and the browser extension's personal keys.
 
 Apply them with the Supabase CLI (`supabase db push`) or paste each file into the SQL editor, in order.
 
