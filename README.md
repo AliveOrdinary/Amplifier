@@ -1,88 +1,41 @@
-# Amplifier Portfolio & Reference Image Tagger
+# Amplifier
 
-A dual-purpose Next.js application combining a graphic design portfolio with an AI-powered reference image tagging system.
+The studio site, the client Visual Brief and the studio's reference library, in one Next.js app.
 
-## Features
+- **Portfolio** (`/`): public site. Rebuilt in phase 5; amplifier.studio serves the current site until launch.
+- **Brief** (`/b/…`): a private link per client. Phase 3.
+- **Studio** (`/studio`): library, briefs, prep pages and portfolio projects, for studio members only.
 
-**Portfolio Website:**
-- Responsive design for all devices
-- File-based content management with markdown
-- Fast page loading with Next.js App Router
-- High-quality image optimization
+The concept, decisions and build plan live in the *Amplifier Visual Brief — Concept Spec* doc.
 
-**Reference Image Tagger:**
-- AI-powered tag suggestions (Claude Sonnet 4)
-- Dynamic vocabulary system
-- Supabase authentication and storage
-- Comprehensive analytics dashboard
+## Stack
 
-**Visual Briefing System:**
-- Interactive client questionnaire
-- AI keyword extraction
-- Reference image search integration
+Next.js 16 (App Router, Cache Components, `proxy.ts`), Supabase (Postgres, Auth, Storage), Tailwind CSS 4, Claude API (from phase 2). Type is PP Neue Montreal with Geist Mono.
 
-## Setup
+## Local setup
 
-### Prerequisites
-
-- Node.js (v16 or newer)
-- npm or yarn
-
-### Installation
-
-1. Clone this repository
-```bash
-git clone https://github.com/yourusername/portfolio.git
-cd portfolio
-```
-
-2. Install dependencies
 ```bash
 npm install
-```
-
-3. Run the development server
-```bash
+cp .env.example .env.local   # fill in the Supabase values
 npm run dev
 ```
 
-4. Open http://localhost:3000 in your browser
+## Database
 
-## Content Management
+Migrations are in `supabase/migrations`, applied in filename order:
 
-Portfolio content is managed through markdown files in the `content/` directory:
+1. `…01_archive_legacy.sql` moves the v1 tagger tables into a `legacy` schema. Nothing is deleted.
+2. `…02_core_schema.sql` creates the v2 tables, row level security and the `library` and `portfolio` storage buckets.
+3. `…03_seed_studio.sql` adds the studio, the eight taste dimensions and the question templates. Safe to re-run.
 
-- `content/global/info.md` - Site-wide settings (navigation, footer, site title)
-- `content/pages/` - Page-specific content (home.md, about.md, contact.md)
-- `content/projects/` - Project case studies (each project is a separate .md file)
+Apply them with the Supabase CLI (`supabase db push`) or paste each file into the SQL editor, in order.
 
-**To add new projects:** See the comprehensive guide at [`docs/ADDING_PROJECTS.md`](docs/ADDING_PROJECTS.md)
+### Studio members
 
-**Quick start:** Create a markdown file in `content/projects/`, add frontmatter with project details, upload media to `public/images/uploads/[project-slug]/`, commit and deploy.
+1. In Supabase, **Authentication → Sign In / Providers**: turn off "Allow new users to sign up".
+2. **Authentication → Users → Add user**: create an account (email + password) for each studio member.
+3. Edit the emails and names in `supabase/add-members.sql` and run it in the SQL editor.
 
-## Project Structure
+A signed-in account that isn't in `members` is signed out and shown a notice.
 
-- `app/` - Next.js app router pages and layouts (portfolio + tagger + briefing)
-- `components/` - React components (Layout, Tagger, Briefing components)
-- `content/` - Markdown content for portfolio
-- `lib/` - Utility functions (Supabase, validation, markdown processing)
-- `public/` - Static assets
-- `supabase/migrations/` - Database migrations
-
-## Deployment
-
-**Requirements:**
-- Node.js runtime (Vercel, Netlify Functions, or Node.js server)
-- Supabase project with configured database and storage
-- Environment variables (see CLAUDE.md for full list)
-
-**Build Settings:**
-- Build command: `npm run build`
-- Output directory: `.next`
-- Node.js version: 18 or newer
-
-**Note:** This application requires server-side features and cannot be deployed as a static site.
-
-## License
-
-This project is licensed under the MIT License.
+The v1 SQL files are kept in `supabase/legacy` for reference only.

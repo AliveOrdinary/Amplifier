@@ -1,55 +1,78 @@
 @import "tailwindcss";
-@import "../styles/fonts.css";
 
-html {
-  scroll-behavior: smooth;
+/*
+ * Amplifier design tokens.
+ * Paper and ink, one signal colour for actions and state; the work supplies
+ * every other colour. Dark mode follows the system setting.
+ */
+:root {
+  --paper: #f2f1ec;
+  --panel: #e8e6df;
+  --ink: #111111;
+  --ink-soft: #3a3934;
+  --muted: #5e5c55;
+  --rule: #d6d4cc;
+  --rule-strong: #b9b6ac;
+  --signal: #ff4f00;
+  --on-signal: #111111;
+  --danger: #b42318;
 }
 
-:root {
-  --foreground-rgb: 247, 247, 247;
-  --background-rgb: 0, 0, 0;
-  --font-sans: 'PP Neue Montreal', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-serif: 'Right Serif', Georgia, serif;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121211;
+    --panel: #1c1b19;
+    --ink: #edebe4;
+    --ink-soft: #cfccc3;
+    --muted: #a19e95;
+    --rule: #2c2b28;
+    --rule-strong: #45433e;
+    --signal: #ff5a14;
+    --on-signal: #111111;
+    --danger: #f97066;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-signal: var(--signal);
+  --color-on-signal: var(--on-signal);
+  --color-danger: var(--danger);
+
+  --font-sans: var(--font-montreal), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --text-display: 3.5rem;
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.03em;
+  --text-title: 1.375rem;
+  --text-title--line-height: 1.2;
+  --text-label: 0.6875rem;
+  --text-label--letter-spacing: 0.08em;
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Custom transitions */
-a {
-  transition: all 0.2s ease-in-out;
+::selection {
+  background: var(--signal);
+  color: var(--on-signal);
 }
 
-/* Project grid layout for different screen sizes */
-@media (min-width: 768px) {
-  .project-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-  }
-}
-
-/* Prevent images from being dragged */
-img {
-  -webkit-user-drag: none;
-  user-drag: none;
-}
-
-/* Toast notification animations */
-@keyframes slide-in-right {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.animate-slide-in-right {
-  animation: slide-in-right 0.3s ease-out;
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
 }
