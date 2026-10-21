@@ -24,7 +24,7 @@ npm run dev
 
 Migrations are in `supabase/migrations`, applied in filename order:
 
-1. `…01_archive_legacy.sql` moves the v1 tagger tables into a `legacy` schema. Nothing is deleted.
+1. `…01_drop_v1.sql` deletes the v1 tagger and briefing tables and their data. Afterwards, empty and delete the old `reference-images` bucket under Storage.
 2. `…02_core_schema.sql` creates the v2 tables, row level security and the `library` and `portfolio` storage buckets.
 3. `…03_seed_studio.sql` adds the studio, the eight taste dimensions and the question templates. Safe to re-run.
 
@@ -37,5 +37,3 @@ Apply them with the Supabase CLI (`supabase db push`) or paste each file into th
 3. Edit the emails and names in `supabase/add-members.sql` and run it in the SQL editor.
 
 A signed-in account that isn't in `members` is signed out and shown a notice.
-
-The v1 SQL files are kept in `supabase/legacy` for reference only.
