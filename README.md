@@ -33,7 +33,9 @@ Apply them with the Supabase CLI (`supabase db push`) or paste each file into th
 ### Studio members
 
 1. In Supabase, **Authentication → Sign In / Providers**: turn off "Allow new users to sign up".
-2. **Authentication → Users → Add user**: create an account (email + password) for each studio member.
-3. Edit the emails and names in `supabase/add-members.sql` and run it in the SQL editor.
+2. **Authentication → Users → Add user**: create your account (email + password).
+3. Put your email and name into `supabase/add-members.sql` and run it in the SQL editor. This makes you the studio owner.
+
+More members will be invited from the studio's Settings page.
 
 A signed-in account that isn't in `members` is signed out and shown a notice.
