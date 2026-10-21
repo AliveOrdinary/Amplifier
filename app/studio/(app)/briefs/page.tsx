@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { EmptyState, Mono, PageHeader, Section } from "@/components/ui/primitives";
+import { EmptyState, Mono, PageContainer, PageHeader, Section } from "@/components/ui/primitives";
 
 export const metadata: Metadata = { title: "Briefs" };
 
@@ -14,7 +14,7 @@ export default async function BriefsPage() {
   ]);
 
   return (
-    <>
+    <PageContainer>
       <PageHeader eyebrow={<Mono>{count ?? 0} briefs</Mono>} title="Briefs" />
 
       <Section number="01" title="Client briefs" description="One private link per client. Results arrive here as a prep page.">
@@ -56,6 +56,6 @@ export default async function BriefsPage() {
           })}
         </ul>
       </Section>
-    </>
+    </PageContainer>
   );
 }

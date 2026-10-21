@@ -117,7 +117,7 @@ export function ExtensionKeys({ keys }: { keys: MemberKey[] }) {
         <p className="mt-2 max-w-[60ch] text-[15px] leading-relaxed text-ink-soft">
           Open this studio in Chrome on Android and choose Add to home screen. Amplifier then appears in the share
           sheet: share an image or a Pinterest pin to it. iPhones don&apos;t allow web apps in the share sheet, so on an
-          iPhone copy the link and paste it into the field above.
+          iPhone copy the link and paste it into the link field in the Library.
         </p>
       </div>
     </div>

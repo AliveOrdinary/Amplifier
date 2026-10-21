@@ -22,6 +22,13 @@ export function Mono({ className, ...props }: ComponentProps<"span">) {
   );
 }
 
+/* ---------------------------------------------------------------- Layout */
+
+/** The standard studio page width and padding (full-bleed screens skip it). */
+export function PageContainer({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn("mx-auto w-full max-w-[1360px] px-4 pt-8 pb-24 sm:px-10", className)}>{children}</div>;
+}
+
 /* ----------------------------------------------------------------- Buttons */
 
 type Variant = "primary" | "secondary" | "ghost";

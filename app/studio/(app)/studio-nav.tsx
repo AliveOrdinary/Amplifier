@@ -8,6 +8,7 @@ const items = [
   { href: "/studio/briefs", label: "Briefs" },
   { href: "/studio/library", label: "Library" },
   { href: "/studio/portfolio", label: "Portfolio" },
+  { href: "/studio/settings", label: "Settings" },
 ] as const;
 
 export function StudioNav() {

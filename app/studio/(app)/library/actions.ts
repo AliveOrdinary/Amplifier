@@ -1,19 +1,40 @@
 "use server";
 
-import { randomBytes, randomUUID, createHash } from "node:crypto";
-import { refresh } from "next/cache";
+import { randomUUID } from "node:crypto";
 import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { DIMENSION_KEYS, MEDIUM_KEYS, clampScore, type DimensionKey } from "@/lib/library/constants";
-import { assertAcceptable, extensionFor, finishImage, ingestBytes, IngestError, removeImage, type IngestResult } from "@/lib/library/pipeline";
+import {
+  assertAcceptable,
+  extensionFor,
+  finishImage,
+  ingestBytes,
+  IngestError,
+  removeImage,
+  type IngestResult,
+} from "@/lib/library/pipeline";
 import { fetchRemoteImage, RemoteFetchError } from "@/lib/library/fetch-remote";
 import { scoreImage } from "@/lib/library/score";
+import { getImages, getImagesSince } from "@/lib/library/queries";
+import type { ImageStatus, LibraryImage } from "@/lib/library/types";
 
 type Fail = { ok: false; error: string };
 const fail = (error: unknown, fallback = "Something went wrong."): Fail => ({
   ok: false,
   error: error instanceof IngestError || error instanceof RemoteFetchError || error instanceof Error ? error.message : fallback,
 });
+
+export type AddResult =
+  | { ok: true; status: "duplicate"; image: LibraryImage | null }
+  | { ok: true; status: "added"; image: LibraryImage | null; nearDuplicate: boolean; scored: boolean }
+  | Fail;
+
+async function withImage(db: Awaited<ReturnType<typeof createClient>>, result: IngestResult): Promise<AddResult> {
+  const [image] = await getImages(db, [result.imageId]);
+  return result.status === "duplicate"
+    ? { ok: true, status: "duplicate", image: image ?? null }
+    : { ok: true, status: "added", image: image ?? null, nearDuplicate: result.nearDuplicates.length > 0, scored: result.scored };
+}
 
 /* ------------------------------------------------------------------ Adding */
 
@@ -60,12 +81,11 @@ export async function prepareUpload(file: { name: string; type: string; size: nu
 }
 
 /** Step 2: the file is in storage; resize, check for near-duplicates, score. */
-export async function finishUpload(imageId: string): Promise<({ ok: true } & IngestResult) | Fail> {
+export async function finishUpload(imageId: string): Promise<AddResult> {
   await getMember();
   try {
-    const result = await finishImage(await createClient(), imageId);
-    refresh();
-    return { ok: true, ...result };
+    const db = await createClient();
+    return await withImage(db, await finishImage(db, imageId));
   } catch (error) {
     return fail(error);
   }
@@ -78,11 +98,12 @@ export async function abandonUpload(imageId: string) {
 }
 
 /** Add an image from a link: a direct image URL, or a page with a preview image. */
-export async function addFromLink(url: string): Promise<({ ok: true } & IngestResult) | Fail> {
+export async function addFromLink(url: string): Promise<AddResult> {
   const member = await getMember();
   try {
     const remote = await fetchRemoteImage(url);
-    const result = await ingestBytes(await createClient(), {
+    const db = await createClient();
+    const result = await ingestBytes(db, {
       studioId: member.studioId,
       addedBy: member.userId,
       bytes: remote.bytes,
@@ -91,8 +112,23 @@ export async function addFromLink(url: string): Promise<({ ok: true } & IngestRe
       sourceUrl: remote.sourceUrl,
       pageUrl: remote.pageUrl,
     });
-    refresh();
-    return { ok: true, ...result };
+    return await withImage(db, result);
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** New images (from the extension or a phone) and updates to ones still being scored. */
+export async function pollImages(since: string, pendingIds: string[]): Promise<{ ok: true; images: LibraryImage[] } | Fail> {
+  const member = await getMember();
+  try {
+    const db = await createClient();
+    const [fresh, updated] = await Promise.all([
+      getImagesSince(db, member.studioId, since),
+      getImages(db, pendingIds.slice(0, 50)),
+    ]);
+    const byId = new Map([...updated, ...fresh].map((image) => [image.id, image]));
+    return { ok: true, images: [...byId.values()] };
   } catch (error) {
     return fail(error);
   }
@@ -100,12 +136,13 @@ export async function addFromLink(url: string): Promise<({ ok: true } & IngestRe
 
 /* --------------------------------------------------------------- Reviewing */
 
-export async function rescore(imageId: string): Promise<{ ok: true } | Fail> {
+export async function rescore(imageId: string): Promise<{ ok: true; image: LibraryImage | null } | Fail> {
   await getMember();
   try {
-    await scoreImage(await createClient(), imageId);
-    refresh();
-    return { ok: true };
+    const db = await createClient();
+    await scoreImage(db, imageId);
+    const [image] = await getImages(db, [imageId]);
+    return { ok: true, image: image ?? null };
   } catch (error) {
     return fail(error);
   }
@@ -127,14 +164,13 @@ export async function saveScore(imageId: string, dimension: DimensionKey, score:
   }
 }
 
-export async function setStatus(imageId: string, status: "pending" | "approved" | "rejected"): Promise<{ ok: true } | Fail> {
+export async function setStatus(imageId: string, status: ImageStatus): Promise<{ ok: true } | Fail> {
   await getMember();
   try {
     if (!["pending", "approved", "rejected"].includes(status)) throw new Error("Unknown status.");
     const db = await createClient();
     const { error } = await db.from("images").update({ status }).eq("id", imageId);
     if (error) throw new Error(error.message);
-    refresh();
     return { ok: true };
   } catch (error) {
     return fail(error);
@@ -158,40 +194,6 @@ export async function deleteImage(imageId: string): Promise<{ ok: true } | Fail>
   const member = await getMember();
   try {
     await removeImage(await createClient(), imageId, member.studioId);
-    refresh();
-    return { ok: true };
-  } catch (error) {
-    return fail(error);
-  }
-}
-
-/* ------------------------------------------------------- Extension keys */
-
-/** Creates a personal key for the browser extension. Shown once. */
-export async function createExtensionKey(): Promise<{ ok: true; key: string } | Fail> {
-  await getMember();
-  try {
-    const key = `amp_${randomBytes(24).toString("base64url")}`;
-    const db = await createClient();
-    const { error } = await db.from("member_keys").insert({
-      key_hash: createHash("sha256").update(key).digest("hex"),
-      key_prefix: key.slice(0, 8),
-    });
-    if (error) throw new Error(error.message);
-    refresh();
-    return { ok: true, key };
-  } catch (error) {
-    return fail(error);
-  }
-}
-
-export async function revokeExtensionKey(keyId: string): Promise<{ ok: true } | Fail> {
-  await getMember();
-  try {
-    const db = await createClient();
-    const { error } = await db.from("member_keys").update({ revoked_at: new Date().toISOString() }).eq("id", keyId);
-    if (error) throw new Error(error.message);
-    refresh();
     return { ok: true };
   } catch (error) {
     return fail(error);
