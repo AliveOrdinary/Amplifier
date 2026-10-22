@@ -159,7 +159,7 @@ export async function finishImage(
   // Embedding takes about a second; scoring several. Run them side by side.
   let scored = !queue;
   await Promise.all([
-    embedAndStore(db, [{ id: image.id, image: derived.thumb }]),
+    embedAndStore(db, [{ id: image.id, image: derived.thumb }], image.studio_id),
     queue
       ? null
       : scoreImage(db, image.id).catch(async (err) => {

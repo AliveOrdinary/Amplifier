@@ -6,7 +6,8 @@ import { supabaseEnv } from "@/lib/supabase/env";
  * Runs before every /studio request:
  * - refreshes the Supabase session cookie when it is close to expiry
  * - sends signed-out visitors to the login page (an optimistic check; each
- *   studio page still verifies membership on the server)
+ *   studio page still verifies membership on the server), except on
+ *   /studio/join, where invite links land
  */
 export async function proxy(request: NextRequest) {
   const { url, key } = supabaseEnv();
@@ -30,8 +31,10 @@ export async function proxy(request: NextRequest) {
   const signedIn = Boolean(data?.claims?.sub);
   const { pathname, search } = request.nextUrl;
   const onLogin = pathname === "/studio/login";
+  // Invite and sign-in links land here before anyone is signed in.
+  const joining = pathname === "/studio/join";
 
-  if (!signedIn && !onLogin) {
+  if (!signedIn && !onLogin && !joining) {
     const login = new URL("/studio/login", request.url);
     login.searchParams.set("next", pathname + search);
     return redirectKeepingCookies(login, response);

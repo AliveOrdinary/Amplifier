@@ -1,5 +1,8 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { recordVoyage } from "@/lib/usage";
+
+type VoyageUsage = { text_tokens?: number; image_pixels?: number; total_tokens?: number };
 
 /**
  * Image embeddings from Voyage: each image becomes 1024 numbers, and images
@@ -15,10 +18,10 @@ export const NEAR_DUPLICATE_DISTANCE = 0.06;
 export const embeddingsEnabled = () => Boolean(process.env.VOYAGE_API_KEY);
 
 /** Embed up to a few dozen thumbnails (WebP, 480px) in one request. */
-export async function embedImages(images: Buffer[]): Promise<number[][]> {
+export async function embedImages(images: Buffer[]): Promise<{ vectors: number[][]; usage: VoyageUsage }> {
   const key = process.env.VOYAGE_API_KEY;
   if (!key) throw new Error("VOYAGE_API_KEY is not set.");
-  if (!images.length) return [];
+  if (!images.length) return { vectors: [], usage: {} };
 
   const body = JSON.stringify({
     model: MODEL,
@@ -42,8 +45,8 @@ export async function embedImages(images: Buffer[]): Promise<number[][]> {
       const detail = await response.text().catch(() => "");
       throw new Error(`Voyage returned ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`);
     }
-    const json = (await response.json()) as { data: { embedding: number[]; index: number }[] };
-    return [...json.data].sort((a, b) => a.index - b.index).map((d) => d.embedding);
+    const json = (await response.json()) as { data: { embedding: number[]; index: number }[]; usage?: VoyageUsage };
+    return { vectors: [...json.data].sort((a, b) => a.index - b.index).map((d) => d.embedding), usage: json.usage ?? {} };
   }
 }
 
@@ -51,7 +54,7 @@ export async function embedImages(images: Buffer[]): Promise<number[][]> {
  * Embed a piece of text into the same space as the images, so text can find
  * the images it describes (a client's "What are you making?" answer).
  */
-export async function embedText(text: string): Promise<number[]> {
+export async function embedText(text: string, studioId?: string, db?: SupabaseClient): Promise<number[]> {
   const key = process.env.VOYAGE_API_KEY;
   if (!key) throw new Error("VOYAGE_API_KEY is not set.");
   const response = await fetch(ENDPOINT, {
@@ -65,15 +68,26 @@ export async function embedText(text: string): Promise<number[]> {
     signal: AbortSignal.timeout(20_000),
   });
   if (!response.ok) throw new Error(`Voyage returned ${response.status}`);
-  const json = (await response.json()) as { data: { embedding: number[] }[] };
+  const json = (await response.json()) as { data: { embedding: number[] }[]; usage?: VoyageUsage };
+  if (db && studioId) {
+    await recordVoyage(db, { studioId, kind: "embed_text", model: MODEL, textTokens: json.usage?.text_tokens ?? json.usage?.total_tokens });
+  }
   return json.data[0].embedding;
 }
 
 /** Embed images and save the results. Failures are recorded on the image, not thrown. */
-export async function embedAndStore(db: SupabaseClient, items: { id: string; image: Buffer }[]) {
+export async function embedAndStore(db: SupabaseClient, items: { id: string; image: Buffer }[], studioId: string) {
   if (!items.length || !embeddingsEnabled()) return;
   try {
-    const vectors = await embedImages(items.map((i) => i.image));
+    const { vectors, usage } = await embedImages(items.map((i) => i.image));
+    await recordVoyage(db, {
+      studioId,
+      kind: "embed_image",
+      model: MODEL,
+      images: items.length,
+      pixels: usage.image_pixels,
+      textTokens: usage.text_tokens,
+    });
     const now = new Date().toISOString();
     await Promise.all(
       items.map((item, i) =>
@@ -92,7 +106,7 @@ export async function embedAndStore(db: SupabaseClient, items: { id: string; ima
 }
 
 /** Read stored thumbnails and embed them. */
-export async function embedByIds(db: SupabaseClient, ids: string[]) {
+export async function embedByIds(db: SupabaseClient, ids: string[], studioId: string) {
   if (!ids.length) return;
   const { data } = await db.from("images").select("id, thumb_path").in("id", ids).not("thumb_path", "is", null);
   const items: { id: string; image: Buffer }[] = [];
@@ -106,7 +120,7 @@ export async function embedByIds(db: SupabaseClient, ids: string[]) {
       }
     }),
   );
-  await embedAndStore(db, items);
+  await embedAndStore(db, items, studioId);
 }
 
 /** The images most like this one, closest first. */

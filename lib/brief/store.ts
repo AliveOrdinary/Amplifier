@@ -86,7 +86,7 @@ async function approvedImages(db: SupabaseClient, studioId: string) {
 async function matchDescription(db: SupabaseClient, brief: BriefRow, making: string) {
   if (!embeddingsEnabled()) return [];
   try {
-    const vector = await embedText([brief.project_name, making].filter(Boolean).join(". "));
+    const vector = await embedText([brief.project_name, making].filter(Boolean).join(". "), brief.studio_id, db);
     const { data, error } = await db.rpc("images_near", {
       p_studio: brief.studio_id,
       p_query: JSON.stringify(vector),

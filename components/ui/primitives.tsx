@@ -123,15 +123,17 @@ export function Section({
   description,
   children,
   className,
+  id,
 }: {
   number: string;
   title: string;
   description?: string;
   children: ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
-    <section className={cn("flex flex-wrap gap-6 border-b border-rule py-10", className)}>
+    <section id={id} className={cn("flex flex-wrap gap-6 border-b border-rule py-10 scroll-mt-16", className)}>
       <div className="flex-[1_1_200px] max-w-[260px]">
         <span className="font-mono text-label text-muted">{number}</span>
         <h2 className="mt-1.5 text-title font-medium">{title}</h2>

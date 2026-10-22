@@ -10,6 +10,7 @@ import {
   type ScoreOutcome,
   type ScoreRequest,
 } from "./score";
+import { recordClaude, sumUsage, type ClaudeUsage } from "@/lib/usage";
 
 /**
  * Scoring many images at once (a Pinterest board, a rubric change) goes
@@ -203,8 +204,24 @@ export async function collectBatches(db: SupabaseClient, studioId: string, { for
     const byId = new Map((rows ?? []).map((r) => [r.image_id as string, r]));
 
     const results: { id: string; outcome?: ScoreOutcome; error?: string; retry?: boolean }[] = [];
+    const usage: ClaudeUsage[] = [];
+    let model = "";
     for await (const item of await anthropic().messages.batches.results(b.id as string)) {
+      if (item.result.type === "succeeded") {
+        usage.push(item.result.message.usage);
+        model ||= item.result.message.model;
+      }
       results.push({ id: item.custom_id, ...(await readResult(db, item, byId.get(item.custom_id))) });
+    }
+    if (usage.length) {
+      await recordClaude(db, {
+        studioId,
+        kind: "score_batch",
+        model,
+        usage: sumUsage(usage),
+        images: usage.length,
+        batch: true,
+      });
     }
 
     await mapLimit(results, 6, async (r) => {

@@ -4,6 +4,7 @@ import { getMember } from "@/lib/auth";
 import { Mono, Wordmark } from "@/components/ui/primitives";
 import { signOut } from "../auth/actions";
 import { NavLinks, StudioNav } from "./studio-nav";
+import { SpendingAlert } from "./spending-alert";
 
 export default function StudioLayout({ children }: LayoutProps<"/studio">) {
   return (
@@ -24,6 +25,10 @@ export default function StudioLayout({ children }: LayoutProps<"/studio">) {
           </div>
         </div>
       </header>
+
+      <Suspense fallback={null}>
+        <SpendingAlert />
+      </Suspense>
 
       <main className="flex min-h-0 flex-1 flex-col">
         <Suspense fallback={<PageSkeleton />}>
