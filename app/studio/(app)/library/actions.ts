@@ -262,7 +262,16 @@ export async function findSimilar(imageId: string): Promise<{ ok: true; ids: str
   await getMember();
   try {
     const db = await createClient();
-    const { data: image } = await db.from("images").select("embedded_at").eq("id", imageId).maybeSingle();
+    const { data: image, error } = await db.from("images").select("embedded_at, embed_error").eq("id", imageId).maybeSingle();
+    if (error) {
+      throw new Error(
+        /embedded_at|embed_error/.test(error.message)
+          ? "Similarity needs the embeddings migration (07) to be run in Supabase."
+          : error.message,
+      );
+    }
+    if (image?.embed_error) throw new Error(`Couldn't analyse this image: ${image.embed_error}`);
+    if (!embeddingsEnabled()) throw new Error("Similarity needs VOYAGE_API_KEY in Vercel.");
     if (!image?.embedded_at) throw new Error("This image hasn't been analysed for similarity yet. Try again in a minute.");
     return { ok: true, ids: (await similarImages(db, imageId, 30)).map((r) => r.id) };
   } catch (error) {
