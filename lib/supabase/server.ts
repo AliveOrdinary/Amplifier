@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { supabaseEnv } from "./env";
 
@@ -10,6 +11,9 @@ import { supabaseEnv } from "./env";
  */
 export async function createClient() {
   const { url, key } = supabaseEnv();
+  // Supabase checks the session's expiry against the clock: keep that at
+  // request time, out of Next's prerendered shell.
+  await connection();
   const cookieStore = await cookies();
 
   return createServerClient(url, key, {
