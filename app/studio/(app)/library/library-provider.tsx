@@ -41,6 +41,7 @@ type LibraryState = {
   removeImage: (image: LibraryImage) => Promise<void>;
   notify: (message: string, options?: Omit<Notice, "id" | "message">) => void;
   dismissNotice: () => void;
+  holdNotice: (hold: boolean) => void;
 };
 
 const LibraryContext = createContext<LibraryState | null>(null);
@@ -74,13 +75,18 @@ export function LibraryProvider({ initialImages, children }: { initialImages: Li
     setImages((list) => list.map((i) => (i.id === id ? { ...i, ...change } : i)));
   }, []);
 
+  // Notices with Undo stay 10s; any notice stays open while the pointer is on it.
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const notify = useCallback((message: string, options?: Omit<Notice, "id" | "message">) => {
     clearTimeout(noticeTimer.current);
     setNotice({ id: Date.now(), message, ...options });
-    noticeTimer.current = setTimeout(() => setNotice(null), options?.action ? 6000 : 4000);
+    noticeTimer.current = setTimeout(() => setNotice(null), options?.action ? 10_000 : 4000);
   }, []);
   const dismissNotice = useCallback(() => setNotice(null), []);
+  const holdNotice = useCallback((hold: boolean) => {
+    clearTimeout(noticeTimer.current);
+    if (!hold) noticeTimer.current = setTimeout(() => setNotice(null), 4000);
+  }, []);
 
   const updateJob = (key: string, change: Partial<Job>) =>
     setJobs((list) => list.map((j) => (j.key === key ? { ...j, ...change } : j)));
@@ -331,8 +337,9 @@ export function LibraryProvider({ initialImages, children }: { initialImages: Li
       removeImage,
       notify,
       dismissNotice,
+      holdNotice,
     }),
-    [images, jobs, notice, addFiles, addLink, clearJobs, decide, setScore, setImageMedium, rescoreImage, removeImage, notify, dismissNotice],
+    [images, jobs, notice, addFiles, addLink, clearJobs, decide, setScore, setImageMedium, rescoreImage, removeImage, notify, dismissNotice, holdNotice],
   );
 
   return (

@@ -141,7 +141,8 @@ function ScoreScale({
       <span id={labelId} className="text-[13px]">
         {dimension.left}
       </span>
-      <div role="radiogroup" aria-labelledby={labelId} className="grid grid-cols-9 gap-[3px]">
+      {/* Cells sit edge to edge as click targets; the gap is drawn with padding. */}
+      <div role="radiogroup" aria-labelledby={labelId} className="grid grid-cols-9">
         {STEPS.map((step) => {
           const on = value === step;
           const side = step < 0 ? dimension.left : step > 0 ? dimension.right : "Balanced";
@@ -155,14 +156,14 @@ function ScoreScale({
               tabIndex={on || (value === null && step === 0) ? 0 : -1}
               onClick={() => onPick(step)}
               className={cn(
-                "h-[18px] border transition-colors",
+                "h-7 bg-clip-content px-[1.5px] py-[5px] transition-colors",
                 on
                   ? human
-                    ? "border-ink bg-ink"
-                    : "border-signal bg-signal"
+                    ? "bg-ink"
+                    : "bg-signal"
                   : step === 0
-                    ? "border-transparent bg-rule-strong/60 hover:bg-rule-strong"
-                    : "border-transparent bg-rule/70 hover:bg-rule-strong",
+                    ? "bg-rule-strong/60 hover:bg-rule-strong"
+                    : "bg-rule/70 hover:bg-rule-strong",
               )}
             />
           );

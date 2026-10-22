@@ -182,13 +182,15 @@ function UploadStatus() {
 
 /** Bottom-centre confirmation with an optional Undo. */
 export function NoticeToast() {
-  const { notice, dismissNotice } = useLibrary();
+  const { notice, dismissNotice, holdNotice } = useLibrary();
   return (
     <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
       {notice ? (
         <div
           key={notice.id}
           role="status"
+          onMouseEnter={() => holdNotice(true)}
+          onMouseLeave={() => holdNotice(false)}
           className={cn(
             "pointer-events-auto flex items-center gap-4 px-4 py-2.5 text-sm shadow-[0_8px_24px_rgba(0,0,0,0.3)]",
             notice.tone === "error" ? "bg-danger text-paper" : "bg-ink text-paper",
