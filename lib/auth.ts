@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 export type Member = {
@@ -18,6 +19,9 @@ export type Member = {
  * out. Deduplicated per request, so call it wherever it's needed.
  */
 export const getMember = cache(async (): Promise<Member> => {
+  // Checking the session reads the clock (token expiry). That must happen at
+  // request time, not while Next prerenders the page shell.
+  await connection();
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getClaims();
   const claims = auth?.claims;
