@@ -260,7 +260,9 @@ export function readAnswer(message: Anthropic.Messages.Message): unknown {
 }
 
 export type ScoreOutcome = {
-  /** The dimension Claude was least sure about, for deciding whether a person should look. */
+  /** Claude's confidence across the dimensions asked, for deciding whether a person should look. */
+  averageConfidence: number | null;
+  /** The dimension Claude was least sure about. */
   leastSure: { key: string; confidence: number } | null;
 };
 
@@ -331,10 +333,10 @@ export async function applyScores(
     await db.from("images").update({ score_error: null }).eq("id", imageId);
   }
 
-  const leastSure = keys
-    .map((key) => ({ key, confidence: confidence(scores[key].confidence) }))
-    .reduce<ScoreOutcome["leastSure"]>((low, s) => (!low || s.confidence < low.confidence ? s : low), null);
-  return { leastSure };
+  const all = keys.map((key) => ({ key, confidence: confidence(scores[key].confidence) }));
+  const leastSure = all.reduce<ScoreOutcome["leastSure"]>((low, s) => (!low || s.confidence < low.confidence ? s : low), null);
+  const averageConfidence = all.length ? all.reduce((sum, s) => sum + s.confidence, 0) / all.length : null;
+  return { averageConfidence, leastSure };
 }
 
 /** Score one image now (an image added by hand, or a small rescore). */

@@ -24,7 +24,11 @@ const BATCH_SIZE = 100;
 const SUBMIT_AFTER_MS = 2 * 60 * 1000;
 /** How often to ask Anthropic whether a batch has finished. */
 const CHECK_EVERY_MS = 60 * 1000;
-/** An imported image goes to Review when Claude is less sure than this on any dimension. */
+/**
+ * An imported image goes to Review when Claude's average confidence is below
+ * this. Not any single dimension: Claude is told to give low confidence where
+ * a dimension doesn't apply, which is normal.
+ */
 const FLAG_BELOW = 0.4;
 
 export type QueueItem = { imageId: string; studioId: string; dimensions?: string[] | null; autoApprove?: boolean };
@@ -269,8 +273,9 @@ async function settleImport(
   if (!image || image.status !== "pending") return;
   let reason = (image.review_reason as string | null) ?? null;
   if (!reason && error) reason = "Scoring failed";
-  if (!reason && outcome?.leastSure && outcome.leastSure.confidence < FLAG_BELOW) {
-    reason = `Claude wasn't sure about ${labels.get(outcome.leastSure.key) ?? outcome.leastSure.key}`;
+  if (!reason && outcome?.averageConfidence !== null && outcome?.averageConfidence !== undefined && outcome.averageConfidence < FLAG_BELOW) {
+    const least = outcome.leastSure ? labels.get(outcome.leastSure.key) ?? outcome.leastSure.key : null;
+    reason = `Claude wasn't sure how to score it${least ? `, least of all ${least}` : ""}`;
   }
   await db
     .from("images")
