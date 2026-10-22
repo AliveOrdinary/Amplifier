@@ -263,7 +263,11 @@ export async function setStatus(imageId: string, status: ImageStatus): Promise<{
   try {
     if (!["pending", "approved", "rejected"].includes(status)) throw new Error("Unknown status.");
     const db = await createClient();
-    const { error } = await db.from("images").update({ status }).eq("id", imageId);
+    // A decision settles any import flag ("Flagged on import: …"); back to review keeps it.
+    const { error } = await db
+      .from("images")
+      .update(status === "pending" ? { status } : { status, review_reason: null })
+      .eq("id", imageId);
     if (error) throw new Error(error.message);
     return { ok: true };
   } catch (error) {

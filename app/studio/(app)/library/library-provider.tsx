@@ -312,7 +312,7 @@ export function LibraryProvider({
   const decide = useCallback(
     (image: LibraryImage, status: ImageStatus, onUndo?: () => void) => {
       const previous = image.status;
-      patch(image.id, { status });
+      patch(image.id, status === "pending" ? { status } : { status, reviewReason: null });
       moveCount(previous, status);
       void setStatus(image.id, status).then((r) => {
         if (!r.ok) {
