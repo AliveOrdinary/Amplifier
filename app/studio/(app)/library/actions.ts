@@ -243,8 +243,8 @@ export async function embedMissing(): Promise<{ ok: true; remaining: number } | 
         .select("id", { count: "exact" })
         .eq("studio_id", member.studioId)
         .is("embedding", null)
-        .is("embed_error", null)
-        .not("display_path", "is", null)
+        .or("embed_error.is.null,embed_error.like.Voyage returned 429*")
+        .not("thumb_path", "is", null)
         .order("created_at")
         .limit(8);
     const { data, error } = await missing();
@@ -269,6 +269,9 @@ export async function findSimilar(imageId: string): Promise<{ ok: true; ids: str
           ? "Similarity needs the embeddings migration (07) to be run in Supabase."
           : error.message,
       );
+    }
+    if (image?.embed_error?.includes(" 429")) {
+      throw new Error("Voyage is limiting requests. Adding a payment method in Voyage's billing page lifts the limit.");
     }
     if (image?.embed_error) throw new Error(`Couldn't analyse this image: ${image.embed_error}`);
     if (!embeddingsEnabled()) throw new Error("Similarity needs VOYAGE_API_KEY in Vercel.");

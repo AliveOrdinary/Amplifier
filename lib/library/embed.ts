@@ -14,7 +14,7 @@ export const NEAR_DUPLICATE_DISTANCE = 0.06;
 
 export const embeddingsEnabled = () => Boolean(process.env.VOYAGE_API_KEY);
 
-/** Embed up to a few dozen display images (WebP) in one request. */
+/** Embed up to a few dozen thumbnails (WebP, 480px) in one request. */
 export async function embedImages(images: Buffer[]): Promise<number[][]> {
   const key = process.env.VOYAGE_API_KEY;
   if (!key) throw new Error("VOYAGE_API_KEY is not set.");
@@ -48,10 +48,10 @@ export async function embedImages(images: Buffer[]): Promise<number[][]> {
 }
 
 /** Embed images and save the results. Failures are recorded on the image, not thrown. */
-export async function embedAndStore(db: SupabaseClient, items: { id: string; display: Buffer }[]) {
+export async function embedAndStore(db: SupabaseClient, items: { id: string; image: Buffer }[]) {
   if (!items.length || !embeddingsEnabled()) return;
   try {
-    const vectors = await embedImages(items.map((i) => i.display));
+    const vectors = await embedImages(items.map((i) => i.image));
     const now = new Date().toISOString();
     await Promise.all(
       items.map((item, i) =>
@@ -63,22 +63,24 @@ export async function embedAndStore(db: SupabaseClient, items: { id: string; dis
     );
   } catch (err) {
     const message = err instanceof Error ? err.message.slice(0, 300) : "Embedding failed";
+    // Rate limits pass; leave those images to be tried again later.
+    if (message.includes(" 429")) return;
     await Promise.all(items.map((item) => db.from("images").update({ embed_error: message }).eq("id", item.id)));
   }
 }
 
-/** Read stored display images and embed them. */
+/** Read stored thumbnails and embed them. */
 export async function embedByIds(db: SupabaseClient, ids: string[]) {
   if (!ids.length) return;
-  const { data } = await db.from("images").select("id, display_path").in("id", ids).not("display_path", "is", null);
-  const items: { id: string; display: Buffer }[] = [];
+  const { data } = await db.from("images").select("id, thumb_path").in("id", ids).not("thumb_path", "is", null);
+  const items: { id: string; image: Buffer }[] = [];
   await Promise.all(
     (data ?? []).map(async (row) => {
-      const file = await db.storage.from("library").download(row.display_path as string);
+      const file = await db.storage.from("library").download(row.thumb_path as string);
       if (file.error) {
         await db.from("images").update({ embed_error: "Couldn't read the image" }).eq("id", row.id);
       } else {
-        items.push({ id: row.id as string, display: Buffer.from(await file.data.arrayBuffer()) });
+        items.push({ id: row.id as string, image: Buffer.from(await file.data.arrayBuffer()) });
       }
     }),
   );

@@ -259,9 +259,15 @@ export function LibraryProvider({
   useEffect(() => {
     let stopped = false;
     void (async () => {
-      for (let round = 0; round < 50 && !stopped; round++) {
+      let last = Infinity;
+      let stalled = 0;
+      for (let round = 0; round < 60 && !stopped && stalled < 4; round++) {
         const r = await embedMissing();
         if (!r.ok || r.remaining === 0) return;
+        // No progress usually means a rate limit: wait before trying again.
+        stalled = r.remaining < last ? 0 : stalled + 1;
+        last = r.remaining;
+        if (stalled) await new Promise((resolve) => setTimeout(resolve, 25_000));
       }
     })();
     return () => {

@@ -144,7 +144,7 @@ export async function finishImage(db: SupabaseClient, imageId: string, knownByte
   // Embedding takes about a second; scoring several. Run them side by side.
   let scored = true;
   await Promise.all([
-    embedAndStore(db, [{ id: image.id, display: derived.display }]),
+    embedAndStore(db, [{ id: image.id, image: derived.thumb }]),
     scoreImage(db, image.id).catch(async (err) => {
       scored = false;
       await db
