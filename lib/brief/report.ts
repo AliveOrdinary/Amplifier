@@ -24,18 +24,16 @@ You get:
 
 Write in plain, warm, direct English for designers. No jargon, no hedging filler, no flattery. Quote the client's own words where you can. Never invent facts about the client or their project.`;
 
-const TASK = `Do four things.
+const TASK = `Do three things.
 
-1. said: for every dimension, place the client's words on it (-2 to +2, steps of 0.5), or null when their words say nothing about it. Only use what they wrote; "minimal" says something about density, a project being an album says nothing. confidence is how clearly the words point; evidence is the few words it rests on (empty when null).
+1. dimensions: one entry for every dimension in the rubric.
+   - said: place the client's words on it (-2 to +2, steps of 0.5), or null when their words say nothing about it. Only use what they wrote: "minimal" says something about density; the project being an album says nothing. said_confidence is how clearly the words point; evidence is the few words it rests on (empty when said is null).
+   - line: when said isn't null, one sentence setting their words against what their choices showed, with the numbers that matter, e.g. "Said 'minimal, clean'. Picked the richer image in 3 of 3 density pairs and kept mostly layered work." Plain and factual, even when the two agree. Empty when said is null.
+   - ask: one open, friendly question for the meeting that explores any difference without telling them they're wrong. Empty when said is null.
 
-2. contradictions: for each dimension where your said position and the showed position differ by ${GAP} or more, and the showed confidence is medium or high, write:
-   - line: one sentence setting their words against their choices, with the numbers that matter, e.g. "Said 'minimal, clean'. Picked the richer image in 3 of 3 density pairs and kept mostly layered work."
-   - ask: one open, friendly question to raise in the meeting that explores the gap without telling them they're wrong.
-   Most important first. None is fine.
+2. directions: 2 to 4 short lines each on what they consistently chose and rejected, in visual terms (colour, type, layout, texture, imagery), drawn from the image descriptions and the showed positions. Each line under 12 words, no full stops.
 
-3. directions: 2 to 4 short lines each on what they consistently chose and rejected, in visual terms (colour, type, layout, texture, imagery), drawn from the image descriptions and the showed positions. Each line under 12 words, no full stops.
-
-4. headline: one or two sentences, under 40 words, that a designer could read on the way into the meeting.`;
+3. headline: one or two sentences, under 40 words, that a designer could read on the way into the meeting. Lead with the biggest gap between words and choices if there is one.`;
 
 const fmt = (n: number) => (n > 0 ? `+${n.toFixed(1)}` : n.toFixed(1));
 
@@ -76,26 +74,19 @@ function outputSchema(keys: string[]) {
   return {
     type: "object",
     properties: {
-      said: {
+      dimensions: {
         type: "array",
         items: {
           type: "object",
           properties: {
             key: { type: "string", enum: keys },
-            position: { anyOf: [{ type: "number" }, { type: "null" }] },
-            confidence: { type: "string", enum: ["low", "medium", "high"] },
+            said: { anyOf: [{ type: "number" }, { type: "null" }] },
+            said_confidence: { type: "string", enum: ["low", "medium", "high"] },
             evidence: { type: "string" },
+            line: { type: "string" },
+            ask: { type: "string" },
           },
-          required: ["key", "position", "confidence", "evidence"],
-          additionalProperties: false,
-        },
-      },
-      contradictions: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: { key: { type: "string", enum: keys }, line: { type: "string" }, ask: { type: "string" } },
-          required: ["key", "line", "ask"],
+          required: ["key", "said", "said_confidence", "evidence", "line", "ask"],
           additionalProperties: false,
         },
       },
@@ -107,21 +98,22 @@ function outputSchema(keys: string[]) {
       },
       headline: { type: "string" },
     },
-    required: ["said", "contradictions", "directions", "headline"],
+    required: ["dimensions", "directions", "headline"],
     additionalProperties: false,
   };
 }
 
 const Result = z.object({
-  said: z.array(
+  dimensions: z.array(
     z.object({
       key: z.string(),
-      position: z.number().nullable(),
-      confidence: z.enum(["low", "medium", "high"]),
+      said: z.number().nullable(),
+      said_confidence: z.enum(["low", "medium", "high"]),
       evidence: z.string(),
+      line: z.string(),
+      ask: z.string(),
     }),
   ),
-  contradictions: z.array(z.object({ key: z.string(), line: z.string(), ask: z.string() })),
   directions: z.object({ chose: z.array(z.string()), rejected: z.array(z.string()) }),
   headline: z.string(),
 });
@@ -181,20 +173,23 @@ export async function generateReport(db: SupabaseClient, briefId: string): Promi
 
   const clamp = (v: number) => Math.max(-2, Math.min(2, Math.round(v * 2) / 2));
   const said: SaidPosition[] = keys.map((key) => {
-    const s = result.said.find((x) => x.key === key);
+    const s = result.dimensions.find((x) => x.key === key);
     return s
-      ? { key, position: s.position === null ? null : clamp(s.position), confidence: s.confidence, evidence: s.evidence.trim() }
+      ? { key, position: s.said === null ? null : clamp(s.said), confidence: s.said_confidence, evidence: s.evidence.trim() }
       : { key, position: null, confidence: "low", evidence: "" };
   });
 
-  // Keep only contradictions the numbers support.
-  const showedBy = new Map(ev.dimensions.map((d) => [d.key, d]));
-  const saidBy = new Map(said.map((s) => [s.key, s]));
-  const contradictions = result.contradictions.filter((c) => {
-    const s = saidBy.get(c.key);
-    const d = showedBy.get(c.key);
-    return s && d && s.position !== null && Math.abs(s.position - d.mean) >= GAP - 0.25 && d.confidence !== "low";
-  });
+  // Contradictions follow the numbers, by the same rule the taste profile highlights.
+  const contradictions = ev.dimensions
+    .map((d) => {
+      const s = said.find((x) => x.key === d.key);
+      const written = result.dimensions.find((x) => x.key === d.key);
+      const gap = s?.position === null || s?.position === undefined ? 0 : Math.abs(s.position - d.mean);
+      return { key: d.key, gap, line: written?.line.trim() ?? "", ask: written?.ask.trim() ?? "", confidence: d.confidence };
+    })
+    .filter((c) => c.gap >= GAP && c.confidence !== "low" && c.line)
+    .sort((a, b) => b.gap - a.gap)
+    .map(({ key, line, ask }) => ({ key, line, ask }));
 
   const content: ReportContent = {
     headline: result.headline.trim(),
