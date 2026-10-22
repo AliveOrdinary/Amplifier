@@ -13,6 +13,8 @@ import { Mono, PageContainer, Section } from "@/components/ui/primitives";
 import { ReportView, type Thumb } from "./report-view";
 import { TasteProfile } from "./taste-profile";
 import { PrepareReport } from "./prepare-report";
+import { Board } from "./board";
+import { boardImages, ensureBoard } from "@/lib/brief/board";
 
 export const metadata: Metadata = { title: "Prep" };
 
@@ -106,7 +108,12 @@ export default async function PrepPage({ params }: PageProps<"/studio/briefs/[id
     ...ev.hesitations.flatMap((h) => [h.a, h.b]),
     ...ev.changed.flatMap((c) => [c.first.a, c.first.b]),
   ];
-  const images = new Map((await getImages(db, [...new Set(ids)])).map((i) => [i.id, i]));
+  const [imageList, boardId] = await Promise.all([
+    getImages(db, [...new Set(ids)]),
+    ensureBoard(db, { id: brief.id, studioId: member.studioId, title: brief.client_name }, ev),
+  ]);
+  const images = new Map(imageList.map((i) => [i.id, i]));
+  const board = await boardImages(db, boardId);
   const thumb = (imageId: string): Thumb => ({
     id: imageId,
     url: images.get(imageId)?.thumbUrl ?? null,
@@ -141,6 +148,7 @@ export default async function PrepPage({ params }: PageProps<"/studio/briefs/[id
         chose={ev.chosen.slice(0, 4).map((c) => thumb(c.id))}
         rejected={ev.rejected.slice(0, 4).map((c) => thumb(c.id))}
         profile={<TasteProfile dimensions={ev.dimensions} said={report.said} />}
+        moodboard={<Board key={boardId} boardId={boardId} initial={board} clientName={brief.client_name} />}
         hesitations={
           ev.hesitations.length || ev.changed.length ? (
             <div className="flex flex-col">
