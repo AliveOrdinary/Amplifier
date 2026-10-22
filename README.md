@@ -69,6 +69,18 @@ Studio › Briefs › New brief: pick the client and project type, adjust the qu
 
 When the client first opens the link, the brief freezes its plan (rubric, warm-up and image pool with their scores), so later library changes don't affect it. Progress is saved after every answer. Results, including an early read of where their choices lean, appear on the brief's page. The engine (`lib/brief/engine.ts`) is plain functions with no database, so it can be tested with simulated clients.
 
+## Prep page
+
+Each brief has a prep page (Briefs › a brief › Open prep page), ready when the client finishes (or after 8 pairs, on request). When the client's last answer arrives, Claude reads their written answers against what their choices showed (`lib/brief/report.ts`, one call, saved in `reports`) and writes:
+
+- **Contradictions**: dimensions where their words and choices are at least 1.25 apart, each with a question for the meeting. The code picks them from the numbers; Claude writes the wording.
+- **Taste profile**: said (ring) against showed (square) on every dimension.
+- **Confident directions**: what they kept choosing and passing over, with images.
+- **Hesitations**: slow choices and repeated pairs answered differently.
+- **Starter moodboard**: their strongest picks plus the closest library matches (embeddings). Reorder, remove, add from the library; paste or drop images on the page to add them to the library and the board. Export as one image (clipboard), as layers (SVG on the clipboard, for Figma and FigJam) or as a zip of JPEGs.
+
+The wording is editable on the page; Regenerate rewrites it.
+
 ### Studio members
 
 1. In Supabase, **Authentication → Sign In / Providers**: turn off "Allow new users to sign up".
