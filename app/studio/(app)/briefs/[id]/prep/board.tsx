@@ -161,7 +161,7 @@ export function Board({ boardId, initial, clientName }: { boardId: string; initi
       } catch {
         await navigator.clipboard.writeText(await svg);
       }
-      say("Copied as layers. In Figma or FigJam, paste and each image arrives separately in the same layout.");
+      say("Copied as layers. Paste into a Figma design file and each image arrives separately, in this layout. FigJam and Claude Design paste it as one picture: use Download images there.");
     } catch {
       say("Couldn't copy the layers. Try Download images instead.", "error");
     }
@@ -204,7 +204,7 @@ export function Board({ boardId, initial, clientName }: { boardId: string; initi
         <Button size="sm" variant="primary" onClick={copyImage} disabled={Boolean(busy) || !items.length}>
           Copy as one image
         </Button>
-        <Button size="sm" onClick={copyLayers} disabled={Boolean(busy) || !items.length}>
+        <Button size="sm" onClick={copyLayers} disabled={Boolean(busy) || !items.length} title="Separate images in a Figma design file">
           Copy as layers
         </Button>
         <Button size="sm" onClick={downloadZip} disabled={Boolean(busy) || !items.length}>
