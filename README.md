@@ -37,6 +37,8 @@ Images come in four ways: upload or drop in Studio › Library, paste an image o
 
 **Pinterest boards** come in through the extension too: open a board, click the Amplifier button, Import this board. The extension scrolls the board in the designer's own browser, sends each pin's full-size image (or Pinterest's 736px version if the original is too big), and labels it with who imported it and the board's name ("Ana · Wayfinding"). Imported images are stored, de-duplicated and embedded at once, but scored later through Anthropic's Message Batches API (half price, usually within the hour, `lib/library/score-queue.ts`). They go straight to the library unless something needs a look: a likely duplicate, a failed score, or Claude being unsure overall (average confidence under 0.4). Those wait in Review with the reason shown. Finished batches are read back whenever someone has the library or rubric page open, or when an import ends.
 
+The library never loads all at once. Review loads only what's waiting for review; Browse asks the server for 60 images at a time, newest first, and loads the next 60 as you scroll, with the status, medium, board, search and "To check" filters applied on the server. Tab counts and Coverage are counted in the database. The pickers (rubric anchors, brief pins, the moodboard's "Add from library") search on the server and show more on request. New images still appear without a reload: the page checks every 15 seconds for anything added since.
+
 Each image is also embedded with Voyage (1024 numbers that place similar-looking images close together). That powers "More like this" in Browse, catches crops and recolours as near-duplicates, and helps briefs pick pairs. Images added before embeddings existed are embedded quietly the next time the library is opened.
 
 ### Rubric
@@ -59,6 +61,7 @@ Migrations are in `supabase/migrations`, applied in filename order:
 8. `…08_briefs.sql` adds the brief's frozen plan, the welcome note, a 30-day link expiry and score snapshots on pairs.
 9. `…09_generalist.sql` adds four media (signage and wayfinding, interiors, print and editorial, illustration), the generalist project types (the four artist-only ones are retired, not deleted, so older briefs keep their label), where an imported image came from and why it's flagged, per-dimension score dates, and the Batch API scoring queue.
 10. `…10_brief_matching.sql` adds `images_near`: the approved images closest to a piece of text.
+11. `…11_library_paging.sql` adds the queries behind a paged library: `library_page` (Browse, with every filter), `library_counts`, `library_boards`, `library_coverage`, `library_media` and `library_pick` (the pickers).
 
 Apply them with the Supabase CLI (`supabase db push`) or paste each file into the SQL editor, in order.
 

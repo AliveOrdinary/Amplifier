@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ACCEPTED_TYPES } from "@/lib/library/constants";
 import type { BoardImage } from "@/lib/brief/board";
@@ -9,6 +9,7 @@ import { boardSvg, boardZip, download, justifiedLayout } from "@/lib/brief/board
 import { Button, Mono, cn } from "@/components/ui/primitives";
 import { abandonUpload, addFromLink, finishUpload, prepareUpload } from "../../../library/actions";
 import { addToBoard, boardCandidates, removeBoardItem, resetBoard, setBoardOrder, type PickerImage } from "./board-actions";
+import { PickerFooter } from "../../../library/picker-footer";
 
 const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement && Boolean(target.closest("input, textarea, [contenteditable=true]"));
@@ -300,19 +301,52 @@ export function Board({ boardId, initial, clientName }: { boardId: string; initi
 /** Library images to add, closest to the board first. */
 function LibraryPicker({ boardId, onAdd, onClose }: { boardId: string; onAdd: (ids: string[]) => Promise<void>; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [images, setImages] = useState<PickerImage[] | null>(null);
+  const [list, setList] = useState<{ key: string; images: PickerImage[]; more: boolean; next: number }>({
+    key: "",
+    images: [],
+    more: false,
+    next: 0,
+  });
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [term, setTerm] = useState("");
+  const [extra, setExtra] = useState(false);
   const [adding, setAdding] = useState(false);
+  const request = useRef(0);
 
   useEffect(() => {
     dialog.current?.showModal();
-    void boardCandidates(boardId).then((r) => (r.ok ? setImages(r.images) : setError(r.error)));
-  }, [boardId]);
+  }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => setTerm(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const term = search.trim().toLowerCase();
-  const visible = (images ?? []).filter((i) => !term || (i.description ?? "").toLowerCase().includes(term));
+  // Searches run on the server; "Show more" asks for the next page.
+  const fetchPage = useCallback(
+    (offset: number) => {
+      const id = ++request.current;
+      return boardCandidates(boardId, { search: term, offset }).then((r) => {
+        if (id !== request.current) return;
+        setExtra(false);
+        if (!r.ok) return setError(r.error);
+        setList((l) => ({
+          key: term,
+          images: offset ? [...l.images, ...r.images.filter((i) => !l.images.some((x) => x.id === i.id))] : r.images,
+          more: r.more,
+          next: r.nextOffset,
+        }));
+      });
+    },
+    [boardId, term],
+  );
+  useEffect(() => {
+    void fetchPage(0);
+  }, [fetchPage]);
+
+  const loading = list.key !== term || extra;
+  const visible = list.key === term ? list.images : [];
 
   return (
     <dialog
@@ -356,7 +390,6 @@ function LibraryPicker({ boardId, onAdd, onClose }: { boardId: string; onAdd: (i
         <p className="px-5 pt-3 text-sm text-muted">Closest to the board first, then the rest of the approved library.</p>
         {error ? <p className="px-5 pt-2 text-sm text-danger">{error}</p> : null}
         <ul className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(128px,1fr))] content-start gap-3 overflow-y-auto p-5">
-          {images === null ? <li className="text-sm text-muted">Loading…</li> : null}
           {visible.map((image) => {
             const on = selected.includes(image.id);
             return (
@@ -379,6 +412,15 @@ function LibraryPicker({ boardId, onAdd, onClose }: { boardId: string; onAdd: (i
               </li>
             );
           })}
+          <PickerFooter
+            more={list.more}
+            loading={loading}
+            empty={!visible.length}
+            onMore={() => {
+              setExtra(true);
+              void fetchPage(list.next);
+            }}
+          />
         </ul>
       </div>
     </dialog>

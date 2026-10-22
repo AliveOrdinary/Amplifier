@@ -4,7 +4,7 @@ import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { boardImages, type BoardImage } from "@/lib/brief/board";
 import { similarImages } from "@/lib/library/embed";
-import { getImages } from "@/lib/library/queries";
+import { getImages, pickImages } from "@/lib/library/queries";
 
 type Fail = { ok: false; error: string };
 const fail = (error: unknown): Fail => ({ ok: false, error: error instanceof Error ? error.message : "Something went wrong." });
@@ -70,10 +70,15 @@ export async function addToBoard(boardId: string, imageIds: string[]): Promise<{
 export type PickerImage = { id: string; thumb: string | null; description: string | null; suggested: boolean };
 
 /**
- * Library images that could join the board: the closest matches to what's
- * on it first, then the rest of the approved library.
+ * Library images that could join the board, a page at a time. The first page
+ * (without a search) starts with the closest matches to what's on the board;
+ * the rest is the approved library, newest first. `offset` counts library
+ * images already shown, not matches.
  */
-export async function boardCandidates(boardId: string): Promise<{ ok: true; images: PickerImage[] } | Fail> {
+export async function boardCandidates(
+  boardId: string,
+  { search = "", offset = 0 }: { search?: string; offset?: number } = {},
+): Promise<{ ok: true; images: PickerImage[]; more: boolean; nextOffset: number } | Fail> {
   const member = await getMember();
   try {
     const db = await createClient();
@@ -81,32 +86,29 @@ export async function boardCandidates(boardId: string): Promise<{ ok: true; imag
     const { data: rows } = await db.from("board_items").select("image_id").eq("board_id", boardId).order("z");
     const onBoard = new Set((rows ?? []).map((r) => r.image_id as string));
 
-    const distance = new Map<string, number>();
-    const lists = await Promise.all(
-      [...onBoard].slice(0, 6).map((id) => similarImages(db, id, 16).catch(() => [] as { id: string; distance: number }[])),
-    );
-    for (const list of lists) {
-      for (const n of list) if (!onBoard.has(n.id)) distance.set(n.id, Math.min(distance.get(n.id) ?? Infinity, n.distance));
+    const suggested: PickerImage[] = [];
+    if (!offset && !search.trim()) {
+      const distance = new Map<string, number>();
+      const lists = await Promise.all(
+        [...onBoard].slice(0, 6).map((id) => similarImages(db, id, 16).catch(() => [] as { id: string; distance: number }[])),
+      );
+      for (const list of lists) {
+        for (const n of list) if (!onBoard.has(n.id)) distance.set(n.id, Math.min(distance.get(n.id) ?? Infinity, n.distance));
+      }
+      const ids = [...distance].sort((a, b) => a[1] - b[1]).map(([id]) => id);
+      const images = new Map((await getImages(db, ids)).map((i) => [i.id, i]));
+      for (const id of ids) {
+        const i = images.get(id);
+        if (i?.ready && i.status === "approved") suggested.push({ id, thumb: i.thumbUrl, description: i.description, suggested: true });
+      }
     }
 
-    const { data: approved } = await db
-      .from("images")
-      .select("id")
-      .eq("studio_id", member.studioId)
-      .eq("status", "approved")
-      .order("created_at", { ascending: false })
-      .limit(500);
-    const ids = [...new Set([...[...distance].sort((a, b) => a[1] - b[1]).map(([id]) => id), ...(approved ?? []).map((r) => r.id as string)])].filter(
-      (id) => !onBoard.has(id),
-    );
-    const images = new Map((await getImages(db, ids)).map((i) => [i.id, i]));
-    return {
-      ok: true,
-      images: ids.flatMap((id) => {
-        const i = images.get(id);
-        return i?.ready ? [{ id, thumb: i.thumbUrl, description: i.description, suggested: distance.has(id) }] : [];
-      }),
-    };
+    const page = await pickImages(db, member.studioId, { search, approvedOnly: true, offset });
+    const seen = new Set([...onBoard, ...suggested.map((s) => s.id)]);
+    const rest = page.images
+      .filter((i) => !seen.has(i.id))
+      .map((i) => ({ id: i.id, thumb: i.thumbUrl, description: i.description, suggested: false }));
+    return { ok: true, images: [...suggested, ...rest], more: page.more, nextOffset: offset + page.images.length };
   } catch (error) {
     return fail(error);
   }

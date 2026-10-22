@@ -19,7 +19,17 @@ import {
 import { fetchRemoteImage, RemoteFetchError } from "@/lib/library/fetch-remote";
 import { scoreImage } from "@/lib/library/score";
 import { embedByIds, embeddingsEnabled, similarImages } from "@/lib/library/embed";
-import { getImages, getImagesSince } from "@/lib/library/queries";
+import {
+  getImages,
+  getImagesSince,
+  libraryCounts,
+  libraryPage,
+  pickImages,
+  type LibraryCounts,
+  type PickOptions,
+  type LibraryFilters,
+  type PageCursor,
+} from "@/lib/library/queries";
 import type { ImageStatus, LibraryImage } from "@/lib/library/types";
 
 type Fail = { ok: false; error: string };
@@ -123,18 +133,71 @@ export async function addFromLink(url: string): Promise<AddResult> {
 }
 
 /** New images (from the extension or a phone) and updates to ones still being scored. */
-export async function pollImages(since: string, pendingIds: string[]): Promise<{ ok: true; images: LibraryImage[] } | Fail> {
+export async function pollImages(
+  since: string,
+  pendingIds: string[],
+): Promise<{ ok: true; images: LibraryImage[]; counts: LibraryCounts } | Fail> {
   const member = await getMember();
   // While someone has the library open, read back finished scoring batches and send waiting images.
   after(() => processQueue(createAdminClient(), member.studioId).catch((err) => console.error("queue processing failed", err)));
   try {
     const db = await createClient();
-    const [fresh, updated] = await Promise.all([
-      getImagesSince(db, member.studioId, since),
+    const [fresh, updated, counts] = await Promise.all([
+      getImagesSince(db, member.studioId, since, 100),
       getImages(db, pendingIds.slice(0, 50)),
+      libraryCounts(db, member.studioId),
     ]);
     const byId = new Map([...updated, ...fresh].map((image) => [image.id, image]));
-    return { ok: true, images: [...byId.values()] };
+    return { ok: true, images: [...byId.values()], counts };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** One page of Browse. */
+export async function browsePage(
+  filters: LibraryFilters,
+  cursor: PageCursor | null,
+): Promise<{ ok: true; images: LibraryImage[]; next: PageCursor | null } | Fail> {
+  const member = await getMember();
+  try {
+    const db = await createClient();
+    return { ok: true, ...(await libraryPage(db, member.studioId, filters, cursor)) };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** A page of images for a picker (rubric anchors, brief pins). */
+export type PickedImage = { id: string; thumb: string | null; description: string | null; approved: boolean; scores: Record<string, number> };
+
+export async function pickLibrary(options: PickOptions): Promise<{ ok: true; images: PickedImage[]; more: boolean } | Fail> {
+  const member = await getMember();
+  try {
+    const db = await createClient();
+    const { images, more } = await pickImages(db, member.studioId, options);
+    return {
+      ok: true,
+      more,
+      images: images.map((i) => ({
+        id: i.id,
+        thumb: i.thumbUrl,
+        description: i.description ?? i.name,
+        approved: i.status === "approved",
+        scores: Object.fromEntries(Object.entries(i.scores).map(([k, v]) => [k, v?.score ?? 0])),
+      })),
+    };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Images by id (the results of "More like this"). */
+export async function imagesById(ids: string[]): Promise<{ ok: true; images: LibraryImage[] } | Fail> {
+  await getMember();
+  try {
+    const db = await createClient();
+    return { ok: true, images: await getImages(db, ids.slice(0, 100)) };
   } catch (error) {
     return fail(error);
   }

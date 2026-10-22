@@ -4,9 +4,8 @@ import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { processQueue } from "@/lib/library/score-queue";
-import { listImages } from "@/lib/library/queries";
 import { listAnchors, listDimensions } from "@/lib/library/rubric";
-import { RubricEditor, type RubricDimension, type PickerImage } from "./rubric-editor";
+import { RubricEditor, type RubricDimension } from "./rubric-editor";
 
 export const metadata: Metadata = { title: "Settings — Rubric" };
 
@@ -21,9 +20,8 @@ export default async function RubricPage() {
 
   const all = await listDimensions(db, member.studioId, { retired: true });
 
-  const [anchors, images, stale, rescoring, toCheck, corrections] = await Promise.all([
+  const [anchors, stale, rescoring, toCheck, corrections] = await Promise.all([
     listAnchors(db, all.map((d) => d.key)),
-    listImages(db, member.studioId),
     db.rpc("stale_score_count", { p_studio: member.studioId }),
     db
       .from("score_queue")
@@ -59,21 +57,10 @@ export default async function RubricPage() {
     corrections: correctionCount.get(d.key) ?? 0,
   }));
 
-  const pickable: PickerImage[] = images
-    .filter((i) => i.ready && i.status !== "rejected" && i.thumbUrl)
-    .map((i) => ({
-      id: i.id,
-      thumbUrl: i.thumbUrl!,
-      description: i.description ?? i.name ?? "Untitled",
-      approved: i.status === "approved",
-      scores: Object.fromEntries(Object.entries(i.scores).map(([k, s]) => [k, s?.score ?? 0])),
-    }));
-
   return (
     <RubricEditor
       dimensions={dimensions}
       anchors={anchors}
-      images={pickable}
       stale={Number(stale.data ?? 0)}
       rescoring={rescoring.count ?? 0}
       toCheck={toCheck.count ?? 0}

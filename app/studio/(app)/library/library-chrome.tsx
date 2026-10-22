@@ -11,13 +11,11 @@ import { isTypingTarget } from "./editor";
 /** Tabs on the left, adding images on the right. */
 export function LibraryBar() {
   const pathname = usePathname();
-  const { images } = useLibrary();
+  const { counts } = useLibrary();
 
-  const toReview = images.filter((i) => i.ready && i.status === "pending").length;
-  const approved = images.filter((i) => i.status === "approved").length;
   const tabs = [
-    { href: "/studio/library", label: "Review", count: toReview },
-    { href: "/studio/library/browse", label: "Browse", count: approved },
+    { href: "/studio/library", label: "Review", count: counts.toReview },
+    { href: "/studio/library/browse", label: "Browse", count: counts.approved },
     { href: "/studio/library/coverage", label: "Coverage", count: null },
   ];
 

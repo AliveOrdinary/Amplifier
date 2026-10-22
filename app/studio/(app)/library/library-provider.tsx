@@ -4,6 +4,7 @@ import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, 
 import { createClient } from "@/lib/supabase/client";
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES, clampScore } from "@/lib/library/constants";
 import type { Dimension, ImageStatus, LibraryImage } from "@/lib/library/types";
+import type { Board, LibraryCounts } from "@/lib/library/queries";
 import {
   abandonUpload,
   addFromLink,
@@ -29,7 +30,17 @@ export type Job = {
 type Notice = { id: number; message: string; tone?: "error"; action?: { label: string; run: () => void } };
 
 type LibraryState = {
+  /**
+   * The images loaded so far: the review queue, Browse pages already seen and
+   * anything added since. Not the whole library.
+   */
   images: LibraryImage[];
+  /** Whole-library numbers for the tabs, refreshed as you work. */
+  counts: LibraryCounts;
+  /** Pinterest boards images were imported from. */
+  boards: Board[];
+  /** Add images loaded elsewhere (a Browse page) so edits reach every screen. */
+  remember: (images: LibraryImage[]) => void;
   /** The studio's active rubric, in order. */
   dimensions: Dimension[];
   jobs: Job[];
@@ -55,18 +66,23 @@ export function useLibrary() {
   return value;
 }
 
-const newest = (list: LibraryImage[]) => list.reduce((max, i) => (i.createdAt > max ? i.createdAt : max), "1970-01-01T00:00:00Z");
+const newest = (list: LibraryImage[], start: string) => list.reduce((max, i) => (i.createdAt > max ? i.createdAt : max), start);
 
 export function LibraryProvider({
   initialImages,
+  initialCounts,
+  boards,
   dimensions,
   children,
 }: {
   initialImages: LibraryImage[];
+  initialCounts: LibraryCounts;
+  boards: Board[];
   dimensions: Dimension[];
   children: ReactNode;
 }) {
   const [images, setImages] = useState(initialImages);
+  const [counts, setCounts] = useState(initialCounts);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -243,13 +259,19 @@ export function LibraryProvider({
     imagesRef.current = images;
   }, [images]);
 
+  // Anything added after the newest image when the page loaded is new.
+  const since = useRef(initialCounts.newest ?? "1970-01-01T00:00:00Z");
   useEffect(() => {
     const tick = async () => {
       if (document.visibilityState !== "visible") return;
       const current = imagesRef.current;
-      const pendingIds = current.filter((i) => !i.ready).map((i) => i.id);
-      const result = await pollImages(newest(current), pendingIds);
-      if (result.ok) upsert(result.images);
+      // Board imports are scored in batches and go straight to the library; no need to watch each one.
+      const pendingIds = current.filter((i) => !i.ready && !i.collection).map((i) => i.id);
+      const result = await pollImages(since.current, pendingIds);
+      if (!result.ok) return;
+      since.current = newest(result.images, since.current);
+      upsert(result.images);
+      setCounts(result.counts);
     };
     const timer = setInterval(tick, 15_000);
     return () => clearInterval(timer);
@@ -277,13 +299,25 @@ export function LibraryProvider({
 
   /* ---------------------------------------------------------- reviewing */
 
+  /** Keep the tab counts right between refreshes. */
+  const moveCount = useCallback((from: ImageStatus, to: ImageStatus) => {
+    if (from === to) return;
+    setCounts((c) => ({
+      ...c,
+      toReview: c.toReview + (to === "pending" ? 1 : 0) - (from === "pending" ? 1 : 0),
+      approved: c.approved + (to === "approved" ? 1 : 0) - (from === "approved" ? 1 : 0),
+    }));
+  }, []);
+
   const decide = useCallback(
     (image: LibraryImage, status: ImageStatus, onUndo?: () => void) => {
       const previous = image.status;
       patch(image.id, { status });
+      moveCount(previous, status);
       void setStatus(image.id, status).then((r) => {
         if (!r.ok) {
           patch(image.id, { status: previous });
+          moveCount(status, previous);
           notify(r.error, { tone: "error" });
         }
       });
@@ -293,6 +327,7 @@ export function LibraryProvider({
           label: "Undo",
           run: () => {
             patch(image.id, { status: previous });
+            moveCount(status, previous);
             void setStatus(image.id, previous);
             setNotice(null);
             onUndo?.();
@@ -300,7 +335,7 @@ export function LibraryProvider({
         },
       });
     },
-    [patch, notify],
+    [patch, notify, moveCount],
   );
 
   const scoreTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -348,6 +383,11 @@ export function LibraryProvider({
       const r = await deleteImage(image.id);
       if (!r.ok) return notify(r.error, { tone: "error" });
       setImages((list) => list.filter((i) => i.id !== image.id));
+      setCounts((c) => ({
+        ...c,
+        toReview: c.toReview - (image.status === "pending" && image.ready ? 1 : 0),
+        approved: c.approved - (image.status === "approved" ? 1 : 0),
+      }));
       notify("Deleted");
     },
     [notify],
@@ -356,6 +396,9 @@ export function LibraryProvider({
   const value = useMemo<LibraryState>(
     () => ({
       images,
+      counts,
+      boards,
+      remember: upsert,
       dimensions,
       jobs,
       notice,
@@ -371,7 +414,7 @@ export function LibraryProvider({
       dismissNotice,
       holdNotice,
     }),
-    [images, dimensions, jobs, notice, addFiles, addLink, clearJobs, decide, setScore, setImageMedium, rescoreImage, removeImage, notify, dismissNotice, holdNotice],
+    [images, counts, boards, upsert, dimensions, jobs, notice, addFiles, addLink, clearJobs, decide, setScore, setImageMedium, rescoreImage, removeImage, notify, dismissNotice, holdNotice],
   );
 
   return (

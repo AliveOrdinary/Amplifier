@@ -15,7 +15,7 @@ import { AddControls } from "./library-chrome";
  * dimmed, so you can step back to them.
  */
 export function ReviewScreen() {
-  const { images, dimensions, jobs, decide, setScore } = useLibrary();
+  const { images, counts, dimensions, jobs, decide, setScore } = useLibrary();
 
   const [reviewed, setReviewed] = useState<Set<string>>(() => new Set());
   const queue = useMemo(
@@ -25,8 +25,9 @@ export function ReviewScreen() {
         .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)),
     [images, reviewed],
   );
-  const scoring = images.filter((i) => !i.ready).length + jobs.filter((j) => j.state === "uploading").length;
+  const scoring = Math.max(counts.scoring, images.filter((i) => !i.ready).length) + jobs.filter((j) => j.state === "uploading").length;
   const pending = queue.filter((i) => i.status === "pending");
+  const hasLibrary = images.length > 0 || counts.approved > 0 || counts.scoring > 0;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Once nothing is pending, show the caught-up screen; Undo brings the image back.
@@ -91,11 +92,11 @@ export function ReviewScreen() {
     return (
       <div className="flex flex-1 items-center justify-center p-4 sm:p-8">
         <div className="flex w-full max-w-2xl flex-col items-center border border-dashed border-rule-strong px-6 py-12 text-center sm:px-12">
-          <h2 className="text-2xl font-medium">{images.length ? "All caught up" : "Start your library"}</h2>
+          <h2 className="text-2xl font-medium">{hasLibrary ? "All caught up" : "Start your library"}</h2>
           <p className="mt-2 max-w-md text-[15px] text-ink-soft">
             {scoring
               ? `${scoring} ${scoring === 1 ? "image is" : "images are"} being scored. Images you add appear here; board imports go straight to the library unless one needs a look.`
-              : images.length
+              : hasLibrary
                 ? "Nothing is waiting for review. Add more images below."
                 : "Add reference images: Claude scores each one, then you check the scores here."}
           </p>
@@ -103,7 +104,7 @@ export function ReviewScreen() {
             <AddControls large />
           </div>
           <Mono className="mt-4">Or drop images anywhere, or paste with ⌘V</Mono>
-          {images.length ? (
+          {hasLibrary ? (
             <Link href="/studio/library/browse" className="mt-8 text-sm text-muted underline-offset-2 hover:text-ink hover:underline">
               Browse the library
             </Link>

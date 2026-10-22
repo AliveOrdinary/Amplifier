@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MEDIA, mediumLabel } from "@/lib/library/constants";
-import type { ImageStatus } from "@/lib/library/types";
+import type { ImageStatus, LibraryImage } from "@/lib/library/types";
+import type { LibraryFilters, PageCursor } from "@/lib/library/queries";
 import { Button, Mono, cn } from "@/components/ui/primitives";
 import { useLibrary } from "../library-provider";
-import { findSimilar } from "../actions";
+import { browsePage, findSimilar, imagesById } from "../actions";
 import { ImageStage, ScorePanel, SecondaryActions, hotkeyIndex, isTypingTarget } from "../editor";
 
 const STATUS_FILTERS: { key: ImageStatus | "all"; label: string }[] = [
@@ -15,39 +16,130 @@ const STATUS_FILTERS: { key: ImageStatus | "all"; label: string }[] = [
   { key: "all", label: "All" },
 ];
 
+/**
+ * The library in pages: the server filters and returns 60 images at a time,
+ * and the next page loads as you scroll near the end. Edits show at once
+ * (images live in the library provider); an image that no longer matches
+ * the filters drops out, unless it's the one open.
+ */
 export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean }) {
-  const { images, dimensions, decide, setScore, notify } = useLibrary();
+  const { images, counts, boards, remember, dimensions, decide, setScore, notify } = useLibrary();
   const [similar, setSimilar] = useState<{ id: string; ids: string[] } | null>(null);
   const [finding, setFinding] = useState(false);
   const [status, setStatus] = useState<ImageStatus | "all">(initialCheck ? "all" : "approved");
   const [onlyCheck, setOnlyCheck] = useState(initialCheck);
   const [medium, setMedium] = useState("");
+  const [board, setBoard] = useState("");
   const [search, setSearch] = useState("");
+  const [term, setTerm] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focusDim, setFocusDim] = useState(0);
 
-  const needsCheck = (i: (typeof images)[number]) => dimensions.some((d) => i.scores[d.key]?.check);
-  const toCheck = images.filter((i) => i.ready && needsCheck(i)).length;
+  // Search waits for a pause in typing.
+  useEffect(() => {
+    const timer = setTimeout(() => setTerm(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const filters = useMemo<LibraryFilters>(
+    () => ({ status, medium, search: term, check: onlyCheck, board }),
+    [status, medium, term, onlyCheck, board],
+  );
+
+  /* ---------------------------------------------------------- pages */
+
+  const [page, setPage] = useState<{ key: string; ids: string[]; next: PageCursor | null; since: string }>({
+    key: "",
+    ids: [],
+    next: null,
+    since: "",
+  });
+  const [more, setMore] = useState(false);
+  const request = useRef(0);
+  const filterKey = JSON.stringify(filters);
+  // Loading while the list on screen is for other filters, or while a next page is on its way.
+  const loading = page.key !== filterKey || more;
+
+  const load = useCallback(
+    (cursor: PageCursor | null) => {
+      const id = ++request.current;
+      return browsePage(filters, cursor).then((r) => {
+        if (id !== request.current) return; // the filters changed meanwhile
+        setMore(false);
+        if (!r.ok) {
+          setPage((p) => ({ ...p, key: filterKey }));
+          return notify(r.error, { tone: "error" });
+        }
+        remember(r.images);
+        setPage((p) => ({
+          key: filterKey,
+          ids: cursor && p.key === filterKey ? [...p.ids, ...r.images.map((i) => i.id)] : r.images.map((i) => i.id),
+          next: r.next,
+          since: cursor && p.key === filterKey ? p.since : (r.images[0]?.createdAt ?? new Date(0).toISOString()),
+        }));
+      });
+    },
+    [filters, filterKey, remember, notify],
+  );
+
+  // A fresh first page whenever the filters change.
+  useEffect(() => {
+    void load(null);
+  }, [load]);
+
+  const loadMore = useCallback(() => {
+    if (loading || !page.next || similar) return;
+    setMore(true);
+    void load(page.next);
+  }, [loading, page.next, similar, load]);
+
+  /* ---------------------------------------------------- what's shown */
+
+  const byId = useMemo(() => new Map(images.map((i) => [i.id, i])), [images]);
+  const needsCheck = useCallback((i: LibraryImage) => dimensions.some((d) => i.scores[d.key]?.check), [dimensions]);
+  const matches = useCallback(
+    (i: LibraryImage) =>
+      i.ready &&
+      (!onlyCheck || needsCheck(i)) &&
+      (status === "all" || i.status === status) &&
+      (!medium || i.medium === medium) &&
+      (!board || i.collection === board),
+    [onlyCheck, needsCheck, status, medium, board],
+  );
 
   const visible = useMemo(() => {
-    if (similar) {
-      const byId = new Map(images.map((i) => [i.id, i]));
-      return similar.ids.flatMap((id) => (byId.get(id)?.ready ? [byId.get(id)!] : []));
-    }
-    const term = search.trim().toLowerCase();
-    const check = (i: (typeof images)[number]) => dimensions.some((d) => i.scores[d.key]?.check);
-    return images.filter(
-      (i) =>
-        i.ready &&
-        (!onlyCheck || check(i)) &&
-        (status === "all" || i.status === status) &&
-        (!medium || i.medium === medium) &&
-        (!term || `${i.description ?? ""} ${i.name ?? ""}`.toLowerCase().includes(term)),
-    );
-  }, [images, dimensions, similar, onlyCheck, status, medium, search]);
+    if (similar) return similar.ids.flatMap((id) => (byId.get(id)?.ready ? [byId.get(id)!] : []));
+    const listed = new Set(page.ids);
+    // Images added since this list loaded join the top (not while searching: the server matched the words).
+    const added = term
+      ? []
+      : images.filter((i) => !listed.has(i.id) && page.since && i.createdAt > page.since && matches(i));
+    const loaded = page.ids.flatMap((id) => {
+      const image = byId.get(id);
+      return image && (matches(image) || image.id === selectedId) ? [image] : [];
+    });
+    return [...added, ...loaded];
+  }, [similar, byId, page, images, term, matches, selectedId]);
 
   // Keep showing the open image even if an edit moves it out of the filter.
-  const selected = images.find((i) => i.id === selectedId) ?? null;
+  const selected = selectedId ? (byId.get(selectedId) ?? null) : null;
+
+  const plain = status === "approved" && !medium && !board && !term && !onlyCheck;
+  const countLabel = plain ? `${counts.approved} images` : `${visible.length}${page.next ? "+" : ""} images`;
+
+  // Load the next page when the end of the grid comes into view.
+  const scroller = useRef<HTMLDivElement>(null);
+  const sentinel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const target = sentinel.current;
+    if (!target) return;
+    const observer = new IntersectionObserver((entries) => entries[0]?.isIntersecting && loadMore(), {
+      root: scroller.current,
+      rootMargin: "600px",
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -59,6 +151,7 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
         event.preventDefault();
         const next = visible[index + 1];
         if (next) setSelectedId(next.id);
+        if (index >= visible.length - 6) loadMore();
       } else if (event.key === "k" || event.key === "ArrowUp") {
         event.preventDefault();
         const prev = visible[index - 1];
@@ -76,12 +169,14 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  const select = "h-8 max-w-[220px] border border-rule-strong bg-paper px-2 text-sm text-ink";
+
   return (
     <div className={cn("grid min-h-0 flex-1 grid-cols-1", selected && "lg:grid-cols-[minmax(0,1fr)_440px]")}>
       <section aria-label="Library images" className="flex min-h-0 flex-col">
         {similar ? (
           <SimilarBar
-            image={images.find((i) => i.id === similar.id)}
+            image={byId.get(similar.id)}
             count={visible.length}
             onClear={() => setSimilar(null)}
           />
@@ -106,12 +201,7 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
             <label className="sr-only" htmlFor="browse-medium">
               Medium
             </label>
-            <select
-              id="browse-medium"
-              value={medium}
-              onChange={(e) => setMedium(e.target.value)}
-              className="h-8 border border-rule-strong bg-paper px-2 text-sm text-ink"
-            >
+            <select id="browse-medium" value={medium} onChange={(e) => setMedium(e.target.value)} className={select}>
               <option value="">All media</option>
               {MEDIA.map((m) => (
                 <option key={m.key} value={m.key}>
@@ -119,6 +209,21 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
                 </option>
               ))}
             </select>
+            {boards.length ? (
+              <>
+                <label className="sr-only" htmlFor="browse-board">
+                  Board
+                </label>
+                <select id="browse-board" value={board} onChange={(e) => setBoard(e.target.value)} className={select}>
+                  <option value="">All boards</option>
+                  {boards.map((b) => (
+                    <option key={b.name} value={b.name}>
+                      {b.name} ({b.images})
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : null}
             <label className="sr-only" htmlFor="browse-search">
               Search descriptions
             </label>
@@ -130,7 +235,7 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
               onChange={(e) => setSearch(e.target.value)}
               className="h-8 min-w-0 flex-1 basis-48 border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:max-w-xs"
             />
-            {toCheck || onlyCheck ? (
+            {counts.toCheck || onlyCheck ? (
               <button
                 type="button"
                 aria-pressed={onlyCheck}
@@ -141,14 +246,14 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
                 )}
               >
                 <span aria-hidden className="size-1.5 rounded-full bg-signal" />
-                To check <span className="font-mono text-xs">{toCheck}</span>
+                To check <span className="font-mono text-xs">{counts.toCheck}</span>
               </button>
             ) : null}
-            <Mono className="ml-auto">{visible.length} images</Mono>
+            <Mono className="ml-auto">{countLabel}</Mono>
           </div>
         )}
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
           {visible.length ? (
             <ul className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
               {visible.map((image) => (
@@ -179,9 +284,11 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
                 </li>
               ))}
             </ul>
-          ) : (
+          ) : loading ? null : (
             <p className="p-8 text-center text-[15px] text-ink-soft">No images match.</p>
           )}
+          <div ref={sentinel} aria-hidden className="h-px" />
+          {loading ? <Mono className="block py-6 text-center">Loading…</Mono> : null}
         </div>
       </section>
 
@@ -222,8 +329,17 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
                 onClick={async () => {
                   setFinding(true);
                   const r = await findSimilar(selected.id);
+                  if (!r.ok) {
+                    setFinding(false);
+                    return notify(r.error, { tone: "error" });
+                  }
+                  // The matches may not have been loaded yet.
+                  const missing = r.ids.filter((id) => !byId.has(id));
+                  if (missing.length) {
+                    const more = await imagesById(missing);
+                    if (more.ok) remember(more.images);
+                  }
                   setFinding(false);
-                  if (!r.ok) return notify(r.error, { tone: "error" });
                   setSimilar({ id: selected.id, ids: r.ids });
                 }}
               >

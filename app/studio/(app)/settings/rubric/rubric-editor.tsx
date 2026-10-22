@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { MAX_DIMENSIONS } from "@/lib/library/constants";
 import type { Dimension } from "@/lib/library/types";
 import { Button, Input, Mono, cn } from "@/components/ui/primitives";
 import { addAnchor, moveDimension, queueStale, removeAnchor, rescoreStale, retireDimension, saveDimension } from "./actions";
+import { usePicker } from "../../library/use-picker";
+import { PickerFooter } from "../../library/picker-footer";
 
 export type RubricDimension = Dimension & { retired: boolean; corrections: number };
-export type PickerImage = { id: string; thumbUrl: string; description: string; approved: boolean; scores: Record<string, number> };
 type Anchor = { dimension: string; side: "left" | "right"; imageId: string; url: string };
 type Side = "left" | "right";
 
@@ -20,14 +21,12 @@ const RESCORE_NOW_LIMIT = 40;
 export function RubricEditor({
   dimensions,
   anchors,
-  images,
   stale,
   rescoring,
   toCheck,
 }: {
   dimensions: RubricDimension[];
   anchors: Anchor[];
-  images: PickerImage[];
   stale: number;
   /** Images waiting for, or in, a background rescore. */
   rescoring: number;
@@ -100,7 +99,6 @@ export function RubricEditor({
         <AnchorPicker
           dimension={picker.dimension}
           side={picker.side}
-          images={images}
           taken={new Set(anchors.filter((a) => a.dimension === picker.dimension.key).map((a) => a.imageId))}
           onClose={() => setPicker(null)}
         />
@@ -456,34 +454,29 @@ function RetiredList({ dimensions, full }: { dimensions: RubricDimension[]; full
 function AnchorPicker({
   dimension,
   side,
-  images,
   taken,
   onClose,
 }: {
   dimension: RubricDimension;
   side: Side;
-  images: PickerImage[];
   taken: Set<string>;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const router = useRouter();
-  const [search, setSearch] = useState("");
   const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setError] = useState<string | null>(null);
   const name = side === "left" ? dimension.left : dimension.right;
+  // Most extreme first, from the server, a page at a time.
+  const { search, setSearch, images: sorted, more, loading, showMore, error: loadError } = usePicker({
+    dimension: dimension.key,
+    ascending: side === "left",
+  });
+  const error = failure ?? loadError;
 
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
-
-  const sorted = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    const direction = side === "left" ? 1 : -1;
-    return images
-      .filter((i) => !term || i.description.toLowerCase().includes(term))
-      .sort((a, b) => direction * ((a.scores[dimension.key] ?? 0) - (b.scores[dimension.key] ?? 0)));
-  }, [images, search, side, dimension.key]);
 
   const choose = (imageId: string) =>
     start(async () => {
@@ -534,12 +527,14 @@ function AnchorPicker({
                   type="button"
                   disabled={used || pending}
                   onClick={() => choose(image.id)}
-                  title={image.description}
+                  title={image.description ?? ""}
                   className={cn("block w-full text-left outline-offset-2 disabled:cursor-not-allowed", used && "opacity-35")}
                 >
                   <span className="block aspect-square overflow-hidden bg-panel">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={image.thumbUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    {image.thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={image.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    ) : null}
                   </span>
                   <span className="mt-1 flex justify-between gap-2">
                     <Mono>{used ? "Anchor" : image.approved ? "" : "To review"}</Mono>
@@ -549,6 +544,7 @@ function AnchorPicker({
               </li>
             );
           })}
+          <PickerFooter more={more} loading={loading} empty={!sorted.length} onMore={showMore} />
         </ul>
       </div>
     </dialog>

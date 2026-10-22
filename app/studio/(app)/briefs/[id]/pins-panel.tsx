@@ -1,14 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button, Mono, cn } from "@/components/ui/primitives";
 import { MAX_PINS } from "@/lib/brief/types";
 import { setPin } from "../actions";
+import { usePicker } from "../../library/use-picker";
+import { PickerFooter } from "../../library/picker-footer";
 
 type Thumb = { id: string; thumb: string | null; description: string | null };
 
-export function PinsPanel({ briefId, locked, pins, library }: { briefId: string; locked: boolean; pins: Thumb[]; library: Thumb[] }) {
+export function PinsPanel({ briefId, locked, pins }: { briefId: string; locked: boolean; pins: Thumb[] }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -66,7 +68,6 @@ export function PinsPanel({ briefId, locked, pins, library }: { briefId: string;
       ) : null}
       {open ? (
         <PinPicker
-          library={library}
           pinned={new Set(pins.map((p) => p.id))}
           full={pins.length >= MAX_PINS}
           pending={pending}
@@ -79,14 +80,12 @@ export function PinsPanel({ briefId, locked, pins, library }: { briefId: string;
 }
 
 function PinPicker({
-  library,
   pinned,
   full,
   pending,
   onToggle,
   onClose,
 }: {
-  library: Thumb[];
   pinned: Set<string>;
   full: boolean;
   pending: boolean;
@@ -94,14 +93,10 @@ function PinPicker({
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [search, setSearch] = useState("");
+  const { search, setSearch, images: visible, more, loading, showMore } = usePicker({ approvedOnly: true });
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
-  const visible = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return library.filter((i) => !term || (i.description ?? "").toLowerCase().includes(term));
-  }, [library, search]);
 
   return (
     <dialog
@@ -155,6 +150,7 @@ function PinPicker({
               </li>
             );
           })}
+          <PickerFooter more={more} loading={loading} empty={!visible.length} onMore={showMore} />
         </ul>
       </div>
     </dialog>

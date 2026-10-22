@@ -1,31 +1,23 @@
 "use client";
 
 import { MEDIA, THIN_BIN } from "@/lib/library/constants";
+import type { Coverage } from "@/lib/library/queries";
 import { Mono, PageContainer, Section } from "@/components/ui/primitives";
 import { useLibrary } from "../library-provider";
 
 const BIN_LABELS = ["−2", "−1", "0", "+1", "+2"];
 
-export function CoverageScreen() {
-  const { images, dimensions: rubric } = useLibrary();
-  const approved = images.filter((i) => i.status === "approved");
+export function CoverageScreen({ coverage }: { coverage: Coverage }) {
+  const { dimensions: rubric } = useLibrary();
 
-  const dimensions = rubric.map((d) => {
-    const bins = [0, 0, 0, 0, 0];
-    for (const image of approved) {
-      const value = image.scores[d.key]?.score;
-      if (value === undefined) continue;
-      bins[Math.max(0, Math.min(4, Math.round(value) + 2))] += 1;
-    }
-    return { ...d, bins };
-  });
+  const dimensions = rubric.map((d) => ({ ...d, bins: coverage.bins[d.key] ?? [0, 0, 0, 0, 0] }));
   const max = Math.max(1, ...dimensions.flatMap((d) => d.bins));
   const thin = dimensions.flatMap((d) =>
     d.bins.flatMap((count, i) =>
       i !== 2 && count < THIN_BIN ? [[`very ${d.left}`, d.left, "", d.right, `very ${d.right}`][i].toLowerCase()] : [],
     ),
   );
-  const media = MEDIA.map((m) => ({ ...m, count: approved.filter((i) => i.medium === m.key).length }));
+  const media = MEDIA.map((m) => ({ ...m, count: coverage.media[m.key] ?? 0 }));
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -33,9 +25,9 @@ export function CoverageScreen() {
         <Section
           number="01"
           title="Dimensions"
-          description={`How the ${approved.length} approved images spread across each dimension. Briefs need every bin filled.`}
+          description={`How the ${coverage.approved} approved images spread across each dimension. Briefs need every bin filled.`}
         >
-          {approved.length === 0 ? (
+          {coverage.approved === 0 ? (
             <p className="text-[15px] text-ink-soft">Coverage appears once images are approved.</p>
           ) : (
             <>

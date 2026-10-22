@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getImages, listImages } from "@/lib/library/queries";
+import { getImages, libraryCoverage } from "@/lib/library/queries";
 import { listDimensions } from "@/lib/library/rubric";
 import { briefResults } from "@/lib/brief/results";
 import type { Plan } from "@/lib/brief/engine";
@@ -40,23 +40,22 @@ export default async function BriefPage({ params }: PageProps<"/studio/briefs/[i
   const h = await headers();
   const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
 
-  const [{ data: template }, { data: pinRows }, library, dimensions] = await Promise.all([
+  const [{ data: template }, { data: pinRows }, coverage, dimensions] = await Promise.all([
     db.from("question_templates").select("name").eq("studio_id", member.studioId).eq("project_type", brief.project_type).maybeSingle(),
     db.from("brief_pins").select("image_id, created_at").eq("brief_id", brief.id).order("created_at"),
-    brief.started_at ? Promise.resolve([]) : listImages(db, member.studioId),
+    brief.started_at ? Promise.resolve(null) : libraryCoverage(db, member.studioId),
     listDimensions(db, member.studioId),
   ]);
   const pinIds = (pinRows ?? []).map((r) => r.image_id as string);
   const pins = await getImages(db, pinIds);
   const results = brief.started_at ? await briefResults(db, brief) : null;
 
-  // Is the library ready for this brief?
-  const approved = library.filter((i) => i.status === "approved" && i.ready);
-  const inMedium = brief.medium ? approved.filter((i) => i.medium === brief.medium).length : null;
+  // Is the library ready for this brief? (Counted in the database.)
+  const approved = coverage?.approved ?? 0;
+  const inMedium = brief.medium ? (coverage?.media[brief.medium] ?? 0) : null;
   const untestable = dimensions.filter((d) => {
-    const low = approved.filter((i) => (i.scores[d.key]?.score ?? 0) <= -1).length;
-    const high = approved.filter((i) => (i.scores[d.key]?.score ?? 0) >= 1).length;
-    return low < 2 || high < 2;
+    const bins = coverage?.bins[d.key] ?? [0, 0, 0, 0, 0];
+    return bins[0] + bins[1] < 2 || bins[3] + bins[4] < 2;
   });
 
   const locked = Boolean(brief.started_at);
@@ -90,7 +89,7 @@ export default async function BriefPage({ params }: PageProps<"/studio/briefs/[i
           readiness={
             locked
               ? null
-              : { approved: approved.length, inMedium, untestable: untestable.map((d) => `${d.left} ↔ ${d.right}`) }
+              : { approved, inMedium, untestable: untestable.map((d) => `${d.left} ↔ ${d.right}`) }
           }
           timeline={[
             ["Made", brief.created_at],
@@ -143,7 +142,6 @@ export default async function BriefPage({ params }: PageProps<"/studio/briefs/[i
           briefId={brief.id}
           locked={locked}
           pins={pins.map((p) => ({ id: p.id, thumb: p.thumbUrl, description: p.description }))}
-          library={approved.map((i) => ({ id: i.id, thumb: i.thumbUrl, description: i.description }))}
         />
       </Section>
     </PageContainer>
