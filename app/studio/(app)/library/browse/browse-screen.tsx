@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { DIMENSIONS, MEDIA, mediumLabel } from "@/lib/library/constants";
+import { MEDIA, mediumLabel } from "@/lib/library/constants";
 import type { ImageStatus } from "@/lib/library/types";
 import { Button, Mono, cn } from "@/components/ui/primitives";
 import { useLibrary } from "../library-provider";
-import { ImageStage, ScorePanel, SecondaryActions, isTypingTarget } from "../editor";
+import { findSimilar } from "../actions";
+import { ImageStage, ScorePanel, SecondaryActions, hotkeyIndex, isTypingTarget } from "../editor";
 
 const STATUS_FILTERS: { key: ImageStatus | "all"; label: string }[] = [
   { key: "approved", label: "Approved" },
@@ -14,24 +15,36 @@ const STATUS_FILTERS: { key: ImageStatus | "all"; label: string }[] = [
   { key: "all", label: "All" },
 ];
 
-export function BrowseScreen() {
-  const { images, decide, setScore } = useLibrary();
-  const [status, setStatus] = useState<ImageStatus | "all">("approved");
+export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean }) {
+  const { images, dimensions, decide, setScore, notify } = useLibrary();
+  const [similar, setSimilar] = useState<{ id: string; ids: string[] } | null>(null);
+  const [finding, setFinding] = useState(false);
+  const [status, setStatus] = useState<ImageStatus | "all">(initialCheck ? "all" : "approved");
+  const [onlyCheck, setOnlyCheck] = useState(initialCheck);
   const [medium, setMedium] = useState("");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focusDim, setFocusDim] = useState(0);
 
+  const needsCheck = (i: (typeof images)[number]) => dimensions.some((d) => i.scores[d.key]?.check);
+  const toCheck = images.filter((i) => i.ready && needsCheck(i)).length;
+
   const visible = useMemo(() => {
+    if (similar) {
+      const byId = new Map(images.map((i) => [i.id, i]));
+      return similar.ids.flatMap((id) => (byId.get(id)?.ready ? [byId.get(id)!] : []));
+    }
     const term = search.trim().toLowerCase();
+    const check = (i: (typeof images)[number]) => dimensions.some((d) => i.scores[d.key]?.check);
     return images.filter(
       (i) =>
         i.ready &&
+        (!onlyCheck || check(i)) &&
         (status === "all" || i.status === status) &&
         (!medium || i.medium === medium) &&
         (!term || `${i.description ?? ""} ${i.name ?? ""}`.toLowerCase().includes(term)),
     );
-  }, [images, status, medium, search]);
+  }, [images, dimensions, similar, onlyCheck, status, medium, search]);
 
   // Keep showing the open image even if an edit moves it out of the filter.
   const selected = images.find((i) => i.id === selectedId) ?? null;
@@ -50,11 +63,11 @@ export function BrowseScreen() {
         event.preventDefault();
         const prev = visible[index - 1];
         if (prev) setSelectedId(prev.id);
-      } else if (/^[1-8]$/.test(event.key)) {
-        setFocusDim(Number(event.key) - 1);
-      } else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      } else if (hotkeyIndex(event.key) >= 0 && hotkeyIndex(event.key) < dimensions.length) {
+        setFocusDim(hotkeyIndex(event.key));
+      } else if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && dimensions[focusDim]) {
         event.preventDefault();
-        const dim = DIMENSIONS[focusDim].key;
+        const dim = dimensions[focusDim].key;
         const now = selected.scores[dim]?.score ?? 0;
         setScore(selected, dim, now + (event.key === "ArrowRight" ? 0.5 : -0.5));
       }
@@ -66,52 +79,74 @@ export function BrowseScreen() {
   return (
     <div className={cn("grid min-h-0 flex-1 grid-cols-1", selected && "lg:grid-cols-[minmax(0,1fr)_440px]")}>
       <section aria-label="Library images" className="flex min-h-0 flex-col">
-        <div className="flex flex-wrap items-center gap-3 border-b border-rule px-4 py-2.5 sm:px-6">
-          <div role="group" aria-label="Status" className="flex gap-1">
-            {STATUS_FILTERS.map((f) => (
+        {similar ? (
+          <SimilarBar
+            image={images.find((i) => i.id === similar.id)}
+            count={visible.length}
+            onClear={() => setSimilar(null)}
+          />
+        ) : (
+          <div className="flex flex-wrap items-center gap-3 border-b border-rule px-4 py-2.5 sm:px-6">
+            <div role="group" aria-label="Status" className="flex gap-1">
+              {STATUS_FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  aria-pressed={status === f.key}
+                  onClick={() => setStatus(f.key)}
+                  className={cn(
+                    "h-8 border px-3 text-sm",
+                    status === f.key ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink",
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <label className="sr-only" htmlFor="browse-medium">
+              Medium
+            </label>
+            <select
+              id="browse-medium"
+              value={medium}
+              onChange={(e) => setMedium(e.target.value)}
+              className="h-8 border border-rule-strong bg-paper px-2 text-sm text-ink"
+            >
+              <option value="">All media</option>
+              {MEDIA.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <label className="sr-only" htmlFor="browse-search">
+              Search descriptions
+            </label>
+            <input
+              id="browse-search"
+              type="search"
+              placeholder="Search descriptions"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 min-w-0 flex-1 basis-48 border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:max-w-xs"
+            />
+            {toCheck || onlyCheck ? (
               <button
-                key={f.key}
                 type="button"
-                aria-pressed={status === f.key}
-                onClick={() => setStatus(f.key)}
+                aria-pressed={onlyCheck}
+                onClick={() => setOnlyCheck((v) => !v)}
                 className={cn(
-                  "h-8 border px-3 text-sm",
-                  status === f.key ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink",
+                  "flex h-8 items-center gap-1.5 border px-3 text-sm",
+                  onlyCheck ? "border-ink text-ink" : "border-rule-strong text-muted hover:text-ink",
                 )}
               >
-                {f.label}
+                <span aria-hidden className="size-1.5 rounded-full bg-signal" />
+                To check <span className="font-mono text-xs">{toCheck}</span>
               </button>
-            ))}
+            ) : null}
+            <Mono className="ml-auto">{visible.length} images</Mono>
           </div>
-          <label className="sr-only" htmlFor="browse-medium">
-            Medium
-          </label>
-          <select
-            id="browse-medium"
-            value={medium}
-            onChange={(e) => setMedium(e.target.value)}
-            className="h-8 border border-rule-strong bg-paper px-2 text-sm text-ink"
-          >
-            <option value="">All media</option>
-            {MEDIA.map((m) => (
-              <option key={m.key} value={m.key}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-          <label className="sr-only" htmlFor="browse-search">
-            Search descriptions
-          </label>
-          <input
-            id="browse-search"
-            type="search"
-            placeholder="Search descriptions"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-8 min-w-0 flex-1 basis-48 border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:max-w-xs"
-          />
-          <Mono className="ml-auto">{visible.length} images</Mono>
-        </div>
+        )}
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
           {visible.length ? (
@@ -173,12 +208,27 @@ export function BrowseScreen() {
                   Approve
                 </Button>
               ) : null}
-              {selected.status !== "rejected" ? <Button onClick={() => decide(selected, "rejected")}>Reject</Button> : null}
+              {selected.status !== "rejected" ? (
+                <Button onClick={() => decide(selected, "rejected")}>Reject</Button>
+              ) : null}
               {selected.status !== "pending" ? (
                 <Button variant="ghost" onClick={() => decide(selected, "pending")}>
                   Back to review
                 </Button>
               ) : null}
+              <Button
+                variant="ghost"
+                disabled={finding}
+                onClick={async () => {
+                  setFinding(true);
+                  const r = await findSimilar(selected.id);
+                  setFinding(false);
+                  if (!r.ok) return notify(r.error, { tone: "error" });
+                  setSimilar({ id: selected.id, ids: r.ids });
+                }}
+              >
+                {finding ? "Finding…" : "More like this"}
+              </Button>
             </div>
             <div className="mt-3">
               <SecondaryActions image={selected} />
@@ -190,3 +240,29 @@ export function BrowseScreen() {
   );
 }
 
+/** Replaces the filters while showing images similar to one. */
+function SimilarBar({
+  image,
+  count,
+  onClear,
+}: {
+  image?: { thumbUrl: string | null; description: string | null };
+  count: number;
+  onClear: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 border-b border-rule px-4 py-2 sm:px-6">
+      {image?.thumbUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image.thumbUrl} alt="" className="size-8 object-cover" />
+      ) : null}
+      <span className="min-w-0 flex-1 truncate text-sm">
+        Most like <span className="text-muted">{image?.description ?? "this image"}</span>
+      </span>
+      <Mono>{count} images · closest first</Mono>
+      <Button size="sm" onClick={onClear}>
+        Back to all
+      </Button>
+    </div>
+  );
+}

@@ -1,6 +1,7 @@
 import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { listImages } from "@/lib/library/queries";
+import { listDimensions } from "@/lib/library/rubric";
 import { LibraryProvider } from "./library-provider";
 import { Suspense } from "react";
 import { LibraryBar, NoticeToast, ShareResult } from "./library-chrome";
@@ -12,10 +13,20 @@ import { LibraryBar, NoticeToast, ShareResult } from "./library-chrome";
  */
 export default async function LibraryLayout({ children }: LayoutProps<"/studio/library">) {
   const member = await getMember();
-  const images = await listImages(await createClient(), member.studioId);
+  const db = await createClient();
+  const [images, dimensions] = await Promise.all([listImages(db, member.studioId), listDimensions(db, member.studioId)]);
 
   return (
-    <LibraryProvider initialImages={images}>
+    <LibraryProvider
+      initialImages={images}
+      dimensions={dimensions.map(({ key, left, right, leftDefinition, rightDefinition }) => ({
+        key,
+        left,
+        right,
+        leftDefinition,
+        rightDefinition,
+      }))}
+    >
       <div className="flex flex-col lg:h-[calc(100dvh-57px)]">
         <LibraryBar />
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>

@@ -1,13 +1,12 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { DimensionKey } from "./constants";
 import type { LibraryImage } from "./types";
 
 const URL_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
 const RENEW_BEFORE_MS = 24 * 60 * 60 * 1000;
 
 const COLUMNS =
-  "id, status, medium, description, width, height, thumb_path, display_path, thumb_url, display_url, urls_expire_at, source_url, page_url, original_name, score_error, scored_at, created_at, image_scores ( dimension, score, source, confidence )";
+  "id, status, medium, description, width, height, thumb_path, display_path, thumb_url, display_url, urls_expire_at, source_url, page_url, original_name, score_error, scored_at, created_at, image_scores ( dimension, score, source, confidence, needs_check )";
 
 type Row = {
   id: string;
@@ -27,7 +26,9 @@ type Row = {
   score_error: string | null;
   scored_at: string | null;
   created_at: string;
-  image_scores: { dimension: string; score: number; source: "ai" | "human"; confidence: number | null }[] | null;
+  image_scores:
+    | { dimension: string; score: number; source: "ai" | "human"; confidence: number | null; needs_check: boolean }[]
+    | null;
 };
 
 /** Every image in the studio's library, newest first. */
@@ -106,9 +107,14 @@ function toLibraryImage(r: Row): LibraryImage {
   const scores = Object.fromEntries(
     (r.image_scores ?? []).map((s) => [
       s.dimension,
-      { score: Number(s.score), source: s.source, confidence: s.confidence === null ? null : Number(s.confidence) },
+      {
+        score: Number(s.score),
+        source: s.source,
+        confidence: s.confidence === null ? null : Number(s.confidence),
+        check: Boolean(s.needs_check),
+      },
     ]),
-  ) as LibraryImage["scores"] & Record<DimensionKey, unknown>;
+  ) as LibraryImage["scores"];
 
   return {
     id: r.id,

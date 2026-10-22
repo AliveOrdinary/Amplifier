@@ -28,10 +28,18 @@ npm run dev
 | `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`) | The browser extension's ingest endpoint |
 | `ANTHROPIC_API_KEY` | Scoring library images |
 | `AMPLIFIER_SCORING_MODEL` | Optional. Defaults to `claude-sonnet-5-5` |
+| `VOYAGE_API_KEY` | Image embeddings: similar images, near-duplicates, brief pairs |
+| `AMPLIFIER_EMBEDDING_MODEL` | Optional. Defaults to `voyage-multimodal-3.5` |
 
 ## Library
 
 Images come in four ways: upload or drop in Studio › Library, paste an image or page link, the Chrome extension (right-click › Add to Amplifier library), or the Android share sheet once the studio is installed as an app. Each image is resized (1600px display, 480px thumbnail), checked for exact and near duplicates, and scored by Claude on the eight dimensions. Members review and correct scores from the keyboard in Library › Review, edit any image in Browse, and check gaps in Coverage. Extension keys live in Studio › Settings.
+
+Each image is also embedded with Voyage (1024 numbers that place similar-looking images close together). That powers "More like this" in Browse, catches crops and recolours as near-duplicates, and helps briefs pick pairs. Images added before embeddings existed are embedded quietly the next time the library is opened.
+
+### Rubric
+
+The dimensions are the studio's own, edited in Settings › Rubric (up to 10). Each end is described by what you can see, and can have up to three anchor images. Claude scores every image against those definitions, sees the anchors, and sees the studio's eight most recent corrections as examples. Changing a definition marks the library for rescoring (run from the Rubric page) and flags corrections made under the old meaning; they're listed under Browse › To check. Retired dimensions keep their scores but leave scoring and briefs.
 
 The Chrome extension lives in `extension/`. After changing it, run `npm run build:extension` to refresh `public/amplifier-extension.zip`, which the library page links to.
 
@@ -44,6 +52,8 @@ Migrations are in `supabase/migrations`, applied in filename order:
 3. `…03_seed_studio.sql` adds the studio, the eight taste dimensions and the question templates. Safe to re-run.
 4. `…04_library.sql` adds image processing columns and the browser extension's personal keys.
 5. `…05_cached_image_urls.sql` stores each image's signed links for a week, so images keep the same address and stay cached.
+6. `…06_rubric.sql` makes the dimensions editable: definitions, anchors, retiring, and Claude's score kept beside corrections.
+7. `…07_embeddings.sql` turns on pgvector and adds image embeddings and the `similar_images` search.
 
 Apply them with the Supabase CLI (`supabase db push`) or paste each file into the SQL editor, in order.
 

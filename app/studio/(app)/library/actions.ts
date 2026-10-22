@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { DIMENSION_KEYS, MEDIUM_KEYS, clampScore, type DimensionKey } from "@/lib/library/constants";
+import { MEDIUM_KEYS, clampScore } from "@/lib/library/constants";
 import {
   assertAcceptable,
   extensionFor,
@@ -15,6 +15,7 @@ import {
 } from "@/lib/library/pipeline";
 import { fetchRemoteImage, RemoteFetchError } from "@/lib/library/fetch-remote";
 import { scoreImage } from "@/lib/library/score";
+import { embedByIds, embeddingsEnabled, similarImages } from "@/lib/library/embed";
 import { getImages, getImagesSince } from "@/lib/library/queries";
 import type { ImageStatus, LibraryImage } from "@/lib/library/types";
 
@@ -148,13 +149,38 @@ export async function rescore(imageId: string): Promise<{ ok: true; image: Libra
   }
 }
 
-export async function saveScore(imageId: string, dimension: DimensionKey, score: number): Promise<{ ok: true } | Fail> {
-  await getMember();
+export async function saveScore(imageId: string, dimension: string, score: number): Promise<{ ok: true } | Fail> {
+  const member = await getMember();
   try {
-    if (!DIMENSION_KEYS.includes(dimension)) throw new Error("Unknown dimension.");
     const db = await createClient();
+    const { data: known } = await db
+      .from("dimensions")
+      .select("key")
+      .eq("studio_id", member.studioId)
+      .eq("key", dimension)
+      .is("retired_at", null)
+      .maybeSingle();
+    if (!known) throw new Error("Unknown dimension.");
+
+    // Keep Claude's score so the correction can teach future scoring.
+    const { data: current } = await db
+      .from("image_scores")
+      .select("score, source, ai_score")
+      .eq("image_id", imageId)
+      .eq("dimension", dimension)
+      .maybeSingle();
+    const aiScore = current ? (current.source === "ai" ? current.score : current.ai_score) : null;
+
     const { error } = await db.from("image_scores").upsert(
-      { image_id: imageId, dimension, score: clampScore(score), source: "human", confidence: null },
+      {
+        image_id: imageId,
+        dimension,
+        score: clampScore(score),
+        source: "human",
+        confidence: null,
+        ai_score: aiScore,
+        needs_check: false,
+      },
       { onConflict: "image_id,dimension" },
     );
     if (error) throw new Error(error.message);
@@ -195,6 +221,50 @@ export async function deleteImage(imageId: string): Promise<{ ok: true } | Fail>
   try {
     await removeImage(await createClient(), imageId, member.studioId);
     return { ok: true };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/* --------------------------------------------------------------- Similarity */
+
+/**
+ * Embed a few images added before embeddings existed (or whose embedding
+ * failed earlier). The library calls this quietly in a loop when it opens.
+ */
+export async function embedMissing(): Promise<{ ok: true; remaining: number } | Fail> {
+  const member = await getMember();
+  try {
+    if (!embeddingsEnabled()) return { ok: true, remaining: 0 };
+    const db = await createClient();
+    const missing = () =>
+      db
+        .from("images")
+        .select("id", { count: "exact" })
+        .eq("studio_id", member.studioId)
+        .is("embedding", null)
+        .is("embed_error", null)
+        .not("display_path", "is", null)
+        .order("created_at")
+        .limit(8);
+    const { data, error } = await missing();
+    if (error) throw new Error(error.message);
+    await embedByIds(db, (data ?? []).map((r) => r.id as string));
+    const { count } = await missing();
+    return { ok: true, remaining: count ?? 0 };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Images that look most like this one, closest first. */
+export async function findSimilar(imageId: string): Promise<{ ok: true; ids: string[] } | Fail> {
+  await getMember();
+  try {
+    const db = await createClient();
+    const { data: image } = await db.from("images").select("embedded_at").eq("id", imageId).maybeSingle();
+    if (!image?.embedded_at) throw new Error("This image hasn't been analysed for similarity yet. Try again in a minute.");
+    return { ok: true, ids: (await similarImages(db, imageId, 30)).map((r) => r.id) };
   } catch (error) {
     return fail(error);
   }

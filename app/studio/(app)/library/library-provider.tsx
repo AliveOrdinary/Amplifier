@@ -2,12 +2,13 @@
 
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES, clampScore, type DimensionKey } from "@/lib/library/constants";
-import type { ImageStatus, LibraryImage } from "@/lib/library/types";
+import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES, clampScore } from "@/lib/library/constants";
+import type { Dimension, ImageStatus, LibraryImage } from "@/lib/library/types";
 import {
   abandonUpload,
   addFromLink,
   deleteImage,
+  embedMissing,
   finishUpload,
   pollImages,
   prepareUpload,
@@ -29,13 +30,15 @@ type Notice = { id: number; message: string; tone?: "error"; action?: { label: s
 
 type LibraryState = {
   images: LibraryImage[];
+  /** The studio's active rubric, in order. */
+  dimensions: Dimension[];
   jobs: Job[];
   notice: Notice | null;
   addFiles: (files: File[]) => void;
   addLink: (url: string) => void;
   clearJobs: () => void;
   decide: (image: LibraryImage, status: ImageStatus, onUndo?: () => void) => void;
-  setScore: (image: LibraryImage, dim: DimensionKey, value: number) => void;
+  setScore: (image: LibraryImage, dim: string, value: number) => void;
   setImageMedium: (image: LibraryImage, medium: string) => void;
   rescoreImage: (image: LibraryImage) => Promise<void>;
   removeImage: (image: LibraryImage) => Promise<void>;
@@ -54,7 +57,15 @@ export function useLibrary() {
 
 const newest = (list: LibraryImage[]) => list.reduce((max, i) => (i.createdAt > max ? i.createdAt : max), "1970-01-01T00:00:00Z");
 
-export function LibraryProvider({ initialImages, children }: { initialImages: LibraryImage[]; children: ReactNode }) {
+export function LibraryProvider({
+  initialImages,
+  dimensions,
+  children,
+}: {
+  initialImages: LibraryImage[];
+  dimensions: Dimension[];
+  children: ReactNode;
+}) {
   const [images, setImages] = useState(initialImages);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -244,6 +255,20 @@ export function LibraryProvider({ initialImages, children }: { initialImages: Li
     return () => clearInterval(timer);
   }, [upsert]);
 
+  // Quietly embed images that predate embeddings, a few at a time.
+  useEffect(() => {
+    let stopped = false;
+    void (async () => {
+      for (let round = 0; round < 50 && !stopped; round++) {
+        const r = await embedMissing();
+        if (!r.ok || r.remaining === 0) return;
+      }
+    })();
+    return () => {
+      stopped = true;
+    };
+  }, []);
+
   /* ---------------------------------------------------------- reviewing */
 
   const decide = useCallback(
@@ -274,11 +299,11 @@ export function LibraryProvider({ initialImages, children }: { initialImages: Li
 
   const scoreTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const setScore = useCallback(
-    (image: LibraryImage, dim: DimensionKey, value: number) => {
+    (image: LibraryImage, dim: string, value: number) => {
       const score = clampScore(value);
       setImages((list) =>
         list.map((i) =>
-          i.id === image.id ? { ...i, scores: { ...i.scores, [dim]: { score, source: "human", confidence: null } } } : i,
+          i.id === image.id ? { ...i, scores: { ...i.scores, [dim]: { score, source: "human", confidence: null, check: false } } } : i,
         ),
       );
       const key = `${image.id}:${dim}`;
@@ -325,6 +350,7 @@ export function LibraryProvider({ initialImages, children }: { initialImages: Li
   const value = useMemo<LibraryState>(
     () => ({
       images,
+      dimensions,
       jobs,
       notice,
       addFiles,
@@ -339,7 +365,7 @@ export function LibraryProvider({ initialImages, children }: { initialImages: Li
       dismissNotice,
       holdNotice,
     }),
-    [images, jobs, notice, addFiles, addLink, clearJobs, decide, setScore, setImageMedium, rescoreImage, removeImage, notify, dismissNotice, holdNotice],
+    [images, dimensions, jobs, notice, addFiles, addLink, clearJobs, decide, setScore, setImageMedium, rescoreImage, removeImage, notify, dismissNotice, holdNotice],
   );
 
   return (

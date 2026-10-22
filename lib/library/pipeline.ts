@@ -4,6 +4,7 @@ import sharp, { type Sharp } from "sharp";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES } from "./constants";
 import { scoreImage } from "./score";
+import { NEAR_DUPLICATE_DISTANCE, embedAndStore, similarImages } from "./embed";
 
 const BUCKET = "library";
 const DISPLAY_EDGE = 1600;
@@ -140,18 +141,28 @@ export async function finishImage(db: SupabaseClient, imageId: string, knownByte
     .eq("id", image.id);
   if (update.error) throw new IngestError(`Couldn't save the image details: ${update.error.message}`);
 
-  const nearDuplicates = await findNearDuplicates(db, image.studio_id, image.id, derived.dhash);
-
+  // Embedding takes about a second; scoring several. Run them side by side.
   let scored = true;
-  try {
-    await scoreImage(db, image.id);
-  } catch (err) {
-    scored = false;
-    await db
-      .from("images")
-      .update({ score_error: err instanceof Error ? err.message.slice(0, 500) : "Scoring failed" })
-      .eq("id", image.id);
-  }
+  await Promise.all([
+    embedAndStore(db, [{ id: image.id, display: derived.display }]),
+    scoreImage(db, image.id).catch(async (err) => {
+      scored = false;
+      await db
+        .from("images")
+        .update({ score_error: err instanceof Error ? err.message.slice(0, 500) : "Scoring failed" })
+        .eq("id", image.id);
+    }),
+  ]);
+
+  // Near-duplicates: the same picture resized (perceptual hash), or a crop,
+  // recolour or alternate version (embedding).
+  const [byHash, bySimilarity] = await Promise.all([
+    findNearDuplicates(db, image.studio_id, image.id, derived.dhash),
+    similarImages(db, image.id, 3)
+      .then((rows) => rows.filter((r) => r.distance <= NEAR_DUPLICATE_DISTANCE).map((r) => r.id))
+      .catch(() => [] as string[]),
+  ]);
+  const nearDuplicates = [...new Set([...byHash, ...bySimilarity])];
 
   return { status: "added", imageId: image.id, nearDuplicates, scored };
 }

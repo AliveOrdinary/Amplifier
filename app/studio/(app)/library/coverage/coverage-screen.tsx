@@ -1,16 +1,16 @@
 "use client";
 
-import { DIMENSIONS, MEDIA, THIN_BIN } from "@/lib/library/constants";
+import { MEDIA, THIN_BIN } from "@/lib/library/constants";
 import { Mono, PageContainer, Section } from "@/components/ui/primitives";
 import { useLibrary } from "../library-provider";
 
 const BIN_LABELS = ["−2", "−1", "0", "+1", "+2"];
 
 export function CoverageScreen() {
-  const { images } = useLibrary();
+  const { images, dimensions: rubric } = useLibrary();
   const approved = images.filter((i) => i.status === "approved");
 
-  const dimensions = DIMENSIONS.map((d) => {
+  const dimensions = rubric.map((d) => {
     const bins = [0, 0, 0, 0, 0];
     for (const image of approved) {
       const value = image.scores[d.key]?.score;

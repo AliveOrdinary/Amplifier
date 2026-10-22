@@ -1,18 +1,7 @@
-/** Shared between server and client: the library's fixed vocabularies. */
+/** Shared between server and client. Dimensions live in the database (Settings › Rubric). */
 
-export const DIMENSIONS = [
-  { key: "density", left: "Minimal", right: "Rich" },
-  { key: "volume", left: "Quiet", right: "Loud" },
-  { key: "temperature", left: "Warm", right: "Cool" },
-  { key: "era", left: "Classic", right: "Contemporary" },
-  { key: "form", left: "Organic", right: "Geometric" },
-  { key: "tone", left: "Serious", right: "Playful" },
-  { key: "finish", left: "Crafted", right: "Polished" },
-  { key: "abstraction", left: "Literal", right: "Abstract" },
-] as const;
-
-export type DimensionKey = (typeof DIMENSIONS)[number]["key"];
-export const DIMENSION_KEYS = DIMENSIONS.map((d) => d.key) as DimensionKey[];
+/** More dimensions make briefs longer: each needs two or three pairs. */
+export const MAX_DIMENSIONS = 10;
 
 export const MEDIA = [
   { key: "identity", label: "Identity" },

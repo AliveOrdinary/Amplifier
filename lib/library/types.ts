@@ -1,8 +1,21 @@
-import type { DimensionKey } from "./constants";
-
 export type ImageStatus = "pending" | "approved" | "rejected";
 
-export type ImageScore = { score: number; source: "ai" | "human"; confidence: number | null };
+export type ImageScore = {
+  score: number;
+  source: "ai" | "human";
+  confidence: number | null;
+  /** A correction made before the dimension's definition last changed. */
+  check: boolean;
+};
+
+/** One dimension of the studio's rubric. */
+export type Dimension = {
+  key: string;
+  left: string;
+  right: string;
+  leftDefinition: string;
+  rightDefinition: string;
+};
 
 /** What the studio UI knows about a library image. */
 export type LibraryImage = {
@@ -21,5 +34,5 @@ export type LibraryImage = {
   /** Resized and scored (or scoring failed): ready to review. */
   ready: boolean;
   createdAt: string;
-  scores: Partial<Record<DimensionKey, ImageScore>>;
+  scores: Partial<Record<string, ImageScore>>;
 };

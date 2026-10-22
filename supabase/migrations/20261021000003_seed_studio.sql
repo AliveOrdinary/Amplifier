@@ -4,7 +4,9 @@
 -- Question shape: { id, prompt, help?, format, options?, optional? }
 --   format: long | short | three_words | chips | link
 
-insert into public.dimensions (key, left_label, right_label, sort) values
+-- Only on a fresh database: afterwards the rubric is edited in Settings.
+insert into public.dimensions (key, left_label, right_label, sort)
+select * from (values
   ('density',     'Minimal', 'Rich',         1),
   ('volume',      'Quiet',   'Loud',         2),
   ('temperature', 'Warm',    'Cool',         3),
@@ -13,7 +15,8 @@ insert into public.dimensions (key, left_label, right_label, sort) values
   ('tone',        'Serious', 'Playful',      6),
   ('finish',      'Crafted', 'Polished',     7),
   ('abstraction', 'Literal', 'Abstract',     8)
-on conflict (key) do nothing;
+) as v (key, left_label, right_label, sort)
+where not exists (select 1 from public.dimensions);
 
 with studio as (
   insert into public.studios (name, slug)

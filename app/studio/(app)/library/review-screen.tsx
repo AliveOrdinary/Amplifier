@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DIMENSIONS, mediumLabel } from "@/lib/library/constants";
+import { mediumLabel } from "@/lib/library/constants";
 import type { LibraryImage } from "@/lib/library/types";
 import { Mono, buttonClass, cn } from "@/components/ui/primitives";
 import { useLibrary } from "./library-provider";
-import { ImageStage, ScorePanel, SecondaryActions, isTypingTarget } from "./editor";
+import { ImageStage, ScorePanel, SecondaryActions, hotkeyIndex, isTypingTarget } from "./editor";
 import { AddControls } from "./library-chrome";
 
 /**
@@ -15,7 +15,7 @@ import { AddControls } from "./library-chrome";
  * dimmed, so you can step back to them.
  */
 export function ReviewScreen() {
-  const { images, jobs, decide, setScore } = useLibrary();
+  const { images, dimensions, jobs, decide, setScore } = useLibrary();
 
   const [reviewed, setReviewed] = useState<Set<string>>(() => new Set());
   const queue = useMemo(
@@ -68,11 +68,11 @@ export function ReviewScreen() {
         event.preventDefault();
         const prev = queue[Math.max(0, index - 1)];
         if (prev) setSelectedId(prev.id);
-      } else if (/^[1-8]$/.test(key)) {
-        setFocusDim(Number(key) - 1);
-      } else if (key === "ArrowLeft" || key === "ArrowRight") {
+      } else if (hotkeyIndex(key) >= 0 && hotkeyIndex(key) < dimensions.length) {
+        setFocusDim(hotkeyIndex(key));
+      } else if ((key === "ArrowLeft" || key === "ArrowRight") && dimensions[focusDim]) {
         event.preventDefault();
-        const dim = DIMENSIONS[focusDim].key;
+        const dim = dimensions[focusDim].key;
         const now = current.scores[dim]?.score ?? 0;
         setScore(current, dim, now + (key === "ArrowRight" ? 0.5 : -0.5));
       } else if (key === "Enter" || key === "a") {

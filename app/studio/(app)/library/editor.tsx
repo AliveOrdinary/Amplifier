@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { DIMENSIONS, MEDIA, type DimensionKey } from "@/lib/library/constants";
-import type { LibraryImage } from "@/lib/library/types";
+import { MEDIA } from "@/lib/library/constants";
+import type { Dimension, LibraryImage } from "@/lib/library/types";
 import { Button, Mono, cn } from "@/components/ui/primitives";
 import { useLibrary } from "./library-provider";
 
@@ -51,7 +51,11 @@ function FadeImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-/** Medium, the eight scores, and a legend. */
+/** The key that focuses dimension i: 1–9, then 0 for the tenth. */
+export const dimensionHotkey = (i: number) => (i === 9 ? "0" : String(i + 1));
+export const hotkeyIndex = (key: string) => (key === "0" ? 9 : /^[1-9]$/.test(key) ? Number(key) - 1 : -1);
+
+/** Medium, the rubric's scores, and a legend. */
 export function ScorePanel({
   image,
   focusDim,
@@ -61,7 +65,8 @@ export function ScorePanel({
   focusDim: number;
   onFocusDim: (index: number) => void;
 }) {
-  const { setScore, setImageMedium } = useLibrary();
+  const { dimensions, setScore, setImageMedium } = useLibrary();
+  const needsCheck = dimensions.some((d) => image.scores[d.key]?.check);
 
   return (
     <div className="flex flex-col">
@@ -84,10 +89,10 @@ export function ScorePanel({
 
       <div className="mt-5 flex justify-between">
         <Mono>Scores</Mono>
-        <Mono className="hidden lg:inline">1–8 pick · ← → adjust</Mono>
+        <Mono className="hidden lg:inline">{`1–${dimensionHotkey(dimensions.length - 1)} pick · ← → adjust`}</Mono>
       </div>
       <div className="mt-2 border-t border-rule">
-        {DIMENSIONS.map((d, i) => (
+        {dimensions.map((d, i) => (
           <ScoreScale
             key={d.key}
             index={i}
@@ -96,7 +101,7 @@ export function ScorePanel({
             focused={focusDim === i}
             onPick={(value) => {
               onFocusDim(i);
-              setScore(image, d.key as DimensionKey, value);
+              setScore(image, d.key, value);
             }}
           />
         ))}
@@ -108,6 +113,11 @@ export function ScorePanel({
         <span className="flex items-center gap-1.5">
           <span aria-hidden className="inline-block h-2.5 w-3 bg-ink" /> Your edit, kept on rescore
         </span>
+        {needsCheck ? (
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden className="inline-block size-2 rounded-full bg-signal" /> Definition changed since your edit: pick a value to confirm
+          </span>
+        ) : null}
       </p>
     </div>
   );
@@ -121,8 +131,8 @@ function ScoreScale({
   onPick,
 }: {
   index: number;
-  dimension: (typeof DIMENSIONS)[number];
-  score: LibraryImage["scores"][DimensionKey];
+  dimension: Dimension;
+  score: LibraryImage["scores"][string];
   focused: boolean;
   onPick: (value: number) => void;
 }) {
@@ -137,9 +147,12 @@ function ScoreScale({
         focused && "bg-panel",
       )}
     >
-      <Mono>{index + 1}</Mono>
-      <span id={labelId} className="text-[13px]">
-        {dimension.left}
+      <Mono>{dimensionHotkey(index)}</Mono>
+      <span id={labelId} className="flex min-w-0 items-center gap-1.5 text-[13px]" title={dimension.leftDefinition}>
+        <span className="truncate">{dimension.left}</span>
+        {score?.check ? (
+          <span role="img" aria-label="Check this score" className="size-2 shrink-0 rounded-full bg-signal" />
+        ) : null}
       </span>
       {/* Cells sit edge to edge as click targets; the gap is drawn with padding. */}
       <div role="radiogroup" aria-labelledby={labelId} className="grid grid-cols-9">
@@ -169,7 +182,9 @@ function ScoreScale({
           );
         })}
       </div>
-      <span className="text-right text-[13px]">{dimension.right}</span>
+      <span className="truncate text-right text-[13px]" title={dimension.rightDefinition}>
+        {dimension.right}
+      </span>
     </div>
   );
 }
