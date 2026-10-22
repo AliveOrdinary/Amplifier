@@ -29,7 +29,8 @@ export function ReviewScreen() {
   const pending = queue.filter((i) => i.status === "pending");
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const current = queue.find((i) => i.id === selectedId) ?? pending[0] ?? null;
+  // Once nothing is pending, show the caught-up screen; Undo brings the image back.
+  const current = pending.length ? (queue.find((i) => i.id === selectedId) ?? pending[0]) : null;
   const [focusDim, setFocusDim] = useState(0);
 
   // Warm the cache for the next image so it appears instantly.
