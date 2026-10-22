@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ACCEPTED_TYPES } from "@/lib/library/constants";
 import { Button, Mono, cn } from "@/components/ui/primitives";
 import { useLibrary } from "./library-provider";
+import { isTypingTarget } from "./editor";
 
 /** Tabs on the left, adding images on the right. */
 export function LibraryBar() {
@@ -183,6 +184,20 @@ function UploadStatus() {
 /** Bottom-centre confirmation with an optional Undo. */
 export function NoticeToast() {
   const { notice, dismissNotice, holdNotice } = useLibrary();
+
+  // U runs the notice's action (Undo) on every library screen.
+  const action = notice?.action;
+  useEffect(() => {
+    if (!action) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== "u" || event.metaKey || event.ctrlKey || event.altKey || isTypingTarget(event.target)) return;
+      event.preventDefault();
+      action?.run();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [action]);
+
   return (
     <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
       {notice ? (

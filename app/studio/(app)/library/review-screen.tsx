@@ -15,7 +15,7 @@ import { AddControls } from "./library-chrome";
  * dimmed, so you can step back to them.
  */
 export function ReviewScreen() {
-  const { images, jobs, decide, setScore, notice } = useLibrary();
+  const { images, jobs, decide, setScore } = useLibrary();
 
   const [reviewed, setReviewed] = useState<Set<string>>(() => new Set());
   const queue = useMemo(
@@ -57,7 +57,6 @@ export function ReviewScreen() {
     function onKey(event: KeyboardEvent) {
       if (isTypingTarget(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
       const key = event.key;
-      if (key === "u" && notice?.action) return notice.action.run();
       if (!current) return;
       const index = queue.findIndex((i) => i.id === current.id);
 
