@@ -8,7 +8,7 @@ import { listDimensions } from "@/lib/library/rubric";
 import { briefResults } from "@/lib/brief/results";
 import type { Plan } from "@/lib/brief/engine";
 import type { Question } from "@/lib/brief/types";
-import { Mono, PageContainer, PageHeader, Section } from "@/components/ui/primitives";
+import { ButtonLink, Mono, PageContainer, PageHeader, Section } from "@/components/ui/primitives";
 import { StatusLabel } from "../status";
 import { LinkPanel } from "./link-panel";
 import { DetailsForm } from "./details-form";
@@ -71,6 +71,13 @@ export default async function BriefPage({ params }: PageProps<"/studio/briefs/[i
           </>
         }
         title={brief.client_name}
+        actions={
+          brief.started_at ? (
+            <ButtonLink href={`/studio/briefs/${brief.id}/prep`} variant={brief.completed_at ? "primary" : "secondary"}>
+              Open prep page
+            </ButtonLink>
+          ) : undefined
+        }
       />
 
       <Section number="01" title="Link" description="Private to this client. Anyone with it can fill in the brief, so send it only to them.">

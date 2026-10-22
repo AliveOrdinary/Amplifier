@@ -61,7 +61,7 @@ export default async function BriefsPage() {
               return (
                 <li key={b.id} className="border-b border-rule">
                   <Link
-                    href={`/studio/briefs/${b.id}`}
+                    href={b.status === "completed" ? `/studio/briefs/${b.id}/prep` : `/studio/briefs/${b.id}`}
                     className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 gap-y-1 py-3.5 hover:bg-panel/50 sm:grid-cols-[minmax(0,1fr)_160px_120px_110px]"
                   >
                     <span className="min-w-0">

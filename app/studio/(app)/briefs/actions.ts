@@ -7,6 +7,7 @@ import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { MEDIUM_KEYS } from "@/lib/library/constants";
 import { MAX_PINS, MEDIUM_FOR_TYPE, type Question } from "@/lib/brief/types";
+import { generateReport, loadReport } from "@/lib/brief/report";
 
 type Fail = { ok: false; error: string };
 const fail = (error: unknown): Fail => ({
@@ -224,4 +225,48 @@ export async function deleteBrief(briefId: string): Promise<Fail | never> {
     return fail(error);
   }
   redirect("/studio/briefs");
+}
+
+/* ------------------------------------------------------------- prep page */
+
+/** Write (or rewrite) the prep page's report with Claude. */
+export async function prepareReport(briefId: string): Promise<{ ok: true } | Fail> {
+  await getMember();
+  try {
+    const db = await createClient();
+    await generateReport(db, briefId);
+    return { ok: true };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+const Content = z.object({
+  headline: z.string().trim().max(600),
+  contradictions: z
+    .array(z.object({ key: z.string(), line: z.string().trim().min(1).max(600), ask: z.string().trim().max(600) }))
+    .max(12),
+  directions: z.object({
+    chose: z.array(z.string().trim().min(1).max(200)).max(8),
+    rejected: z.array(z.string().trim().min(1).max(200)).max(8),
+  }),
+});
+
+/** Save the studio's edits to the report's wording. */
+export async function saveReport(briefId: string, input: z.input<typeof Content>): Promise<{ ok: true } | Fail> {
+  await getMember();
+  try {
+    const edits = Content.parse(input);
+    const db = await createClient();
+    const report = await loadReport(db, briefId);
+    if (!report) throw new Error("There's no report to edit yet.");
+    const { error } = await db
+      .from("reports")
+      .update({ content: { ...report.content, ...edits, editedAt: new Date().toISOString() } })
+      .eq("brief_id", briefId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  } catch (error) {
+    return fail(error);
+  }
 }

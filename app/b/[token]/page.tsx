@@ -6,6 +6,9 @@ import { briefByToken, currentStep } from "@/lib/brief/store";
 import { Wordmark } from "@/components/ui/primitives";
 import { BriefFlow } from "./brief-flow";
 
+// The last answer also writes the prep page's report, in the background.
+export const maxDuration = 120;
+
 export const metadata: Metadata = {
   title: "Visual brief",
   robots: { index: false, follow: false },
