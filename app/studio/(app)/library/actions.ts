@@ -1,8 +1,11 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import { after } from "next/server";
 import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { processQueue } from "@/lib/library/score-queue";
 import { MEDIUM_KEYS, clampScore } from "@/lib/library/constants";
 import {
   assertAcceptable,
@@ -122,6 +125,8 @@ export async function addFromLink(url: string): Promise<AddResult> {
 /** New images (from the extension or a phone) and updates to ones still being scored. */
 export async function pollImages(since: string, pendingIds: string[]): Promise<{ ok: true; images: LibraryImage[] } | Fail> {
   const member = await getMember();
+  // While someone has the library open, read back finished scoring batches and send waiting images.
+  after(() => processQueue(createAdminClient(), member.studioId).catch((err) => console.error("queue processing failed", err)));
   try {
     const db = await createClient();
     const [fresh, updated] = await Promise.all([

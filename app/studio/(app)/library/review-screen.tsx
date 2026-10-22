@@ -94,7 +94,7 @@ export function ReviewScreen() {
           <h2 className="text-2xl font-medium">{images.length ? "All caught up" : "Start your library"}</h2>
           <p className="mt-2 max-w-md text-[15px] text-ink-soft">
             {scoring
-              ? `${scoring} ${scoring === 1 ? "image is" : "images are"} being scored and will appear here.`
+              ? `${scoring} ${scoring === 1 ? "image is" : "images are"} being scored. Images you add appear here; board imports go straight to the library unless one needs a look.`
               : images.length
                 ? "Nothing is waiting for review. Add more images below."
                 : "Add reference images: Claude scores each one, then you check the scores here."}
@@ -162,7 +162,7 @@ export function ReviewScreen() {
         {scoring ? (
           <div className="border-t border-rule px-4 py-3 max-lg:hidden">
             <Mono>Being scored · {scoring}</Mono>
-            <p className="mt-1 text-xs text-muted">Joins the end of the queue when ready.</p>
+            <p className="mt-1 text-xs text-muted">Joins the end of the queue when ready. Board imports skip it unless flagged.</p>
           </div>
         ) : null}
       </aside>
@@ -180,6 +180,9 @@ export function ReviewScreen() {
           ) : null}
         </div>
         {current.scoreError ? <p className="mt-1 text-sm text-danger">Scoring failed: {current.scoreError}</p> : null}
+        {current.reviewReason && !current.scoreError ? (
+          <p className="mt-1 text-sm text-ink-soft">Flagged on import: {current.reviewReason}.</p>
+        ) : null}
       </section>
 
       {/* Scores and decision */}

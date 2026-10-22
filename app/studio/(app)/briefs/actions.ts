@@ -64,6 +64,7 @@ export async function createBrief(_: NewBriefState, form: FormData): Promise<New
       .select("questions")
       .eq("studio_id", member.studioId)
       .eq("project_type", input.project_type)
+      .is("retired_at", null)
       .maybeSingle();
     if (!template) throw new Error("Choose a project type.");
 

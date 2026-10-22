@@ -34,7 +34,7 @@ export default async function BriefsPage() {
       )
       .eq("studio_id", member.studioId)
       .order("created_at", { ascending: false }),
-    db.from("question_templates").select("project_type, name, questions").order("sort"),
+    db.from("question_templates").select("project_type, name, questions, retired_at").order("sort"),
   ]);
   if (error) throw new Error(error.message);
   const rows = (briefs ?? []) as unknown as Row[];
@@ -103,7 +103,7 @@ export default async function BriefsPage() {
         className="border-b-0"
       >
         <ul className="border-t border-rule">
-          {(templates ?? []).map((t) => {
+          {(templates ?? []).filter((t) => !t.retired_at).map((t) => {
             const questions = (t.questions as Question[]) ?? [];
             const required = questions.filter((q) => !q.optional).length;
             return (

@@ -47,6 +47,28 @@ export async function embedImages(images: Buffer[]): Promise<number[][]> {
   }
 }
 
+/**
+ * Embed a piece of text into the same space as the images, so text can find
+ * the images it describes (a client's "What are you making?" answer).
+ */
+export async function embedText(text: string): Promise<number[]> {
+  const key = process.env.VOYAGE_API_KEY;
+  if (!key) throw new Error("VOYAGE_API_KEY is not set.");
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: MODEL,
+      input_type: "query",
+      inputs: [{ content: [{ type: "text", text: text.slice(0, 4000) }] }],
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) throw new Error(`Voyage returned ${response.status}`);
+  const json = (await response.json()) as { data: { embedding: number[] }[] };
+  return json.data[0].embedding;
+}
+
 /** Embed images and save the results. Failures are recorded on the image, not thrown. */
 export async function embedAndStore(db: SupabaseClient, items: { id: string; image: Buffer }[]) {
   if (!items.length || !embeddingsEnabled()) return;

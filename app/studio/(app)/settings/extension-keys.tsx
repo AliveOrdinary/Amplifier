@@ -38,7 +38,12 @@ export function ExtensionKeys({ keys }: { keys: MemberKey[] }) {
           </li>
           <li>Create a key below and paste it into the extension&apos;s settings, with this site&apos;s address.</li>
           <li>Right-click any image on any site and choose Add to Amplifier library.</li>
+          <li>
+            To bring in a whole Pinterest board, open the board, click the Amplifier button in Chrome&apos;s toolbar and
+            choose Import this board. Keep the tab open while it runs.
+          </li>
         </ol>
+        <p className="mt-3 text-sm text-muted">Already installed? Download it again and reload it in chrome://extensions to get board imports.</p>
       </div>
 
       <div>

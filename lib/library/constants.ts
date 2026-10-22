@@ -13,6 +13,10 @@ export const MEDIA = [
   { key: "packaging", label: "Packaging" },
   { key: "photography", label: "Photography" },
   { key: "exhibition_spatial", label: "Exhibition and spatial" },
+  { key: "signage_wayfinding", label: "Signage and wayfinding" },
+  { key: "interiors", label: "Interiors" },
+  { key: "print_editorial", label: "Print and editorial" },
+  { key: "illustration", label: "Illustration" },
 ] as const;
 
 export type MediumKey = (typeof MEDIA)[number]["key"];

@@ -1,8 +1,9 @@
-import { createHash } from "node:crypto";
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { authenticateKey, unauthorized } from "@/lib/library/member-key";
 import { ingestBytes, IngestError } from "@/lib/library/pipeline";
 import { fetchRemoteImage, RemoteFetchError } from "@/lib/library/fetch-remote";
+import { submitQueued } from "@/lib/library/score-queue";
 
 // Images are resized and scored before the response is sent.
 export const maxDuration = 120;
@@ -13,16 +14,18 @@ export const maxDuration = 120;
  *
  * GET  checks a key.
  * POST multipart: `file` (the image bytes) and/or `url` (the image's address),
- *      plus optional `pageUrl` (the page it was found on).
+ *      plus optional `pageUrl` (the page it was found on). A board import also
+ *      sends `board` (the board's name) and `queue=1`: the image is scored later
+ *      through the Batch API and goes straight to the library unless flagged.
  */
 export async function GET(request: NextRequest) {
-  const member = await authenticate(request);
+  const member = await authenticateKey(request);
   if (!member) return unauthorized();
   return NextResponse.json({ ok: true, studio: member.studioName });
 }
 
 export async function POST(request: NextRequest) {
-  const member = await authenticate(request);
+  const member = await authenticateKey(request);
   if (!member) return unauthorized();
 
   let form: FormData;
@@ -35,7 +38,11 @@ export async function POST(request: NextRequest) {
   const file = form.get("file");
   const url = stringField(form.get("url"));
   const pageUrl = stringField(form.get("pageUrl"));
+  const board = stringField(form.get("board"))?.slice(0, 80) ?? null;
+  const queue = form.get("queue") === "1";
+  const collection = board ? `${member.name} · ${board}` : null;
   const admin = createAdminClient();
+  const later = { collection, queue, autoApprove: queue };
 
   try {
     let result;
@@ -48,6 +55,7 @@ export async function POST(request: NextRequest) {
         name: file.name || "image",
         sourceUrl: url,
         pageUrl,
+        ...later,
       });
     } else if (url) {
       const remote = await fetchRemoteImage(url);
@@ -59,10 +67,13 @@ export async function POST(request: NextRequest) {
         name: remote.name,
         sourceUrl: remote.sourceUrl,
         pageUrl: pageUrl ?? remote.pageUrl,
+        ...later,
       });
     } else {
       return NextResponse.json({ ok: false, error: "No image was sent." }, { status: 400 });
     }
+    // Full batches go out as soon as there are enough; the rest when the import ends.
+    if (queue) after(() => submitQueued(admin, member.studioId).catch((err) => console.error("batch submit failed", err)));
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     const known = error instanceof IngestError || error instanceof RemoteFetchError;
@@ -72,41 +83,6 @@ export async function POST(request: NextRequest) {
       { status: known ? 422 : 500 },
     );
   }
-}
-
-async function authenticate(request: NextRequest) {
-  const header = request.headers.get("authorization") ?? "";
-  const key = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
-  if (!/^amp_[A-Za-z0-9_-]{20,}$/.test(key)) return null;
-
-  const admin = createAdminClient();
-  const { data: row } = await admin
-    .from("member_keys")
-    .select("id, user_id, studio_id")
-    .eq("key_hash", createHash("sha256").update(key).digest("hex"))
-    .is("revoked_at", null)
-    .maybeSingle();
-  if (!row) return null;
-
-  // The key only works while its owner is still a member of that studio.
-  const { data: member } = await admin
-    .from("members")
-    .select("studio_id, studios ( name )")
-    .eq("user_id", row.user_id)
-    .eq("studio_id", row.studio_id)
-    .maybeSingle();
-  if (!member) return null;
-
-  await admin.from("member_keys").update({ last_used_at: new Date().toISOString() }).eq("id", row.id);
-  const studio = member.studios as unknown as { name: string } | null;
-  return { userId: row.user_id as string, studioId: row.studio_id as string, studioName: studio?.name ?? "Studio" };
-}
-
-function unauthorized() {
-  return NextResponse.json(
-    { ok: false, error: "That key isn't valid. Create a new one in Studio > Library." },
-    { status: 401 },
-  );
 }
 
 function stringField(value: FormDataEntryValue | null) {

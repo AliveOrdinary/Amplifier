@@ -232,7 +232,7 @@ export function SecondaryActions({ image }: { image: LibraryImage }) {
           rel="noreferrer noopener"
           className="px-3 text-sm text-muted underline-offset-2 hover:text-ink hover:underline"
         >
-          Source
+          {image.collection ? `From ${image.collection}` : "Source"}
         </a>
       ) : null}
     </div>

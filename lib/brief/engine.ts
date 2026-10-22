@@ -63,7 +63,7 @@ export function rng(seed: string) {
   };
 }
 
-function shuffle<T>(list: T[], random: () => number) {
+export function shuffle<T>(list: T[], random: () => number) {
   const copy = [...list];
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
@@ -104,7 +104,8 @@ const scoreDistance = (a: number[], b: number[]) => Math.hypot(...a.map((v, i) =
 
 /**
  * Freeze what a brief will show. Pins always appear in the warm-up; the rest
- * of the warm-up spreads across the rubric, mostly from the project's medium.
+ * of the warm-up spreads across the rubric, mostly from `preferred` (images
+ * close to what the client described) or, failing that, the project's medium.
  */
 export function buildPlan(input: {
   seed: string;
@@ -112,6 +113,7 @@ export function buildPlan(input: {
   images: PlanImage[];
   pins: string[];
   medium: string | null;
+  preferred?: string[];
   warmupCount?: number;
   maxPairs?: number;
 }): Plan {
@@ -122,7 +124,10 @@ export function buildPlan(input: {
 
   // Farthest-point sampling: each pick is the image least like those already chosen.
   const chosen: PlanImage[] = pins.map((id) => byId.get(id)!);
-  const inMedium = input.images.filter((i) => input.medium && i.medium === input.medium);
+  const preferred = new Set(input.preferred ?? []);
+  const inMedium = preferred.size
+    ? input.images.filter((i) => preferred.has(i.id))
+    : input.images.filter((i) => input.medium && i.medium === input.medium);
   const fromMedium = Math.min(inMedium.length, Math.round((warmupCount - chosen.length) * 0.65));
   const pick = (from: PlanImage[], count: number) => {
     let left = shuffle(from.filter((i) => !chosen.includes(i)), random);

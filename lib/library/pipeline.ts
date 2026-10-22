@@ -4,6 +4,7 @@ import sharp, { type Sharp } from "sharp";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES } from "./constants";
 import { scoreImage } from "./score";
+import { enqueue } from "./score-queue";
 import { NEAR_DUPLICATE_DISTANCE, embedAndStore, similarImages } from "./embed";
 
 const BUCKET = "library";
@@ -15,7 +16,13 @@ export class IngestError extends Error {}
 
 export type IngestResult =
   | { status: "duplicate"; imageId: string }
-  | { status: "added"; imageId: string; nearDuplicates: string[]; scored: boolean };
+  | { status: "added"; imageId: string; nearDuplicates: string[]; scored: boolean; queued?: boolean };
+
+/**
+ * `queue` sends scoring to the Batch API instead of scoring now (board
+ * imports); with `autoApprove` the image skips Review unless it's flagged.
+ */
+export type FinishOptions = { queue?: boolean; autoApprove?: boolean };
 
 export const extensionFor = (mime: string) =>
   ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "image/avif": "avif" })[
@@ -49,7 +56,9 @@ export async function ingestBytes(
     name: string;
     sourceUrl?: string | null;
     pageUrl?: string | null;
-  },
+    /** "Ana · Wayfinding": who imported it, from which board. */
+    collection?: string | null;
+  } & FinishOptions,
 ): Promise<IngestResult> {
   assertAcceptable(input.mime, input.bytes.byteLength);
   const fileHash = sha256(input.bytes);
@@ -76,6 +85,7 @@ export async function ingestBytes(
     file_hash: fileHash,
     source_url: input.sourceUrl ?? null,
     page_url: input.pageUrl ?? null,
+    collection: input.collection?.slice(0, 120) ?? null,
   });
   if (insert.error) {
     await db.storage.from(BUCKET).remove([storagePath]);
@@ -86,7 +96,7 @@ export async function ingestBytes(
     throw new IngestError(`Couldn't save the image: ${insert.error.message}`);
   }
 
-  return finishImage(db, id, input.bytes);
+  return finishImage(db, id, input.bytes, { queue: input.queue, autoApprove: input.autoApprove });
 }
 
 /**
@@ -94,7 +104,12 @@ export async function ingestBytes(
  * size and perceptual hash, flag near-duplicates, then score it with Claude.
  * Removes the image again if the file can't be read as an image.
  */
-export async function finishImage(db: SupabaseClient, imageId: string, knownBytes?: Buffer): Promise<IngestResult> {
+export async function finishImage(
+  db: SupabaseClient,
+  imageId: string,
+  knownBytes?: Buffer,
+  { queue = false, autoApprove = false }: FinishOptions = {},
+): Promise<IngestResult> {
   const { data: image, error } = await db
     .from("images")
     .select("id, studio_id, storage_path")
@@ -142,16 +157,18 @@ export async function finishImage(db: SupabaseClient, imageId: string, knownByte
   if (update.error) throw new IngestError(`Couldn't save the image details: ${update.error.message}`);
 
   // Embedding takes about a second; scoring several. Run them side by side.
-  let scored = true;
+  let scored = !queue;
   await Promise.all([
     embedAndStore(db, [{ id: image.id, image: derived.thumb }]),
-    scoreImage(db, image.id).catch(async (err) => {
-      scored = false;
-      await db
-        .from("images")
-        .update({ score_error: err instanceof Error ? err.message.slice(0, 500) : "Scoring failed" })
-        .eq("id", image.id);
-    }),
+    queue
+      ? null
+      : scoreImage(db, image.id).catch(async (err) => {
+          scored = false;
+          await db
+            .from("images")
+            .update({ score_error: err instanceof Error ? err.message.slice(0, 500) : "Scoring failed" })
+            .eq("id", image.id);
+        }),
   ]);
 
   // Near-duplicates: the same picture resized (perceptual hash), or a crop,
@@ -164,6 +181,13 @@ export async function finishImage(db: SupabaseClient, imageId: string, knownByte
   ]);
   const nearDuplicates = [...new Set([...byHash, ...bySimilarity])];
 
+  if (queue) {
+    if (autoApprove && nearDuplicates.length) {
+      await db.from("images").update({ review_reason: "Looks like an image already in the library" }).eq("id", image.id);
+    }
+    await enqueue(db, [{ imageId: image.id, studioId: image.studio_id, autoApprove }]);
+    return { status: "added", imageId: image.id, nearDuplicates, scored: false, queued: true };
+  }
   return { status: "added", imageId: image.id, nearDuplicates, scored };
 }
 

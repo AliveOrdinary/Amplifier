@@ -35,11 +35,13 @@ npm run dev
 
 Images come in four ways: upload or drop in Studio › Library, paste an image or page link, the Chrome extension (right-click › Add to Amplifier library), or the Android share sheet once the studio is installed as an app. Each image is resized (1600px display, 480px thumbnail), checked for exact and near duplicates, and scored by Claude on the eight dimensions. Members review and correct scores from the keyboard in Library › Review, edit any image in Browse, and check gaps in Coverage. Extension keys live in Studio › Settings.
 
+**Pinterest boards** come in through the extension too: open a board, click the Amplifier button, Import this board. The extension scrolls the board in the designer's own browser, sends each pin's full-size image (or Pinterest's 736px version if the original is too big), and labels it with who imported it and the board's name ("Ana · Wayfinding"). Imported images are stored, de-duplicated and embedded at once, but scored later through Anthropic's Message Batches API (half price, usually within the hour, `lib/library/score-queue.ts`). They go straight to the library unless something needs a look: a likely duplicate, a failed score, or Claude being unsure (confidence under 0.4) on a dimension. Those wait in Review with the reason shown. Finished batches are read back whenever someone has the library or rubric page open, or when an import ends.
+
 Each image is also embedded with Voyage (1024 numbers that place similar-looking images close together). That powers "More like this" in Browse, catches crops and recolours as near-duplicates, and helps briefs pick pairs. Images added before embeddings existed are embedded quietly the next time the library is opened.
 
 ### Rubric
 
-The dimensions are the studio's own, edited in Settings › Rubric (up to 10). Each end is described by what you can see, and can have up to three anchor images. Claude scores every image against those definitions, sees the anchors, and sees the studio's eight most recent corrections as examples. Changing a definition marks the library for rescoring (run from the Rubric page) and flags corrections made under the old meaning; they're listed under Browse › To check. Retired dimensions keep their scores but leave scoring and briefs.
+The dimensions are the studio's own, edited in Settings › Rubric (up to 10). Each end is described by what you can see, and can have up to three anchor images. Claude scores every image against those definitions, sees the anchors, and sees the studio's eight most recent corrections as examples. Changing a definition (or its anchors) marks that dimension out of date, and only that dimension is rescored: Claude's answer is a few numbers instead of a full score, which roughly halves the cost. Up to 40 out-of-date images rescore straight away from the Rubric page; more go through the Batch API in the background. Corrections made under the old meaning are flagged and listed under Browse › To check. Retired dimensions keep their scores but leave scoring and briefs.
 
 The Chrome extension lives in `extension/`. After changing it, run `npm run build:extension` to refresh `public/amplifier-extension.zip`, which the library page links to.
 
@@ -55,19 +57,21 @@ Migrations are in `supabase/migrations`, applied in filename order:
 6. `…06_rubric.sql` makes the dimensions editable: definitions, anchors, retiring, and Claude's score kept beside corrections.
 7. `…07_embeddings.sql` turns on pgvector and adds image embeddings and the `similar_images` search.
 8. `…08_briefs.sql` adds the brief's frozen plan, the welcome note, a 30-day link expiry and score snapshots on pairs.
+9. `…09_generalist.sql` adds four media (signage and wayfinding, interiors, print and editorial, illustration), the generalist project types (the four artist-only ones are retired, not deleted, so older briefs keep their label), where an imported image came from and why it's flagged, per-dimension score dates, and the Batch API scoring queue.
+10. `…10_brief_matching.sql` adds `images_near`: the approved images closest to a piece of text.
 
 Apply them with the Supabase CLI (`supabase db push`) or paste each file into the SQL editor, in order.
 
 ## Briefs
 
-Studio › Briefs › New brief: pick the client and project type, adjust the questions and pin any images, then copy the private link (`/b/<token>`). The client sees, on their phone or computer:
+Studio › Briefs › New brief: pick the client and project type (brand identity, rebrand, website, packaging or product, space and signage, campaign or print, music/film/art release, event), adjust the questions and pin any images, then copy the private link (`/b/<token>`). The client sees, on their phone or computer:
 
 1. A welcome, then "What are you making?"
 2. Warm-up: 12 images, keep or skip (pins always included).
 3. This or that: up to 20 pairs. Each pair tests one dimension with two images far apart on it and close on the rest (scores plus embeddings); the next pair goes to the dimension we're least sure about. Three pairs repeat an earlier one with the sides swapped, and four ask what caught their eye.
 4. The remaining questions, then thanks.
 
-When the client first opens the link, the brief freezes its plan (rubric, warm-up and image pool with their scores), so later library changes don't affect it. Progress is saved after every answer. Results, including an early read of where their choices lean, appear on the brief's page. The engine (`lib/brief/engine.ts`) is plain functions with no database, so it can be tested with simulated clients.
+When the client has answered "What are you making?", the brief freezes its plan (rubric, warm-up and image pool with their scores), so later library changes don't affect it. The pool is up to 300 images: about three quarters are the approved images closest to their answer (embedded with Voyage and matched with `images_near`, nudged towards the project's medium), the rest are open to anything, since taste crosses over. Pins are always in. Without embeddings, or if they skip the question, the pool leans on the medium instead. Progress is saved after every answer. Results, including an early read of where their choices lean, appear on the brief's page. The engine (`lib/brief/engine.ts`) is plain functions with no database, so it can be tested with simulated clients.
 
 ## Prep page
 

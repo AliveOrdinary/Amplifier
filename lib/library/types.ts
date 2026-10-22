@@ -29,6 +29,10 @@ export type LibraryImage = {
   thumbUrl: string | null;
   displayUrl: string | null;
   sourceUrl: string | null;
+  /** "Ana · Wayfinding": who imported it, from which Pinterest board. */
+  collection: string | null;
+  /** Why an imported image is waiting for a person instead of going straight to the library. */
+  reviewReason: string | null;
   scoreError: string | null;
   scored: boolean;
   /** Resized and scored (or scoring failed): ready to review. */

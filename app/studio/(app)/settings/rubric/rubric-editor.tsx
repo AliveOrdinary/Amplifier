@@ -6,7 +6,7 @@ import { useEffect, useId, useMemo, useRef, useState, useTransition } from "reac
 import { MAX_DIMENSIONS } from "@/lib/library/constants";
 import type { Dimension } from "@/lib/library/types";
 import { Button, Input, Mono, cn } from "@/components/ui/primitives";
-import { addAnchor, moveDimension, removeAnchor, rescoreStale, retireDimension, saveDimension } from "./actions";
+import { addAnchor, moveDimension, queueStale, removeAnchor, rescoreStale, retireDimension, saveDimension } from "./actions";
 
 export type RubricDimension = Dimension & { retired: boolean; corrections: number };
 export type PickerImage = { id: string; thumbUrl: string; description: string; approved: boolean; scores: Record<string, number> };
@@ -14,18 +14,23 @@ type Anchor = { dimension: string; side: "left" | "right"; imageId: string; url:
 type Side = "left" | "right";
 
 const MAX_ANCHORS = 3;
+/** Up to this many out-of-date images rescore now; more go to the Batch API (half price). */
+const RESCORE_NOW_LIMIT = 40;
 
 export function RubricEditor({
   dimensions,
   anchors,
   images,
   stale,
+  rescoring,
   toCheck,
 }: {
   dimensions: RubricDimension[];
   anchors: Anchor[];
   images: PickerImage[];
   stale: number;
+  /** Images waiting for, or in, a background rescore. */
+  rescoring: number;
   toCheck: number;
 }) {
   const active = dimensions.filter((d) => !d.retired);
@@ -36,7 +41,7 @@ export function RubricEditor({
 
   return (
     <div className="pt-8">
-      <RescoreBar stale={stale} toCheck={toCheck} />
+      <RescoreBar stale={stale} rescoring={rescoring} toCheck={toCheck} />
 
       <div className="mt-8 grid gap-x-10 gap-y-4 lg:grid-cols-[260px_minmax(0,1fr)]">
         <div className="text-sm leading-relaxed text-muted">
@@ -106,12 +111,13 @@ export function RubricEditor({
 
 /* ------------------------------------------------------------- rescoring */
 
-function RescoreBar({ stale, toCheck }: { stale: number; toCheck: number }) {
+function RescoreBar({ stale, rescoring, toCheck }: { stale: number; rescoring: number; toCheck: number }) {
   const router = useRouter();
   const [running, setRunning] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const stop = useRef(false);
+  const background = stale > RESCORE_NOW_LIMIT;
 
   async function run() {
     setRunning(true);
@@ -136,8 +142,21 @@ function RescoreBar({ stale, toCheck }: { stale: number; toCheck: number }) {
     router.refresh();
   }
 
+  async function queue() {
+    setRunning(true);
+    setMessage(null);
+    const r = await queueStale();
+    setRunning(false);
+    setMessage(
+      r.ok
+        ? `${r.queued} ${r.queued === 1 ? "image is" : "images are"} being rescored in the background, usually within an hour. You can close this page.`
+        : r.error,
+    );
+    router.refresh();
+  }
+
   const count = remaining ?? stale;
-  if (!count && !toCheck && !message) return null;
+  if (!count && !rescoring && !toCheck && !message) return null;
 
   return (
     <div className="flex flex-col gap-3">
@@ -145,13 +164,19 @@ function RescoreBar({ stale, toCheck }: { stale: number; toCheck: number }) {
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border border-ink px-4 py-3">
           <span aria-hidden className="size-2 shrink-0 bg-signal" />
           <p className="min-w-0 flex-1 text-[15px]" aria-live="polite">
-            {running
+            {running && !background
               ? `Rescoring… ${count} ${count === 1 ? "image" : "images"} left. Keep this page open.`
-              : `${count} ${count === 1 ? "image was" : "images were"} scored before your last change to the rubric.`}
+              : running
+                ? "Sending images to be rescored…"
+                : `${count} ${count === 1 ? "image was" : "images were"} scored before your last change to the rubric. Only the dimensions you changed are rescored.`}
           </p>
-          {running ? (
+          {running && !background ? (
             <Button size="sm" onClick={() => (stop.current = true)}>
               Stop
+            </Button>
+          ) : running ? null : background ? (
+            <Button size="sm" variant="primary" onClick={queue}>
+              Rescore in the background
             </Button>
           ) : (
             <Button size="sm" variant="primary" onClick={run}>
@@ -159,6 +184,12 @@ function RescoreBar({ stale, toCheck }: { stale: number; toCheck: number }) {
             </Button>
           )}
         </div>
+      ) : null}
+      {rescoring && !count && !message ? (
+        <p className="flex flex-wrap items-center gap-x-3 text-sm text-ink-soft">
+          <span aria-hidden className="size-1.5 rounded-full bg-signal" />
+          {rescoring} {rescoring === 1 ? "image is" : "images are"} being rescored in the background.
+        </p>
       ) : null}
       {message && !running ? <p className="text-sm text-ink-soft">{message}</p> : null}
       {toCheck ? (

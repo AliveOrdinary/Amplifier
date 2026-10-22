@@ -3,7 +3,18 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getImages } from "@/lib/library/queries";
 import { listDimensions } from "@/lib/library/rubric";
-import { ASK_CAUGHT_AT, buildPlan, nextPair, project, type Plan, type PlanImage, type Reaction } from "./engine";
+import { embedText, embeddingsEnabled } from "@/lib/library/embed";
+import {
+  ASK_CAUGHT_AT,
+  buildPlan,
+  nextPair,
+  project,
+  rng,
+  shuffle,
+  type Plan,
+  type PlanImage,
+  type Reaction,
+} from "./engine";
 import { CAUGHT, type AnswerValue, type BriefInput, type Progress, type Question, type ShownImage, type Step } from "./types";
 
 export type BriefRow = {
@@ -41,8 +52,61 @@ export function splitQuestions(questions: Question[]) {
 
 /* ------------------------------------------------------------------ plan */
 
-/** Freeze the rubric, warm-up and pair pool the first time the client opens the link. */
-export async function createPlan(db: SupabaseClient, brief: BriefRow): Promise<Plan> {
+/**
+ * How many images a brief draws from. Most are the ones closest to what the
+ * client said they're making; the rest are open to anything, because taste
+ * crosses over (a clinic can love a hotel's identity). Bounded so a large
+ * library doesn't slow the pairs down.
+ */
+const POOL_NEAR = 225;
+const POOL_OPEN = 75;
+/** A small nudge towards the brief's medium when ranking matches. */
+const MEDIUM_BONUS = 0.03;
+
+/** Every approved, scored image in the studio: just ids and media. */
+async function approvedImages(db: SupabaseClient, studioId: string) {
+  const all: { id: string; medium: string | null }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db
+      .from("images")
+      .select("id, medium")
+      .eq("studio_id", studioId)
+      .eq("status", "approved")
+      .not("display_path", "is", null)
+      .not("scored_at", "is", null)
+      .order("id")
+      .range(from, from + 999);
+    if (error) throw new Error(error.message);
+    all.push(...((data ?? []) as { id: string; medium: string | null }[]));
+    if (!data || data.length < 1000) return all;
+  }
+}
+
+/** The approved images closest to the client's own description, best first. */
+async function matchDescription(db: SupabaseClient, brief: BriefRow, making: string) {
+  if (!embeddingsEnabled()) return [];
+  try {
+    const vector = await embedText([brief.project_name, making].filter(Boolean).join(". "));
+    const { data, error } = await db.rpc("images_near", {
+      p_studio: brief.studio_id,
+      p_query: JSON.stringify(vector),
+      p_limit: 400,
+    });
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as { id: string; medium: string | null; distance: number }[])
+      .map((r) => ({ id: r.id, rank: r.distance - (brief.medium && r.medium === brief.medium ? MEDIUM_BONUS : 0) }))
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, POOL_NEAR)
+      .map((r) => r.id);
+  } catch (err) {
+    // Matching is a nicety: without it the brief falls back to the medium.
+    console.warn("Brief matching failed:", err);
+    return [];
+  }
+}
+
+/** Freeze the rubric, warm-up and pair pool once the client has said what they're making. */
+export async function createPlan(db: SupabaseClient, brief: BriefRow, making?: string | null): Promise<Plan> {
   const rubric = (await listDimensions(db, brief.studio_id)).map(({ key, left, right, leftDefinition, rightDefinition }) => ({
     key,
     left,
@@ -54,34 +118,80 @@ export async function createPlan(db: SupabaseClient, brief: BriefRow): Promise<P
   const { data: pinRows } = await db.from("brief_pins").select("image_id").eq("brief_id", brief.id);
   const pins = (pinRows ?? []).map((r) => r.image_id as string);
 
-  const { data, error } = await db
-    .from("images")
-    .select("id, medium, status, embedding, image_scores ( dimension, score )")
-    .eq("studio_id", brief.studio_id)
-    .not("display_path", "is", null)
-    .not("scored_at", "is", null)
-    .or(`status.eq.approved${pins.length ? `,id.in.(${pins.join(",")})` : ""}`);
-  if (error) throw new Error(error.message);
+  const [all, near] = await Promise.all([
+    approvedImages(db, brief.studio_id),
+    making?.trim() ? matchDescription(db, brief, making) : Promise.resolve([] as string[]),
+  ]);
+  const random = rng(`pool-${brief.id}`);
+  const nearSet = new Set(near);
+  const rest = shuffle(
+    all.filter((i) => !nearSet.has(i.id)),
+    random,
+  );
+  let pool: string[];
+  if (near.length) {
+    pool = [...near, ...rest.slice(0, POOL_NEAR + POOL_OPEN - near.length).map((i) => i.id)];
+  } else {
+    // Nothing to match against: lean on the project's medium.
+    const inMedium = rest.filter((i) => brief.medium && i.medium === brief.medium);
+    const others = rest.filter((i) => !(brief.medium && i.medium === brief.medium));
+    pool = [...inMedium.slice(0, POOL_NEAR), ...others, ...inMedium.slice(POOL_NEAR)]
+      .slice(0, POOL_NEAR + POOL_OPEN)
+      .map((i) => i.id);
+  }
+  const ids = [...new Set([...pins, ...pool])];
 
-  const images: PlanImage[] = (data ?? []).map((row) => {
-    const scores = new Map(
-      ((row.image_scores ?? []) as { dimension: string; score: number }[]).map((s) => [s.dimension, Number(s.score)]),
-    );
+  const rows: {
+    id: string;
+    medium: string | null;
+    embedding: unknown;
+    image_scores: { dimension: string; score: number }[] | null;
+  }[] = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data, error } = await db
+      .from("images")
+      .select("id, medium, embedding, image_scores ( dimension, score )")
+      .in("id", ids.slice(i, i + 100))
+      .not("display_path", "is", null)
+      .not("scored_at", "is", null);
+    if (error) throw new Error(error.message);
+    rows.push(...((data ?? []) as typeof rows));
+  }
+
+  const images: PlanImage[] = rows.map((row) => {
+    const scores = new Map((row.image_scores ?? []).map((s) => [s.dimension, Number(s.score)]));
     const embedding = typeof row.embedding === "string" ? (JSON.parse(row.embedding) as number[]) : null;
     return {
-      id: row.id as string,
-      medium: (row.medium as string | null) ?? null,
+      id: row.id,
+      medium: row.medium ?? null,
       scores: rubric.map((d) => scores.get(d.key) ?? 0),
       vec: embedding ? project(embedding) : null,
     };
   });
 
-  const plan = buildPlan({ seed: brief.id, rubric, images, pins, medium: brief.medium });
+  const plan = buildPlan({
+    seed: brief.id,
+    rubric,
+    images,
+    pins,
+    medium: brief.medium,
+    preferred: near.length ? near : undefined,
+  });
   const { error: saveError } = await db.from("briefs").update({ plan }).eq("id", brief.id).is("plan", null);
   if (saveError) throw new Error(saveError.message);
   // If two requests raced, use whichever plan was saved first.
   const { data: saved } = await db.from("briefs").select("plan").eq("id", brief.id).single();
   return (saved?.plan as Plan) ?? plan;
+}
+
+/** The client's answer to "What are you making?", for matching images to it. */
+function makingText(questions: Question[], answers: Map<string, AnswerValue>) {
+  const { first } = splitQuestions(questions);
+  return first
+    .map((q) => answers.get(q.id))
+    .map((v) => (v && "text" in v ? v.text : ""))
+    .filter(Boolean)
+    .join(" ");
 }
 
 /* ----------------------------------------------------------- reactions */
@@ -139,12 +249,12 @@ export async function currentStep(
 ): Promise<{ step: Step; progress: Progress }> {
   const closed = closedReason(brief);
   const { first, last } = splitQuestions(brief.questions ?? []);
-  const plan = brief.plan;
-  const total = first.length + last.length + (plan ? plan.warmup.length + plan.pairCount : 32);
+  let plan = brief.plan;
+  let total = first.length + last.length + (plan ? plan.warmup.length + plan.pairCount : 32);
 
   if (closed) return { step: closed, progress: { done: 0, total } };
   if (brief.completed_at) return { step: { kind: "done", meetingAt: brief.meeting_at }, progress: { done: total, total } };
-  if (!brief.started_at || !plan) {
+  if (!brief.started_at) {
     return {
       step: { kind: "welcome", client: brief.client_name, project: brief.project_name, note: brief.note, minutes: MINUTES },
       progress: { done: 0, total },
@@ -152,6 +262,11 @@ export async function currentStep(
   }
 
   const [reactions, answers] = await Promise.all([known ?? loadReactions(db, brief.id), loadAnswers(db, brief.id)]);
+  // The plan waits for "What are you making?", so the images can follow the answer.
+  if (!plan && first.every((q) => answers.has(q.id))) {
+    plan = brief.plan = await createPlan(db, brief, makingText(brief.questions ?? [], answers));
+    total = first.length + last.length + plan.warmup.length + plan.pairCount;
+  }
   const swipes = reactions.filter((r) => r.kind === "swipe").length;
   const pairs = reactions.filter((r) => r.kind === "pair").length;
   const answeredFirst = first.filter((q) => answers.has(q.id)).length;
@@ -165,6 +280,8 @@ export async function currentStep(
       progress,
     };
   }
+
+  if (!plan) throw new Error("The brief couldn't be prepared.");
 
   if (swipes < plan.warmup.length) {
     const ids = plan.warmup.slice(swipes);
@@ -242,7 +359,6 @@ export async function record(db: SupabaseClient, brief: BriefRow, input: BriefIn
   if (closedReason(brief) || brief.completed_at) return;
 
   if (input.kind === "start") {
-    if (!brief.plan) brief.plan = await createPlan(db, brief);
     if (!brief.started_at) {
       const startedAt = new Date().toISOString();
       await db.from("briefs").update({ started_at: startedAt, status: "in_progress" }).eq("id", brief.id).is("started_at", null);
@@ -251,8 +367,7 @@ export async function record(db: SupabaseClient, brief: BriefRow, input: BriefIn
     return;
   }
 
-  const plan = brief.plan;
-  if (!brief.started_at || !plan) throw new BriefError("Start the brief first.");
+  if (!brief.started_at) throw new BriefError("Start the brief first.");
 
   if (input.kind === "answer") {
     const question = (brief.questions ?? []).find((q) => q.id === input.questionId);
@@ -266,6 +381,8 @@ export async function record(db: SupabaseClient, brief: BriefRow, input: BriefIn
     return;
   }
 
+  const plan = brief.plan;
+  if (!plan) throw new BriefError("Answer the first question first.");
   const reactions = await loadReactions(db, brief.id);
   if (input.seq !== reactions.length) return reactions; // already recorded (a double tap or a retry)
   const ms = Number.isFinite(input.ms) ? Math.max(0, Math.min(600_000, Math.round(input.ms))) : null;

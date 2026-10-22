@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import { after } from "next/server";
 import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { processQueue } from "@/lib/library/score-queue";
 import { listImages } from "@/lib/library/queries";
-import { listAnchors, listDimensions, rubricRevision } from "@/lib/library/rubric";
+import { listAnchors, listDimensions } from "@/lib/library/rubric";
 import { RubricEditor, type RubricDimension, type PickerImage } from "./rubric-editor";
 
 export const metadata: Metadata = { title: "Settings — Rubric" };
@@ -13,21 +16,20 @@ export const maxDuration = 120;
 export default async function RubricPage() {
   const member = await getMember();
   const db = await createClient();
+  // Read back any background rescoring that has finished.
+  after(() => processQueue(createAdminClient(), member.studioId).catch((err) => console.error("queue processing failed", err)));
 
   const all = await listDimensions(db, member.studioId, { retired: true });
-  const active = all.filter((d) => !d.retiredAt);
-  const revision = rubricRevision(active);
 
-  const [anchors, images, stale, toCheck, corrections] = await Promise.all([
+  const [anchors, images, stale, rescoring, toCheck, corrections] = await Promise.all([
     listAnchors(db, all.map((d) => d.key)),
     listImages(db, member.studioId),
+    db.rpc("stale_score_count", { p_studio: member.studioId }),
     db
-      .from("images")
-      .select("id", { count: "exact", head: true })
+      .from("score_queue")
+      .select("image_id", { count: "exact", head: true })
       .eq("studio_id", member.studioId)
-      .neq("status", "rejected")
-      .not("display_path", "is", null)
-      .lt("scored_at", revision),
+      .not("dimensions", "is", null),
     db
       .from("image_scores")
       .select("image_id, images!inner ( studio_id )", { count: "exact", head: true })
@@ -72,7 +74,8 @@ export default async function RubricPage() {
       dimensions={dimensions}
       anchors={anchors}
       images={pickable}
-      stale={stale.count ?? 0}
+      stale={Number(stale.data ?? 0)}
+      rescoring={rescoring.count ?? 0}
       toCheck={toCheck.count ?? 0}
     />
   );

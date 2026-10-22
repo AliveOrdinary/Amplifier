@@ -48,11 +48,17 @@ export const MAX_PINS = 8;
 
 /** Medium that suits each project type, as the default for a new brief. */
 export const MEDIUM_FOR_TYPE: Record<string, string> = {
+  brand_identity: "identity",
+  rebrand: "identity",
+  website: "web",
+  packaging_product: "packaging",
+  space_signage: "signage_wayfinding",
+  campaign_print: "poster_key_art",
+  creative_release: "album_art",
+  event_festival: "poster_key_art",
+  // Retired types, for older briefs
   musician_identity: "identity",
   album_artwork: "album_art",
   film_key_art: "poster_key_art",
-  event_festival: "poster_key_art",
   exhibition: "exhibition_spatial",
-  brand_identity: "identity",
-  website: "web",
 };

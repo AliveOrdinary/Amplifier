@@ -6,7 +6,7 @@ const URL_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
 const RENEW_BEFORE_MS = 24 * 60 * 60 * 1000;
 
 const COLUMNS =
-  "id, status, medium, description, width, height, thumb_path, display_path, thumb_url, display_url, urls_expire_at, source_url, page_url, original_name, score_error, scored_at, created_at, image_scores ( dimension, score, source, confidence, needs_check )";
+  "id, status, medium, description, width, height, thumb_path, display_path, thumb_url, display_url, urls_expire_at, source_url, page_url, collection, review_reason, original_name, score_error, scored_at, created_at, image_scores ( dimension, score, source, confidence, needs_check )";
 
 type Row = {
   id: string;
@@ -22,6 +22,8 @@ type Row = {
   urls_expire_at: string | null;
   source_url: string | null;
   page_url: string | null;
+  collection: string | null;
+  review_reason: string | null;
   original_name: string | null;
   score_error: string | null;
   scored_at: string | null;
@@ -127,6 +129,8 @@ function toLibraryImage(r: Row): LibraryImage {
     thumbUrl: r.thumb_url,
     displayUrl: r.display_url,
     sourceUrl: r.page_url ?? r.source_url,
+    collection: r.collection,
+    reviewReason: r.review_reason,
     scoreError: r.score_error,
     scored: Boolean(r.scored_at),
     ready: Boolean(r.display_path) && (Boolean(r.scored_at) || Boolean(r.score_error)),

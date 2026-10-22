@@ -5,8 +5,9 @@ import { z } from "zod";
 import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { MAX_DIMENSIONS } from "@/lib/library/constants";
-import { dimensionKey, listDimensions, rubricRevision } from "@/lib/library/rubric";
+import { dimensionKey, listDimensions } from "@/lib/library/rubric";
 import { scoreImage } from "@/lib/library/score";
+import { enqueue, submitQueued } from "@/lib/library/score-queue";
 
 type Fail = { ok: false; error: string };
 const fail = (error: unknown): Fail => ({
@@ -173,47 +174,72 @@ export async function removeAnchor(key: string, imageId: string): Promise<{ ok: 
   }
 }
 
-/** Images (not rejected) scored before the rubric last changed. */
-async function staleImages(db: Awaited<ReturnType<typeof createClient>>, studioId: string, limit?: number) {
-  const revision = rubricRevision(await listDimensions(db, studioId));
-  let query = db
-    .from("images")
-    .select("id", { count: "exact" })
-    .eq("studio_id", studioId)
-    .neq("status", "rejected")
-    .not("display_path", "is", null)
-    .lt("scored_at", revision)
-    .order("scored_at");
-  if (limit) query = query.limit(limit);
-  const { data, count, error } = await query;
+type Db = Awaited<ReturnType<typeof createClient>>;
+
+/** Images with dimensions changed since Claude scored them, and which dimensions. */
+async function staleImages(db: Db, studioId: string, limit: number) {
+  const { data, error } = await db.rpc("stale_scores", { p_studio: studioId, p_limit: limit });
   if (error) throw new Error(error.message);
-  return { ids: (data ?? []).map((r) => r.id as string), count: count ?? 0 };
+  return ((data ?? []) as { image_id: string; dimensions: string[] }[]).map((r) => ({ id: r.image_id, dimensions: r.dimensions }));
+}
+
+async function staleCount(db: Db, studioId: string) {
+  const { data, error } = await db.rpc("stale_score_count", { p_studio: studioId });
+  if (error) throw new Error(error.message);
+  return Number(data ?? 0);
 }
 
 /**
- * Rescore a few out-of-date images. The rubric page calls this in a loop
- * while it's open, so a large library doesn't hit a time limit.
+ * Rescore a few out-of-date images now, only on the dimensions that changed.
+ * The rubric page calls this in a loop while it's open.
  */
 export async function rescoreStale(): Promise<{ ok: true; remaining: number; failed: number } | Fail> {
   const member = await getMember();
   try {
     const db = await createClient();
-    const { ids } = await staleImages(db, member.studioId, 4);
-    const results = await Promise.allSettled(ids.map((id) => scoreImage(db, id)));
+    const stale = await staleImages(db, member.studioId, 4);
+    const results = await Promise.allSettled(stale.map((s) => scoreImage(db, s.id, { only: s.dimensions })));
     const failed = results.filter((r) => r.status === "rejected");
-    // A failed image is marked scored with its error, so the loop moves on.
+    // A failed image keeps its old scores and its error, so the loop moves on.
     await Promise.all(
-      ids.map((id, i) =>
-        results[i].status === "rejected"
-          ? db
-              .from("images")
-              .update({ scored_at: now(), score_error: String((results[i] as PromiseRejectedResult).reason?.message ?? "Scoring failed") })
-              .eq("id", id)
-          : null,
-      ),
+      stale.map(async (s, i) => {
+        const r = results[i];
+        if (r.status !== "rejected") return;
+        await db
+          .from("image_scores")
+          .update({ ai_scored_at: now() })
+          .eq("image_id", s.id)
+          .in("dimension", s.dimensions);
+        await db
+          .from("images")
+          .update({ score_error: String((r.reason as Error | undefined)?.message ?? "Scoring failed").slice(0, 500) })
+          .eq("id", s.id);
+      }),
     );
-    const { count } = await staleImages(db, member.studioId);
-    return { ok: true, remaining: count, failed: failed.length };
+    return { ok: true, remaining: await staleCount(db, member.studioId), failed: failed.length };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Queue every out-of-date image for rescoring through the Batch API (half price). */
+export async function queueStale(): Promise<{ ok: true; queued: number } | Fail> {
+  const member = await getMember();
+  try {
+    const db = await createClient();
+    let queued = 0;
+    for (let round = 0; round < 50; round++) {
+      const stale = await staleImages(db, member.studioId, 1000);
+      if (!stale.length) break;
+      await enqueue(
+        db,
+        stale.map((s) => ({ imageId: s.id, studioId: member.studioId, dimensions: s.dimensions })),
+      );
+      queued += stale.length;
+    }
+    await submitQueued(db, member.studioId, { force: true });
+    refresh();
+    return { ok: true, queued };
   } catch (error) {
     return fail(error);
   }

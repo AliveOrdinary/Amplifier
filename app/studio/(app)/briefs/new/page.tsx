@@ -10,7 +10,7 @@ export default async function NewBriefPage() {
   const member = await getMember();
   const db = await createClient();
   const [{ data: templates }, { count: approved }] = await Promise.all([
-    db.from("question_templates").select("project_type, name").eq("studio_id", member.studioId).order("sort"),
+    db.from("question_templates").select("project_type, name").eq("studio_id", member.studioId).is("retired_at", null).order("sort"),
     db.from("images").select("id", { count: "exact", head: true }).eq("studio_id", member.studioId).eq("status", "approved"),
   ]);
   return (
