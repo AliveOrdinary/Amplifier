@@ -39,7 +39,7 @@ export function BriefFlow({ token, initialStep, initialProgress }: { token: stri
   const fullScreen = !intro && (step.kind === "swipe" || step.kind === "pair");
 
   return (
-    <div className={cn("mx-auto flex w-full max-w-5xl flex-1 flex-col", fullScreen && "h-dvh min-h-[560px]")}>
+    <div className={cn("mx-auto flex w-full max-w-5xl flex-col", fullScreen ? "h-dvh min-h-[560px] flex-none" : "flex-1")}>
       <Header step={step} progress={progress} intro={intro} />
       <main className="flex min-h-0 flex-1 flex-col px-4 pb-5 sm:px-6">
         {intro ? (
@@ -562,7 +562,7 @@ function PairScreen({
         <h1 className="text-[26px] leading-[1.1] font-medium tracking-[-0.015em]">Which feels closer?</h1>
         <p className="mt-1 text-[15px] text-muted">Tap one. First instinct counts.</p>
       </div>
-      <div className="grid min-h-0 flex-1 grid-rows-2 gap-2 sm:grid-cols-2 sm:grid-rows-1">
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:grid-rows-[minmax(0,1fr)]">
         {(["a", "b"] as const).map((side) => (
           <button
             key={side}
@@ -571,7 +571,7 @@ function PairScreen({
             disabled={pending || Boolean(picked)}
             onClick={() => choose(side)}
             className={cn(
-              "relative min-h-0 outline-offset-2 disabled:cursor-default",
+              "relative min-h-0 overflow-hidden outline-offset-2 disabled:cursor-default",
               picked?.choice === side && "outline outline-3 outline-signal",
               picked && picked.choice !== side && "opacity-40",
             )}
