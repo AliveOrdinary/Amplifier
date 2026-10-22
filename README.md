@@ -77,7 +77,7 @@ Each brief has a prep page (Briefs › a brief › Open prep page), ready when t
 - **Taste profile**: said (ring) against showed (square) on every dimension.
 - **Confident directions**: what they kept choosing and passing over, with images.
 - **Hesitations**: slow choices and repeated pairs answered differently.
-- **Starter moodboard**: their strongest picks plus the closest library matches (embeddings). Reorder, remove, add from the library; paste or drop images on the page to add them to the library and the board. Export as one image (clipboard), as layers (SVG on the clipboard, for Figma and FigJam) or as a zip of JPEGs.
+- **Starter moodboard**: their strongest picks plus the closest library matches (embeddings). Reorder, remove, add from the library; paste or drop images on the page to add them to the library and the board. Export as layers (SVG on the clipboard: separate images in a Figma design file) or as a zip of JPEGs to drag into FigJam or Claude Design.
 
 The wording is editable on the page; Regenerate rewrites it.
 

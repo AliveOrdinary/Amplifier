@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ACCEPTED_TYPES } from "@/lib/library/constants";
 import type { BoardImage } from "@/lib/brief/board";
-import { boardPng, boardSvg, boardZip, download, justifiedLayout } from "@/lib/brief/board-export";
+import { boardSvg, boardZip, download, justifiedLayout } from "@/lib/brief/board-export";
 import { Button, Mono, cn } from "@/components/ui/primitives";
 import { abandonUpload, addFromLink, finishUpload, prepareUpload } from "../../../library/actions";
 import { addToBoard, boardCandidates, removeBoardItem, resetBoard, setBoardOrder, type PickerImage } from "./board-actions";
@@ -135,18 +135,6 @@ export function Board({ boardId, initial, clientName }: { boardId: string; initi
   const exportable = () => items.map((i) => ({ url: i.url, width: i.width, height: i.height, description: i.description }));
   const name = `${clientName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-moodboard`;
 
-  const copyImage = async () => {
-    setBusy("Drawing the board…");
-    try {
-      // Safari needs the clipboard write to start inside the click.
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": boardPng(exportable()) })]);
-      say("Copied as one image. Paste it into FigJam, Claude Design or anywhere else.");
-    } catch {
-      say("This browser wouldn't copy the image. Try Download images instead.", "error");
-    }
-    setBusy(null);
-  };
-
   const copyLayers = async () => {
     setBusy("Preparing layers…");
     try {
@@ -161,7 +149,7 @@ export function Board({ boardId, initial, clientName }: { boardId: string; initi
       } catch {
         await navigator.clipboard.writeText(await svg);
       }
-      say("Copied as layers. Paste into a Figma design file and each image arrives separately, in this layout. FigJam and Claude Design paste it as one picture: use Download images there.");
+      say("Copied. Paste into a Figma design file and each image arrives separately, in this layout. For FigJam or Claude Design, use Download images and drag the files in.");
     } catch {
       say("Couldn't copy the layers. Try Download images instead.", "error");
     }
@@ -201,10 +189,7 @@ export function Board({ boardId, initial, clientName }: { boardId: string; initi
       }}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="primary" onClick={copyImage} disabled={Boolean(busy) || !items.length}>
-          Copy as one image
-        </Button>
-        <Button size="sm" onClick={copyLayers} disabled={Boolean(busy) || !items.length} title="Separate images in a Figma design file">
+        <Button size="sm" variant="primary" onClick={copyLayers} disabled={Boolean(busy) || !items.length} title="Separate images in a Figma design file">
           Copy as layers
         </Button>
         <Button size="sm" onClick={downloadZip} disabled={Boolean(busy) || !items.length}>

@@ -1,6 +1,6 @@
 /**
- * Getting a board out of Amplifier, in the browser: as one picture, as
- * separate images in the same layout (SVG), or as a zip of image files.
+ * Getting a board out of Amplifier, in the browser: as separate images in
+ * the same layout (SVG, for Figma), or as a zip of image files.
  */
 import { zipSync } from "fflate";
 
@@ -50,22 +50,6 @@ function canvasOf(width: number, height: number) {
 
 const toBlob = (canvas: HTMLCanvasElement, type: string, quality?: number) =>
   new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Couldn't draw the board."))), type, quality));
-
-/** The whole board as one PNG. */
-export async function boardPng(images: ExportImage[], { width = 2400, rowHeight = 560, gap = 24, padding = 48 } = {}) {
-  const { placed, height } = justifiedLayout(images, width, rowHeight, gap);
-  const canvas = canvasOf(width + padding * 2, height + padding * 2);
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#f2f1ec";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const bitmaps = await Promise.all(images.map((i) => bitmap(i.url)));
-  bitmaps.forEach((b, i) => {
-    const p = placed[i];
-    ctx.drawImage(b, padding + p.x, padding + p.y, p.w, p.h);
-    b.close();
-  });
-  return toBlob(canvas, "image/png");
-}
 
 /** One image re-encoded as JPEG at a given size. */
 async function jpeg(url: string, width?: number, height?: number, quality = 0.88) {

@@ -216,7 +216,7 @@ export function ReportView({
       </Section>
 
       {moodboard ? (
-        <Section number="05" title="Starter moodboard" description="Their picks and close matches. Shape it here, then take it into FigJam or Claude Design.">
+        <Section number="05" title="Starter moodboard" description="Their picks and close matches. Shape it here, then take it into Figma, FigJam or Claude Design.">
           {moodboard}
         </Section>
       ) : null}
