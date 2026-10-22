@@ -87,32 +87,60 @@ const fmt = (n: number) => (n > 0 ? `+${n}` : `${n}`);
 
 type Block = Anthropic.Messages.ContentBlockParam;
 
+/** Thumbnails reused across a burst of scoring (anchors and corrections repeat). */
+const thumbs = new Map<string, Promise<string | null>>();
+function thumbData(url: string) {
+  const key = url.split("?")[0];
+  let data = thumbs.get(key);
+  if (!data) {
+    data = fetch(url, { signal: AbortSignal.timeout(15_000) })
+      .then(async (r) => (r.ok ? Buffer.from(await r.arrayBuffer()).toString("base64") : null))
+      .catch(() => null);
+    thumbs.set(key, data);
+    if (thumbs.size > 300) thumbs.delete(thumbs.keys().next().value!);
+    void data.then((d) => d === null && thumbs.delete(key));
+  }
+  return data;
+}
+
 /** Anchor images and past corrections, shown before the image to score. */
-function referenceBlocks(dimensions: DimensionRow[], anchors: Anchor[], corrections: Correction[]): Block[] {
+async function referenceBlocks(dimensions: DimensionRow[], anchors: Anchor[], corrections: Correction[]): Promise<Block[]> {
   const blocks: Block[] = [];
   const label = new Map(dimensions.map((d) => [d.key, d]));
+  const data = new Map(
+    await Promise.all([...anchors.map((a) => a.url), ...corrections.map((c) => c.url)].map(async (url) => [url, await thumbData(url)] as const)),
+  );
+  const image = (url: string): Block | null => {
+    const base64 = data.get(url);
+    return base64 ? { type: "image", source: { type: "base64", media_type: "image/webp", data: base64 } } : null;
+  };
 
-  if (anchors.length) {
-    blocks.push({ type: "text", text: "Anchor images the studio chose to show each end of a dimension:" });
-    for (const d of dimensions) {
-      for (const side of ["left", "right"] as const) {
-        const images = anchors.filter((a) => a.dimension === d.key && a.side === side);
-        if (!images.length) continue;
-        blocks.push({ type: "text", text: `${d.key}, ${side === "left" ? `-2 ${d.left}` : `+2 ${d.right}`}:` });
-        for (const a of images) blocks.push({ type: "image", source: { type: "url", url: a.url } });
-      }
+  const anchorBlocks: Block[] = [];
+  for (const d of dimensions) {
+    for (const side of ["left", "right"] as const) {
+      const images = anchors
+        .filter((a) => a.dimension === d.key && a.side === side)
+        .map((a) => image(a.url))
+        .filter((b): b is Block => b !== null);
+      if (!images.length) continue;
+      anchorBlocks.push({ type: "text", text: `${d.key}, ${side === "left" ? `-2 ${d.left}` : `+2 ${d.right}`}:` }, ...images);
     }
   }
+  if (anchorBlocks.length) {
+    blocks.push({ type: "text", text: "Anchor images the studio chose to show each end of a dimension:" }, ...anchorBlocks);
+  }
 
-  if (corrections.length) {
-    blocks.push({ type: "text", text: "Images the studio scored by hand, where it corrected an earlier score:" });
-    for (const c of corrections) {
-      blocks.push({ type: "image", source: { type: "url", url: c.url } });
-      const lines = c.scores
-        .filter((s) => label.has(s.dimension))
-        .map((s) => `${s.dimension} ${fmt(s.score)}${s.ai !== null && s.ai !== s.score ? ` (not ${fmt(s.ai)})` : ""}`);
-      blocks.push({ type: "text", text: `Studio's scores: ${lines.join(", ")}` });
-    }
+  const correctionBlocks: Block[] = [];
+  for (const c of corrections) {
+    const picture = image(c.url);
+    if (!picture) continue;
+    const lines = c.scores
+      .filter((s) => label.has(s.dimension))
+      .map((s) => `${s.dimension} ${fmt(s.score)}${s.ai !== null && s.ai !== s.score ? ` (not ${fmt(s.ai)})` : ""}`);
+    correctionBlocks.push(picture, { type: "text", text: `Studio's scores: ${lines.join(", ")}` });
+  }
+  if (correctionBlocks.length) {
+    blocks.push({ type: "text", text: "Images the studio scored by hand, where it corrected an earlier score:" }, ...correctionBlocks);
   }
 
   // Cache everything up to here: it only changes when the studio does.
@@ -175,13 +203,14 @@ export async function scoreImage(db: SupabaseClient, imageId: string) {
       },
     });
 
-  const references = referenceBlocks(dimensions, anchors, corrections);
+  const references = await referenceBlocks(dimensions, anchors, corrections);
   let response;
   try {
     response = await ask(references);
   } catch (err) {
-    // A reference image that can't be fetched shouldn't stop scoring.
+    // A bad reference image shouldn't stop scoring.
     if (!references.length || !(err instanceof Anthropic.BadRequestError)) throw err;
+    console.warn("Scoring without references:", err.message);
     response = await ask([]);
   }
 
