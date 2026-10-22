@@ -45,10 +45,18 @@
   }
   const expected = pinCount();
 
-  /** Pinterest's own suggestions start below this heading; they aren't the board's pins. */
-  function ideasHeading() {
-    return [...document.querySelectorAll("h2, h3, [role='heading']")].find((h) =>
-      /more ideas|ideas for this board|find some ideas/i.test(h.textContent || ""),
+  /**
+   * Pinterest's own suggestions ("Find more ideas") follow the board's pins;
+   * they aren't the board's. They sit in their own section, and as a fallback
+   * under a heading saying so.
+   */
+  const IDEAS = "[data-test-id='more-ideas-feed']";
+  function ideasStart() {
+    return (
+      document.querySelector(IDEAS) ||
+      [...document.querySelectorAll("h1, h2, h3, [role='heading']")].find((h) =>
+        /more ideas|ideas for this board|find (some|more) ideas/i.test(h.textContent || ""),
+      )
     );
   }
 
@@ -65,9 +73,10 @@
 
   /** Add the pins on screen now. Pinterest only keeps nearby pins in the page, so this runs as it scrolls. */
   function collect() {
-    const heading = ideasHeading();
+    const heading = ideasStart();
     let found = 0;
     for (const link of document.querySelectorAll('a[href*="/pin/"]')) {
+      if (link.closest(IDEAS)) continue;
       if (heading && heading.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING) continue;
       const id = ((link.getAttribute("href") || "").match(/\/pin\/([^/?#]+)/) || [])[1];
       if (!id || state.seen.has(id)) continue;
@@ -92,7 +101,12 @@
       render();
       if (expected && state.seen.size >= expected) break;
       // Reached the suggestions: every pin above them has been on screen.
-      if (heading && heading.getBoundingClientRect().top < innerHeight) break;
+      // One last look, in case the final row was still loading.
+      if (heading && heading.getBoundingClientRect().top < innerHeight) {
+        await sleep(1200);
+        collect();
+        break;
+      }
       idle = found ? 0 : idle + 1;
       if (idle >= 8) break;
       window.scrollBy(0, Math.round(innerHeight * 0.85));
@@ -173,7 +187,8 @@
 
   function render() {
     const total = Math.max(state.seen.size, expected || 0, 1);
-    $(".fill").style.width = `${Math.round((state.sent / total) * 100)}%`;
+    const finished = state.phase === "done" || state.phase === "stopped";
+    $(".fill").style.width = `${finished ? 100 : Math.round((state.sent / total) * 100)}%`;
     const tally = [
       plural(state.added, "added", "added"),
       state.already ? `${state.already} already in the library` : "",
