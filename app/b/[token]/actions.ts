@@ -15,9 +15,9 @@ export async function advance(token: string, input: BriefInput): Promise<Advance
     const db = createAdminClient();
     const brief = await briefByToken(db, token);
     if (!brief) return { ok: false, error: "This link doesn't work any more. Ask the studio for a new one." };
-    await record(db, brief, input);
-    const fresh = (await briefByToken(db, token))!;
-    return { ok: true, ...(await currentStep(db, fresh)) };
+    // record() updates `brief` in place (start, plan) and hands back the reactions it read.
+    const reactions = await record(db, brief, input);
+    return { ok: true, ...(await currentStep(db, brief, reactions)) };
   } catch (error) {
     console.error(error);
     return {

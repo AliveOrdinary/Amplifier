@@ -132,7 +132,11 @@ async function shown(db: SupabaseClient, ids: string[]): Promise<Map<string, Sho
 }
 
 /** Where the client is, as one screen, plus how far through they are. */
-export async function currentStep(db: SupabaseClient, brief: BriefRow): Promise<{ step: Step; progress: Progress }> {
+export async function currentStep(
+  db: SupabaseClient,
+  brief: BriefRow,
+  known?: Reaction[],
+): Promise<{ step: Step; progress: Progress }> {
   const closed = closedReason(brief);
   const { first, last } = splitQuestions(brief.questions ?? []);
   const plan = brief.plan;
@@ -147,7 +151,7 @@ export async function currentStep(db: SupabaseClient, brief: BriefRow): Promise<
     };
   }
 
-  const [reactions, answers] = await Promise.all([loadReactions(db, brief.id), loadAnswers(db, brief.id)]);
+  const [reactions, answers] = await Promise.all([known ?? loadReactions(db, brief.id), loadAnswers(db, brief.id)]);
   const swipes = reactions.filter((r) => r.kind === "swipe").length;
   const pairs = reactions.filter((r) => r.kind === "pair").length;
   const answeredFirst = first.filter((q) => answers.has(q.id)).length;
@@ -163,7 +167,7 @@ export async function currentStep(db: SupabaseClient, brief: BriefRow): Promise<
   }
 
   if (swipes < plan.warmup.length) {
-    const ids = plan.warmup.slice(swipes, swipes + 2);
+    const ids = plan.warmup.slice(swipes);
     const images = await shown(db, ids);
     const image = images.get(ids[0]);
     if (image) {
@@ -172,7 +176,7 @@ export async function currentStep(db: SupabaseClient, brief: BriefRow): Promise<
           kind: "swipe",
           seq: reactions.length,
           image,
-          next: ids[1] ? (images.get(ids[1])?.url ?? null) : null,
+          upcoming: ids.slice(1).flatMap((id) => (images.has(id) ? [images.get(id)!] : [])),
           index: swipes,
           total: plan.warmup.length,
         },
@@ -212,11 +216,9 @@ export async function currentStep(db: SupabaseClient, brief: BriefRow): Promise<
     };
   }
 
-  await db
-    .from("briefs")
-    .update({ completed_at: new Date().toISOString(), status: "completed" })
-    .eq("id", brief.id)
-    .is("completed_at", null);
+  const completedAt = new Date().toISOString();
+  await db.from("briefs").update({ completed_at: completedAt, status: "completed" }).eq("id", brief.id).is("completed_at", null);
+  brief.completed_at = completedAt;
   return { step: { kind: "done", meetingAt: brief.meeting_at }, progress: { done: total, total } };
 }
 
@@ -232,8 +234,11 @@ const Answer = z.union([
 
 export class BriefError extends Error {}
 
-/** Save one thing the client did. Out-of-order or repeated input is ignored. */
-export async function record(db: SupabaseClient, brief: BriefRow, input: BriefInput) {
+/**
+ * Save one thing the client did. Out-of-order or repeated input is ignored.
+ * After a swipe or pair, returns the reactions so far (saves a query).
+ */
+export async function record(db: SupabaseClient, brief: BriefRow, input: BriefInput): Promise<Reaction[] | undefined> {
   if (closedReason(brief) || brief.completed_at) return;
 
   if (input.kind === "start") {
@@ -262,12 +267,12 @@ export async function record(db: SupabaseClient, brief: BriefRow, input: BriefIn
   }
 
   const reactions = await loadReactions(db, brief.id);
-  if (input.seq !== reactions.length) return; // already recorded (a double tap or a retry)
+  if (input.seq !== reactions.length) return reactions; // already recorded (a double tap or a retry)
   const ms = Number.isFinite(input.ms) ? Math.max(0, Math.min(600_000, Math.round(input.ms))) : null;
 
   if (input.kind === "swipe") {
     const swipes = reactions.filter((r) => r.kind === "swipe").length;
-    if (plan.warmup[swipes] !== input.imageId) return;
+    if (plan.warmup[swipes] !== input.imageId) return reactions;
     if (input.choice !== "keep" && input.choice !== "skip") throw new BriefError("Unknown choice.");
     const { error } = await db.from("reactions").insert({
       brief_id: brief.id,
@@ -278,14 +283,18 @@ export async function record(db: SupabaseClient, brief: BriefRow, input: BriefIn
       response_ms: ms,
     });
     if (error && error.code !== "23505") throw new BriefError(error.message);
-    return;
+    if (error) return undefined;
+    return [
+      ...reactions,
+      { seq: input.seq, kind: "swipe", a: input.imageId, b: null, target: null, probe: false, choice: input.choice, ms },
+    ];
   }
 
   if (input.kind === "pair") {
     if (!["a", "b", "both", "neither"].includes(input.choice)) throw new BriefError("Unknown choice.");
     // The engine is deterministic: recompute the pair that was shown.
     const pick = nextPair(plan, reactions, brief.id);
-    if (!pick) return;
+    if (!pick) return reactions;
     const scoresOf = (id: string) => {
       const image = plan.images.find((i) => i.id === id);
       return image ? Object.fromEntries(plan.rubric.map((d, i) => [d.key, image.scores[i]])) : null;
@@ -305,5 +314,11 @@ export async function record(db: SupabaseClient, brief: BriefRow, input: BriefIn
       scores_b: scoresOf(pick.b),
     });
     if (error && error.code !== "23505") throw new BriefError(error.message);
+    if (error) return undefined;
+    return [
+      ...reactions,
+      { seq: input.seq, kind: "pair", a: pick.a, b: pick.b, target: pick.target, probe: pick.probe, choice: input.choice, ms },
+    ];
   }
+  return undefined;
 }

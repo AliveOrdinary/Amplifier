@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Mono, Wordmark, cn } from "@/components/ui/primitives";
 import { CAUGHT, type AnswerValue, type BriefInput, type Progress, type Question, type ShownImage, type Step } from "@/lib/brief/types";
-import { advance } from "./actions";
+import { advance, type Advance } from "./actions";
 
 type Intro = "warmup" | "pairs" | "words" | null;
 
@@ -19,21 +19,62 @@ export function BriefFlow({ token, initialStep, initialProgress }: { token: stri
   const [step, setStep] = useState(initialStep);
   const [progress, setProgress] = useState(initialProgress);
   const [intro, setIntro] = useState<Intro>(() => introFor(initialStep));
-  const [pending, setPending] = useState(false);
+  const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [last, setLast] = useState<BriefInput | null>(null);
 
-  async function send(input: BriefInput) {
-    setLast(input);
-    setPending(true);
+  // Everything the client does is saved in order through one queue. Warm-up
+  // swipes move on at once (the images are known ahead); everything else
+  // waits for the server to say what comes next.
+  const queue = useRef<BriefInput[]>([]);
+  const running = useRef<Promise<void> | null>(null);
+  const failed = useRef(false);
+  const waitingFor = useRef(false);
+  const shownStep = useRef(step);
+  useEffect(() => {
+    shownStep.current = step;
+  }, [step]);
+
+  const pump = (): Promise<void> => {
+    running.current ??= (async () => {
+      failed.current = false;
+      let latest: Extract<Advance, { ok: true }> | null = null;
+      while (queue.current.length) {
+        const r = await advance(token, queue.current[0]);
+        if (!r.ok) {
+          failed.current = true;
+          setError(r.error);
+          return;
+        }
+        queue.current.shift();
+        latest = r;
+      }
+      if (waitingFor.current && latest) {
+        waitingFor.current = false;
+        setWaiting(false);
+        setIntro(introFor(latest.step, shownStep.current));
+        setStep(latest.step);
+        setProgress(latest.progress);
+        window.scrollTo({ top: 0 });
+      }
+    })().finally(() => {
+      running.current = null;
+      // Something arrived while the last request was finishing.
+      if (queue.current.length && !failed.current) void pump();
+    });
+    return running.current;
+  };
+
+  function submit(input: BriefInput, next?: Step) {
     setError(null);
-    const r = await advance(token, input);
-    setPending(false);
-    if (!r.ok) return setError(r.error);
-    setIntro(introFor(r.step, step));
-    setStep(r.step);
-    setProgress(r.progress);
-    window.scrollTo({ top: 0 });
+    queue.current.push(input);
+    if (next) {
+      setStep(next);
+      setProgress((p) => ({ ...p, done: Math.min(p.total, p.done + 1) }));
+    } else {
+      waitingFor.current = true;
+      setWaiting(true);
+    }
+    void pump();
   }
 
   const fullScreen = !intro && (step.kind === "swipe" || step.kind === "pair");
@@ -45,16 +86,21 @@ export function BriefFlow({ token, initialStep, initialProgress }: { token: stri
         {intro ? (
           <Interlude kind={intro} step={step} onContinue={() => setIntro(null)} />
         ) : (
-          <Screen step={step} pending={pending} send={send} />
+          <Screen step={step} pending={waiting} submit={submit} />
         )}
         {error ? (
           <div role="alert" className="mt-3 flex flex-wrap items-center gap-3 border border-danger px-3 py-2 text-sm text-danger">
             <span className="min-w-0 flex-1">{error}</span>
-            {last ? (
-              <button type="button" className="underline underline-offset-2" onClick={() => send(last)}>
-                Try again
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="underline underline-offset-2"
+              onClick={() => {
+                setError(null);
+                void pump();
+              }}
+            >
+              Try again
+            </button>
           </div>
         ) : null}
       </main>
@@ -96,7 +142,8 @@ function Header({ step, progress, intro }: { step: Step; progress: Progress; int
   );
 }
 
-function Screen({ step, pending, send }: { step: Step; pending: boolean; send: (input: BriefInput) => void }) {
+function Screen({ step, pending, submit }: { step: Step; pending: boolean; submit: (input: BriefInput, next?: Step) => void }) {
+  const send = (input: BriefInput) => submit(input);
   switch (step.kind) {
     case "welcome":
       return <Welcome step={step} pending={pending} onStart={() => send({ kind: "start" })} />;
@@ -115,7 +162,14 @@ function Screen({ step, pending, send }: { step: Step; pending: boolean; send: (
           key={step.seq}
           step={step}
           pending={pending}
-          onChoose={(choice, ms) => send({ kind: "swipe", seq: step.seq, imageId: step.image.id, choice, ms })}
+          onChoose={(choice, ms) =>
+            submit(
+              { kind: "swipe", seq: step.seq, imageId: step.image.id, choice, ms },
+              step.upcoming.length
+                ? { ...step, seq: step.seq + 1, image: step.upcoming[0], upcoming: step.upcoming.slice(1), index: step.index + 1 }
+                : undefined,
+            )
+          }
         />
       );
     case "pair":
@@ -429,9 +483,14 @@ function SwipeScreen({
   const drag = useRef<{ x: number; id: number } | null>(null);
   const [dragging, setDragging] = useState(false);
 
+  // Warm the next two so they appear instantly.
+  const following = step.upcoming
+    .slice(0, 2)
+    .map((i) => i.url)
+    .join(" ");
   useEffect(() => {
-    if (step.next) new Image().src = step.next;
-  }, [step.next]);
+    for (const url of following.split(" ").filter(Boolean)) new Image().src = url;
+  }, [following]);
 
   const choose = (choice: "keep" | "skip") => {
     if (pending || leaving) return;

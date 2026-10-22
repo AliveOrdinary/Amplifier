@@ -28,7 +28,8 @@ export type ShownImage = { id: string; url: string; thumb: string | null; width:
 export type Step =
   | { kind: "welcome"; client: string; project: string | null; note: string | null; minutes: number }
   | { kind: "question"; question: Question; value: AnswerValue | null; part: "first" | "last"; index: number; total: number }
-  | { kind: "swipe"; seq: number; image: ShownImage; next: string | null; index: number; total: number }
+  /** `upcoming` is the rest of the warm-up, so the next image can show without waiting for the server. */
+  | { kind: "swipe"; seq: number; image: ShownImage; upcoming: ShownImage[]; index: number; total: number }
   | { kind: "pair"; seq: number; a: ShownImage; b: ShownImage; index: number; total: number; askCaught: boolean }
   | { kind: "done"; meetingAt: string | null }
   | { kind: "closed"; reason: "expired" | "archived" | "not-ready" };
