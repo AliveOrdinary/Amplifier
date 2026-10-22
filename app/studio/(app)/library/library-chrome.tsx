@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ACCEPTED_TYPES } from "@/lib/library/constants";
 import { Button, Mono, cn } from "@/components/ui/primitives";
 import { useLibrary } from "./library-provider";
@@ -10,9 +10,7 @@ import { useLibrary } from "./library-provider";
 /** Tabs on the left, adding images on the right. */
 export function LibraryBar() {
   const pathname = usePathname();
-  const { images, addFiles, addLink } = useLibrary();
-  const input = useRef<HTMLInputElement>(null);
-  const [link, setLink] = useState("");
+  const { images } = useLibrary();
 
   const toReview = images.filter((i) => i.ready && i.status === "pending").length;
   const approved = images.filter((i) => i.status === "approved").length;
@@ -47,43 +45,73 @@ export function LibraryBar() {
       <div className="ml-auto flex min-w-0 flex-[1_1_420px] items-center justify-end gap-2">
         <UploadStatus />
         <Mono className="hidden xl:inline">Drop or paste anywhere</Mono>
-        <form
-          className="flex min-w-0 max-w-[360px] flex-1"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!link.trim()) return;
-            addLink(link.trim());
-            setLink("");
-          }}
-        >
-          <label htmlFor="add-link" className="sr-only">
-            Add an image or page link
-          </label>
-          <input
-            id="add-link"
-            type="url"
-            inputMode="url"
-            placeholder="Paste an image or Pinterest link"
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            className="h-9 w-full min-w-0 border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
-          />
-        </form>
-        <Button variant="primary" size="sm" onClick={() => input.current?.click()}>
-          Upload
-        </Button>
-        <input
-          ref={input}
-          type="file"
-          accept={ACCEPTED_TYPES.join(",")}
-          multiple
-          hidden
-          onChange={(e) => {
-            addFiles(Array.from(e.target.files ?? []));
-            e.target.value = "";
-          }}
-        />
+        <AddControls />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Upload button and link field. Compact in the library bar; large in the
+ * centre of an empty screen.
+ */
+export function AddControls({ large = false }: { large?: boolean }) {
+  const { addFiles, addLink } = useLibrary();
+  const input = useRef<HTMLInputElement>(null);
+  const [link, setLink] = useState("");
+  const id = useId();
+
+  return (
+    <div className={cn("flex min-w-0 items-center gap-2", large ? "w-full flex-col sm:flex-row" : "max-w-[460px] flex-1")}>
+      <form
+        className="flex w-full min-w-0 flex-1"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!link.trim()) return;
+          addLink(link.trim());
+          setLink("");
+        }}
+      >
+        <label htmlFor={id} className="sr-only">
+          Add an image or page link
+        </label>
+        <input
+          id={id}
+          type="url"
+          inputMode="url"
+          placeholder="Paste an image or Pinterest link"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          className={cn(
+            "w-full min-w-0 border border-rule-strong bg-transparent text-ink placeholder:text-muted focus:border-ink focus:outline-none",
+            large ? "h-12 px-3.5 text-[15px]" : "h-9 px-2.5 text-sm",
+          )}
+        />
+        {large ? (
+          <Button type="submit" className="ml-2 h-12">
+            Add
+          </Button>
+        ) : null}
+      </form>
+      <Button
+        variant="primary"
+        size={large ? "md" : "sm"}
+        className={large ? "h-12 w-full px-6 sm:w-auto" : undefined}
+        onClick={() => input.current?.click()}
+      >
+        {large ? "Upload images" : "Upload"}
+      </Button>
+      <input
+        ref={input}
+        type="file"
+        accept={ACCEPTED_TYPES.join(",")}
+        multiple
+        hidden
+        onChange={(e) => {
+          addFiles(Array.from(e.target.files ?? []));
+          e.target.value = "";
+        }}
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import type { LibraryImage } from "@/lib/library/types";
 import { Mono, buttonClass, cn } from "@/components/ui/primitives";
 import { useLibrary } from "./library-provider";
 import { ImageStage, ScorePanel, SecondaryActions, isTypingTarget } from "./editor";
+import { AddControls } from "./library-chrome";
 
 /**
  * Review queue: oldest first, so new arrivals join the end and never move
@@ -88,18 +89,22 @@ export function ReviewScreen() {
 
   if (!current) {
     return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="max-w-md text-center">
-          <h2 className="text-2xl font-medium">{images.length ? "All caught up" : "No images yet"}</h2>
-          <p className="mt-2 text-[15px] text-ink-soft">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-8">
+        <div className="flex w-full max-w-2xl flex-col items-center border border-dashed border-rule-strong px-6 py-12 text-center sm:px-12">
+          <h2 className="text-2xl font-medium">{images.length ? "All caught up" : "Start your library"}</h2>
+          <p className="mt-2 max-w-md text-[15px] text-ink-soft">
             {scoring
               ? `${scoring} ${scoring === 1 ? "image is" : "images are"} being scored and will appear here.`
               : images.length
-                ? "Nothing is waiting for review. Add more, or look through the library."
-                : "Upload, drop or paste images, or paste a link in the bar above."}
+                ? "Nothing is waiting for review. Add more images below."
+                : "Add reference images: Claude scores each one, then you check the scores here."}
           </p>
+          <div className="mt-8 w-full">
+            <AddControls large />
+          </div>
+          <Mono className="mt-4">Or drop images anywhere, or paste with ⌘V</Mono>
           {images.length ? (
-            <Link href="/studio/library/browse" className={buttonClass("secondary", "md", "mt-6")}>
+            <Link href="/studio/library/browse" className="mt-8 text-sm text-muted underline-offset-2 hover:text-ink hover:underline">
               Browse the library
             </Link>
           ) : null}
