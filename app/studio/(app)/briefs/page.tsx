@@ -26,7 +26,7 @@ const date = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { day: "
 export default async function BriefsPage() {
   const member = await getMember();
   const db = await createClient();
-  const [{ data: briefs }, { data: templates }] = await Promise.all([
+  const [{ data: briefs, error }, { data: templates }] = await Promise.all([
     db
       .from("briefs")
       .select(
@@ -36,6 +36,7 @@ export default async function BriefsPage() {
       .order("created_at", { ascending: false }),
     db.from("question_templates").select("project_type, name, questions").order("sort"),
   ]);
+  if (error) throw new Error(error.message);
   const rows = (briefs ?? []) as unknown as Row[];
   const typeName = new Map((templates ?? []).map((t) => [t.project_type as string, t.name as string]));
 

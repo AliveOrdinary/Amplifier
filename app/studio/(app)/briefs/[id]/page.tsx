@@ -25,7 +25,7 @@ export default async function BriefPage({ params }: PageProps<"/studio/briefs/[i
   const member = await getMember();
   const db = await createClient();
 
-  const { data } = await db
+  const { data, error } = await db
     .from("briefs")
     .select(
       "id, client_name, client_email, project_name, project_type, medium, questions, token, status, note, plan, expires_at, meeting_at, sent_at, started_at, completed_at, created_at",
@@ -33,6 +33,7 @@ export default async function BriefPage({ params }: PageProps<"/studio/briefs/[i
     .eq("id", id)
     .eq("studio_id", member.studioId)
     .maybeSingle();
+  if (error) throw new Error(error.message);
   if (!data) notFound();
   const brief = data as typeof data & { questions: Question[]; plan: Plan | null };
 
