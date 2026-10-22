@@ -202,6 +202,7 @@ function DimensionCard({
   const [form, setForm] = useState(saved);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const router = useRouter();
   const isNew = !dimension;
   const dirty = isNew || (Object.keys(saved) as (keyof typeof saved)[]).some((k) => form[k].trim() !== saved[k]);
 
@@ -212,6 +213,7 @@ function DimensionCard({
       setError(null);
       const r = await saveDimension({ key: dimension?.key, ...form });
       if (!r.ok) return setError(r.error);
+      router.refresh();
       onDone?.();
     });
 
@@ -220,6 +222,7 @@ function DimensionCard({
       setError(null);
       const r = await fn();
       if (!r.ok) setError(r.error);
+      else router.refresh();
     });
 
   return (
@@ -310,6 +313,7 @@ function EndEditor({
   onPick?: () => void;
 }) {
   const id = useId();
+  const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const end = side === "left" ? "−2" : "+2";
@@ -351,6 +355,7 @@ function EndEditor({
                   start(async () => {
                     const r = await removeAnchor(dimensionKey!, a.imageId);
                     setError(r.ok ? null : r.error);
+                    if (r.ok) router.refresh();
                   })
                 }
                 className="absolute top-0 right-0 flex size-6 items-center justify-center bg-ink text-paper opacity-90 hover:opacity-100"
@@ -379,6 +384,7 @@ function EndEditor({
 }
 
 function RetiredList({ dimensions, full }: { dimensions: RubricDimension[]; full: boolean }) {
+  const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   return (
@@ -399,6 +405,7 @@ function RetiredList({ dimensions, full }: { dimensions: RubricDimension[]; full
                 start(async () => {
                   const r = await retireDimension(d.key, false);
                   setError(r.ok ? null : r.error);
+                  if (r.ok) router.refresh();
                 })
               }
             >
@@ -429,6 +436,7 @@ function AnchorPicker({
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -450,6 +458,7 @@ function AnchorPicker({
     start(async () => {
       const r = await addAnchor(dimension.key, imageId, side);
       if (!r.ok) return setError(r.error);
+      router.refresh();
       dialog.current?.close();
     });
 

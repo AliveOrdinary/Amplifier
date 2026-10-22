@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button, Mono } from "@/components/ui/primitives";
 import { archiveBrief, deleteBrief, extendLink, markSent } from "../actions";
@@ -27,11 +28,13 @@ export function LinkPanel({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const router = useRouter();
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string } | void>) =>
     start(async () => {
       const r = await fn();
       setError(r && !r.ok ? (r.error ?? "Something went wrong.") : null);
+      if (r?.ok) router.refresh();
     });
 
   async function copy() {

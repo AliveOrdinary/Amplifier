@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { MEDIA } from "@/lib/library/constants";
 import { Button, Field, Input } from "@/components/ui/primitives";
@@ -27,6 +28,7 @@ export function DetailsForm({ briefId, initial }: { briefId: string; initial: Va
   const [saved, setSaved] = useState(form);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const router = useRouter();
   const dirty = (Object.keys(form) as (keyof typeof form)[]).some((k) => form[k] !== saved[k]);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -39,6 +41,7 @@ export function DetailsForm({ briefId, initial }: { briefId: string; initial: Va
       if (!r.ok) return setError(r.error);
       setError(null);
       setSaved(form);
+      router.refresh();
     });
 
   return (

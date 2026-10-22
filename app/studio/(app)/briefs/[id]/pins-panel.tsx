@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Button, Mono, cn } from "@/components/ui/primitives";
 import { MAX_PINS } from "@/lib/brief/types";
@@ -11,10 +12,12 @@ export function PinsPanel({ briefId, locked, pins, library }: { briefId: string;
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const router = useRouter();
   const toggle = (id: string, pinned: boolean) =>
     start(async () => {
       const r = await setPin(briefId, id, pinned);
       setError(r.ok ? null : r.error);
+      if (r.ok) router.refresh();
     });
 
   return (
