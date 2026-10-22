@@ -3,7 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import { getMember } from "@/lib/auth";
 import { Mono, Wordmark } from "@/components/ui/primitives";
 import { signOut } from "../auth/actions";
-import { StudioNav } from "./studio-nav";
+import { NavLinks, StudioNav } from "./studio-nav";
 
 export default function StudioLayout({ children }: LayoutProps<"/studio">) {
   return (
@@ -14,7 +14,9 @@ export default function StudioLayout({ children }: LayoutProps<"/studio">) {
             <Wordmark className="text-[19px]" />
             <Mono>Studio</Mono>
           </Link>
-          <StudioNav />
+          <Suspense fallback={<NavLinks pathname={null} />}>
+            <StudioNav />
+          </Suspense>
           <div className="ml-auto">
             <Suspense fallback={<span className="block size-[30px]" />}>
               <Account />

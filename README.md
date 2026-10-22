@@ -54,8 +54,20 @@ Migrations are in `supabase/migrations`, applied in filename order:
 5. `…05_cached_image_urls.sql` stores each image's signed links for a week, so images keep the same address and stay cached.
 6. `…06_rubric.sql` makes the dimensions editable: definitions, anchors, retiring, and Claude's score kept beside corrections.
 7. `…07_embeddings.sql` turns on pgvector and adds image embeddings and the `similar_images` search.
+8. `…08_briefs.sql` adds the brief's frozen plan, the welcome note, a 30-day link expiry and score snapshots on pairs.
 
 Apply them with the Supabase CLI (`supabase db push`) or paste each file into the SQL editor, in order.
+
+## Briefs
+
+Studio › Briefs › New brief: pick the client and project type, adjust the questions and pin any images, then copy the private link (`/b/<token>`). The client sees, on their phone or computer:
+
+1. A welcome, then "What are you making?"
+2. Warm-up: 12 images, keep or skip (pins always included).
+3. This or that: up to 20 pairs. Each pair tests one dimension with two images far apart on it and close on the rest (scores plus embeddings); the next pair goes to the dimension we're least sure about. Three pairs repeat an earlier one with the sides swapped, and four ask what caught their eye.
+4. The remaining questions, then thanks.
+
+When the client first opens the link, the brief freezes its plan (rubric, warm-up and image pool with their scores), so later library changes don't affect it. Progress is saved after every answer. Results, including an early read of where their choices lean, appear on the brief's page. The engine (`lib/brief/engine.ts`) is plain functions with no database, so it can be tested with simulated clients.
 
 ### Studio members
 

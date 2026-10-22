@@ -33,6 +33,26 @@
   }
 }
 
+/*
+ * The client's brief is always light: every client sees the images on the
+ * same paper, whatever their phone's setting.
+ */
+.theme-paper {
+  color-scheme: light;
+  --paper: #f2f1ec;
+  --panel: #e8e6df;
+  --ink: #111111;
+  --ink-soft: #3a3934;
+  --muted: #5e5c55;
+  --rule: #d6d4cc;
+  --rule-strong: #b9b6ac;
+  --signal: #ff4f00;
+  --on-signal: #111111;
+  --danger: #b42318;
+  background: var(--paper);
+  color: var(--ink);
+}
+
 @theme inline {
   --color-paper: var(--paper);
   --color-panel: var(--panel);

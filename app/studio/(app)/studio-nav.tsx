@@ -12,11 +12,15 @@ const items = [
 ] as const;
 
 export function StudioNav() {
-  const pathname = usePathname();
+  return <NavLinks pathname={usePathname()} />;
+}
+
+/** The links alone: also the fallback while the current path is unknown. */
+export function NavLinks({ pathname }: { pathname: string | null }) {
   return (
     <nav aria-label="Studio" className="flex gap-6 text-[15px]">
       {items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const active = pathname !== null && (pathname === item.href || pathname.startsWith(`${item.href}/`));
         return (
           <Link
             key={item.href}
