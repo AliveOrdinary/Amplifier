@@ -1,29 +1,28 @@
-import Layout from '../components/Layout';
-import { getHomePageData } from '../lib/markdown';
-import HomePageClient from '@/components/HomePageClient';
+import Link from "next/link";
+import { Mono, Wordmark } from "@/components/ui/primitives";
 
-export default function HomePage() {
-  const homeData = getHomePageData();
-  const { introText } = homeData;
-  const introWords = introText.split(' ').filter(word => word.trim() !== '');
-
+// Holding page for the v2 preview. The public portfolio is rebuilt in phase 5;
+// amplifier.studio keeps serving the current site until then.
+export default function Home() {
   return (
-    <Layout>
-      <section className="relative min-h-screen flex flex-col justify-center items-center ">
-        <div 
-          className="absolute inset-0 w-full h-full z-0 bg-[url('/home-background.jpg')] bg-cover bg-center"
-          aria-hidden="true"
-        />
-        
-        <div 
-          className="absolute inset-0 w-full h-full bg-black opacity-50 z-0"
-          aria-hidden="true"
-        />
-
-        <div className="relative z-10 w-full">
-          <HomePageClient introWords={introWords} />
-        </div>
+    <main className="mx-auto flex w-full max-w-[1360px] flex-1 flex-col px-4 sm:px-10">
+      <header className="flex h-16 items-center justify-between">
+        <Wordmark className="text-2xl" />
+        <Link href="/studio" className="text-[15px] hover:text-muted">
+          Studio
+        </Link>
+      </header>
+      <section className="border-b border-ink py-24">
+        <Mono className="normal-case tracking-[0.04em]">
+          Hello · Bonjour · नमस्ते · നമസ്ക്കാരം · வணக்கம் · హలో · مرحبًا
+        </Mono>
+        <h1 className="mt-6 max-w-[1100px] text-[clamp(44px,8vw,88px)] font-medium leading-[0.95] tracking-[-0.04em]">
+          Branding, typography and illustration.
+        </h1>
+        <p className="mt-7 max-w-[620px] text-[19px] leading-relaxed text-ink-soft">
+          A new site is on the way.
+        </p>
       </section>
-    </Layout>
+    </main>
   );
 }

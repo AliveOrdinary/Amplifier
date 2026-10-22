@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Amplifier Library</title>
+    <style>
+      :root { color-scheme: light dark; --paper: #f2f1ec; --ink: #111; --muted: #5e5c55; --rule: #b9b6ac; --signal: #ff4f00; }
+      @media (prefers-color-scheme: dark) { :root { --paper: #121211; --ink: #edebe4; --muted: #a19e95; --rule: #45433e; } }
+      body { margin: 0; width: 300px; background: var(--paper); color: var(--ink); font: 14px/1.45 system-ui, sans-serif; }
+      main { padding: 16px; display: grid; gap: 12px; }
+      h1 { font-size: 18px; font-weight: 500; letter-spacing: -0.01em; margin: 0; }
+      p { margin: 0; color: var(--muted); }
+      strong { color: var(--ink); font-weight: 500; }
+      button { height: 40px; padding: 0 14px; font: inherit; cursor: pointer; border: 1px solid var(--ink); background: transparent; color: var(--ink); }
+      button.primary { background: var(--signal); border-color: var(--signal); color: #111; font-weight: 500; }
+      button[hidden] { display: none; }
+      a { color: var(--ink); }
+      .foot { border-top: 1px solid var(--rule); padding-top: 10px; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>amplifier.</h1>
+      <p id="message">Checking this page…</p>
+      <button id="import" class="primary" hidden>Import this board</button>
+      <p class="foot">Right-click any image to add it. <a href="#" id="settings">Settings</a></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

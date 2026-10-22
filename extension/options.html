@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Amplifier Library settings</title>
+    <style>
+      :root { color-scheme: light dark; --paper: #f2f1ec; --ink: #111; --muted: #5e5c55; --rule: #b9b6ac; --signal: #ff4f00; }
+      @media (prefers-color-scheme: dark) { :root { --paper: #121211; --ink: #edebe4; --muted: #a19e95; --rule: #45433e; } }
+      body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; }
+      main { max-width: 440px; margin: 64px auto; padding: 0 16px; }
+      h1 { font-size: 28px; font-weight: 500; letter-spacing: -0.02em; margin: 0 0 6px; }
+      p { color: var(--muted); margin: 0 0 24px; }
+      form { border-top: 1px solid var(--ink); padding-top: 24px; display: grid; gap: 18px; }
+      label { display: grid; gap: 6px; font-size: 14px; }
+      input { height: 42px; padding: 0 10px; font: inherit; color: inherit; background: transparent; border: 1px solid var(--rule); }
+      input:focus { outline: 2px solid var(--signal); outline-offset: 1px; }
+      .row { display: flex; gap: 8px; }
+      button { height: 42px; padding: 0 16px; font: inherit; cursor: pointer; border: 1px solid var(--ink); background: transparent; color: var(--ink); }
+      button.primary { background: var(--signal); border-color: var(--signal); color: #111; font-weight: 500; }
+      #status { min-height: 1.5em; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>amplifier.</h1>
+      <p>Right-click any image and choose “Add to Amplifier library”, or open a Pinterest board and click the Amplifier button to import it all. Create a key in Studio › Library.</p>
+      <form id="form">
+        <label>
+          Studio address
+          <input id="server" type="url" required placeholder="https://amplifier.studio" />
+        </label>
+        <label>
+          Your key
+          <input id="key" type="password" required placeholder="amp_…" autocomplete="off" />
+        </label>
+        <div class="row">
+          <button class="primary" type="submit">Save</button>
+          <button id="test" type="button">Test connection</button>
+        </div>
+        <div id="status" role="status"></div>
+      </form>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>
