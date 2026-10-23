@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button, Field, Input } from "@/components/ui/primitives";
+import { Button, Field, Input, Select } from "@/components/ui/primitives";
 import { createBrief, type NewBriefState } from "../actions";
 
 /** Below this many approved images, briefs repeat images and skip dimensions. */
@@ -22,12 +22,11 @@ export function NewBriefForm({ templates, approved }: { templates: { value: stri
         <Input id="project_name" name="project_name" defaultValue={v.project_name} />
       </Field>
       <Field label="Project type" htmlFor="project_type" hint="Sets the starting questions and the medium the images favour.">
-        <select
+        <Select
           id="project_type"
           name="project_type"
           required
           defaultValue={v.project_type ?? ""}
-          className="h-11 w-full border border-rule-strong bg-paper px-2.5 text-[15px] text-ink focus:border-ink focus:outline-none"
         >
           <option value="" disabled>
             Choose…
@@ -37,7 +36,7 @@ export function NewBriefForm({ templates, approved }: { templates: { value: stri
               {t.label}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
 
       {approved < ENOUGH_IMAGES ? (

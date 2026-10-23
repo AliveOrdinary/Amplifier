@@ -96,7 +96,7 @@ export function ExtensionKeys({ keys }: { keys: MemberKey[] }) {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="ml-auto"
+                  className="-mr-3 ml-auto"
                   onClick={async () => {
                     const result = await revokeExtensionKey(key.id);
                     if (!result.ok) setError(result.error);

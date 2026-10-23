@@ -35,3 +35,12 @@ export function clampScore(value: number) {
 
 /** A coverage bin under this many approved images is flagged as thin. */
 export const THIN_BIN = 10;
+
+/**
+ * The filters Library › Browse opens with (all images with a score to check,
+ * or approved ones). The server sends their first page with the screen, so
+ * both sides must build the same filters, keys in the same order.
+ */
+export function openingFilters(check: boolean) {
+  return { status: check ? ("all" as const) : ("approved" as const), medium: "", search: "", check, board: "" };
+}

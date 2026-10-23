@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { MEDIA } from "@/lib/library/constants";
-import { Button, Field, Input } from "@/components/ui/primitives";
+import { Button, Field, Input, Select } from "@/components/ui/primitives";
 import { saveDetails } from "../actions";
 
 type Values = {
@@ -62,11 +62,10 @@ export function DetailsForm({ briefId, initial }: { briefId: string; initial: Va
         <Input id="d-project" value={form.project_name} onChange={set("project_name")} />
       </Field>
       <Field label="Medium the images favour" htmlFor="d-medium">
-        <select
+        <Select
           id="d-medium"
           value={form.medium}
           onChange={set("medium")}
-          className="h-11 w-full border border-rule-strong bg-paper px-2.5 text-[15px] text-ink focus:border-ink focus:outline-none"
         >
           <option value="">Any medium</option>
           {MEDIA.map((m) => (
@@ -74,7 +73,7 @@ export function DetailsForm({ briefId, initial }: { briefId: string; initial: Va
               {m.label}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
       <Field label="First meeting" htmlFor="d-meeting" hint="Shown on the client's thank-you screen.">
         <Input id="d-meeting" type="datetime-local" value={form.meeting_at} onChange={set("meeting_at")} />

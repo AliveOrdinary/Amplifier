@@ -1,4 +1,5 @@
 import "server-only";
+import { recordClaude } from "@/lib/usage";
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { z } from "zod";
@@ -140,7 +141,7 @@ export async function loadReport(db: SupabaseClient, briefId: string): Promise<R
 export async function generateReport(db: SupabaseClient, briefId: string): Promise<Report> {
   const { data: brief, error } = await db
     .from("briefs")
-    .select("id, questions, plan, completed_at")
+    .select("id, studio_id, questions, plan, completed_at")
     .eq("id", briefId)
     .single();
   if (error || !brief?.plan) throw new Error("This brief hasn't been started yet.");
@@ -166,6 +167,7 @@ export async function generateReport(db: SupabaseClient, briefId: string): Promi
     messages: [{ role: "user", content: describe(plan, ev, questions, answers, descriptions) }],
     output_config: { effort: "medium", format: jsonSchemaOutputFormat(outputSchema(keys) as OutputSchema, { transform: false }) },
   });
+  await recordClaude(db, { studioId: brief.studio_id as string, kind: "report", model: response.model, usage: response.usage });
   if (response.stop_reason === "refusal") throw new Error("Claude declined to write this report.");
   const parsed = Result.safeParse(response.parsed_output);
   if (!parsed.success) throw new Error("Claude's report couldn't be read.");

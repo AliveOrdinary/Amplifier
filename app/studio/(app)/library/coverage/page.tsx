@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { CoverageSkeleton } from "../../skeletons";
 import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { libraryCoverage } from "@/lib/library/queries";
@@ -11,7 +12,7 @@ export const maxDuration = 120;
 
 export default function LibraryCoveragePage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<CoverageSkeleton />}>
       <Coverage />
     </Suspense>
   );

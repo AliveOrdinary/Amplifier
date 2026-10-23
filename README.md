@@ -63,6 +63,7 @@ Migrations are in `supabase/migrations`, applied in filename order:
 9. `…09_generalist.sql` adds four media (signage and wayfinding, interiors, print and editorial, illustration), the generalist project types (the four artist-only ones are retired, not deleted, so older briefs keep their label), where an imported image came from and why it's flagged, per-dimension score dates, and the Batch API scoring queue.
 10. `…10_brief_matching.sql` adds `images_near`: the approved images closest to a piece of text.
 11. `…11_library_paging.sql` adds the queries behind a paged library: `library_page` (Browse, with every filter), `library_counts`, `library_boards`, `library_coverage`, `library_media` and `library_pick` (the pickers).
+12. `…12_usage_and_members.sql` adds `api_usage` (one row per Claude or Voyage call, with the tokens reported and an estimated cost), `usage_summary`, and the studio's monthly alert amount.
 
 Apply them with the Supabase CLI (`supabase db push`) or paste each file into the SQL editor, in order.
 
@@ -95,6 +96,12 @@ The wording is editable on the page; Regenerate rewrites it.
 2. **Authentication → Users → Add user**: create your account (email + password).
 3. Put your email and name into `supabase/add-members.sql` and run it in the SQL editor. This makes you the studio owner.
 
-More members will be invited from the studio's Settings page.
+Everyone after that is invited from **Settings › Members**: enter their name and email, and Amplifier gives you a one-time link to send them yourself (WhatsApp, email, anything). It works once and expires after about an hour (Supabase's email OTP expiry, under Authentication › Sign In / Providers › Email). Opening it asks them to continue, then to choose a password; after that they sign in normally. No email is sent.
+
+Everyone has the same rights: anyone can invite, rename or remove anyone but themselves. **Copy sign-in link** gives a fresh one-time link for an invite that ran out or a forgotten password. Removing someone deletes their account (they can't sign in, their extension keys stop working); what they added stays.
+
+### Spending
+
+Every Claude and Voyage call records the tokens the API reports and an estimated cost at list prices (Batch API at half price, Voyage images at 50,000 pixels minimum). **Settings › Spending** shows this month and last, by what it was for. Set a monthly alert there and a banner shows across the studio once the month passes it; each person can dismiss it until next month or until the amount changes. The figures are estimates: the Anthropic and Voyage consoles have the actual bills.
 
 A signed-in account that isn't in `members` is signed out and shown a notice.

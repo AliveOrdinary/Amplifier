@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { MEDIA } from "@/lib/library/constants";
 import type { Dimension, LibraryImage } from "@/lib/library/types";
-import { Button, Mono, cn } from "@/components/ui/primitives";
+import { Button, Mono, Select, cn } from "@/components/ui/primitives";
 import { useLibrary } from "./library-provider";
 
 const STEPS = [-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2];
@@ -73,11 +73,12 @@ export function ScorePanel({
       <label htmlFor={`medium-${image.id}`} className="text-[13px] text-muted">
         Medium
       </label>
-      <select
+      <Select
         id={`medium-${image.id}`}
         value={image.medium ?? ""}
         onChange={(e) => setImageMedium(image, e.target.value)}
-        className="mt-1.5 h-10 border border-rule-strong bg-paper px-2 text-[15px] text-ink focus:border-ink focus:outline-none"
+        size="sm"
+        wrapperClassName="mt-1.5"
       >
         {!image.medium ? <option value="">Choose…</option> : null}
         {MEDIA.map((m) => (
@@ -85,7 +86,7 @@ export function ScorePanel({
             {m.label}
           </option>
         ))}
-      </select>
+      </Select>
 
       <div className="mt-5 flex justify-between">
         <Mono>Scores</Mono>

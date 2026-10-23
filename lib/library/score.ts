@@ -4,6 +4,7 @@ import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { MEDIUM_KEYS, clampScore } from "./constants";
+import { recordClaude } from "@/lib/usage";
 import { listAnchors, listDimensions, recentCorrections, type Anchor, type Correction, type DimensionRow } from "./rubric";
 
 /** Change without a deploy by setting AMPLIFIER_SCORING_MODEL on Vercel. */
@@ -356,5 +357,6 @@ export async function scoreImage(db: SupabaseClient, imageId: string, { only }: 
     request = await buildScoreRequest(db, imageId, { ...context, references: [] }, only);
     message = await anthropic().messages.create(request.params);
   }
+  await recordClaude(db, { studioId: image.studio_id as string, kind: "score", model: message.model, usage: message.usage, images: 1 });
   return applyScores(db, request, readAnswer(message));
 }

@@ -7,6 +7,7 @@ import { ACCEPTED_TYPES } from "@/lib/library/constants";
 import { Button, Mono, cn } from "@/components/ui/primitives";
 import { useLibrary } from "./library-provider";
 import { isTypingTarget } from "./editor";
+import { PendingDot } from "../link-pending";
 
 /** Tabs on the left, adding images on the right. */
 export function LibraryBar() {
@@ -36,6 +37,7 @@ export function LibraryBar() {
             >
               {tab.label}
               {tab.count !== null ? <span className="ml-1.5 font-mono text-xs opacity-80">{tab.count}</span> : null}
+              <PendingDot />
             </Link>
           );
         })}

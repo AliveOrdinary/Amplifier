@@ -1,8 +1,13 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
+import { extendTailwindMerge } from "tailwind-merge";
 
+/** Our own text sizes, so they aren't mistaken for colours when classes merge. */
+const merge = extendTailwindMerge({ extend: { theme: { text: ["display", "title", "label"] } } });
+
+/** Join classes; a later class wins over an earlier one for the same property (h-9 over h-11). */
 export function cn(...parts: Array<string | false | null | undefined>) {
-  return parts.filter(Boolean).join(" ");
+  return merge(parts.filter(Boolean).join(" "));
 }
 
 /* ---------------------------------------------------------------- Wordmark */
@@ -115,6 +120,43 @@ export function Input({ className, ...props }: ComponentProps<"input">) {
   );
 }
 
+/**
+ * A dropdown with our own arrow and room for it. `size` matches the input
+ * (md, 44px), a form row (sm, 40px) or a toolbar (xs, 32px).
+ */
+export function Select({
+  className,
+  wrapperClassName,
+  size = "md",
+  ...props
+}: Omit<ComponentProps<"select">, "size"> & { wrapperClassName?: string; size?: "md" | "sm" | "xs" }) {
+  return (
+    <div className={cn("relative w-full", wrapperClassName)}>
+      <select
+        className={cn(
+          "w-full appearance-none truncate border border-rule-strong bg-paper pl-3 pr-9 text-ink",
+          "focus:border-ink focus:outline-none disabled:opacity-50",
+          size === "md" && "h-11 text-[15px]",
+          size === "sm" && "h-10 text-[15px]",
+          size === "xs" && "h-8 pl-2.5 pr-8 text-sm",
+          className,
+        )}
+        {...props}
+      />
+      <svg
+        aria-hidden
+        viewBox="0 0 12 12"
+        className={cn(
+          "pointer-events-none absolute top-1/2 size-3 -translate-y-1/2 text-muted",
+          size === "xs" ? "right-2.5" : "right-3",
+        )}
+      >
+        <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    </div>
+  );
+}
+
 /* ---------------------------------------------------------------- Sections */
 
 export function Section({
@@ -123,15 +165,17 @@ export function Section({
   description,
   children,
   className,
+  id,
 }: {
   number: string;
   title: string;
   description?: string;
   children: ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
-    <section className={cn("flex flex-wrap gap-6 border-b border-rule py-10", className)}>
+    <section id={id} className={cn("flex flex-wrap gap-6 border-b border-rule py-10 scroll-mt-16", className)}>
       <div className="flex-[1_1_200px] max-w-[260px]">
         <span className="font-mono text-label text-muted">{number}</span>
         <h2 className="mt-1.5 text-title font-medium">{title}</h2>

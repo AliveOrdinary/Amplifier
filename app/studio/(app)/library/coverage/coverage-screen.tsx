@@ -21,7 +21,7 @@ export function CoverageScreen({ coverage }: { coverage: Coverage }) {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <PageContainer className="pt-2">
+      <PageContainer className="mx-0 pt-2 sm:px-6">
         <Section
           number="01"
           title="Dimensions"

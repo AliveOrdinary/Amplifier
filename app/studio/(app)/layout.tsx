@@ -4,19 +4,24 @@ import { getMember } from "@/lib/auth";
 import { Mono, Wordmark } from "@/components/ui/primitives";
 import { signOut } from "../auth/actions";
 import { NavLinks, StudioNav } from "./studio-nav";
+import { SpendingAlert } from "./spending-alert";
+import { RouteSkeleton } from "./skeletons";
 
 export default function StudioLayout({ children }: LayoutProps<"/studio">) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <header className="sticky top-0 z-40 border-b border-rule bg-paper">
-        <div className="mx-auto flex min-h-14 w-full max-w-[1360px] flex-wrap items-center gap-x-8 px-4 sm:px-10">
-          <Link href="/studio/briefs" className="flex items-baseline gap-2.5">
+        {/* Phones: wordmark and account on top, the sections underneath. */}
+        <div className="studio-header-row mx-auto flex w-full max-w-[1360px] flex-wrap items-center gap-x-8 px-4 sm:min-h-14 sm:px-10">
+          <Link href="/studio/briefs" className="flex items-baseline gap-2.5 py-3.5 sm:py-0">
             <Wordmark className="text-[19px]" />
             <Mono>Studio</Mono>
           </Link>
-          <Suspense fallback={<NavLinks pathname={null} />}>
-            <StudioNav />
-          </Suspense>
+          <div className="order-last -mx-4 w-[calc(100%+2rem)] overflow-x-auto px-4 sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0">
+            <Suspense fallback={<NavLinks pathname={null} />}>
+              <StudioNav />
+            </Suspense>
+          </div>
           <div className="ml-auto">
             <Suspense fallback={<span className="block size-[30px]" />}>
               <Account />
@@ -25,8 +30,12 @@ export default function StudioLayout({ children }: LayoutProps<"/studio">) {
         </div>
       </header>
 
+      <Suspense fallback={null}>
+        <SpendingAlert />
+      </Suspense>
+
       <main className="flex min-h-0 flex-1 flex-col">
-        <Suspense fallback={<PageSkeleton />}>
+        <Suspense fallback={<RouteSkeleton />}>
           <RequireMember>{children}</RequireMember>
         </Suspense>
       </main>
@@ -63,16 +72,6 @@ async function Account() {
       >
         {initials}
       </span>
-    </div>
-  );
-}
-
-function PageSkeleton() {
-  return (
-    <div aria-hidden className="mx-auto w-full max-w-[1360px] animate-pulse px-4 pt-8 sm:px-10">
-      <div className="h-3 w-40 bg-panel" />
-      <div className="mt-4 h-12 w-72 bg-panel" />
-      <div className="mt-6 h-px bg-rule" />
     </div>
   );
 }

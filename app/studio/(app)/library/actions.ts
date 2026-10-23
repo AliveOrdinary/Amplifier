@@ -321,7 +321,7 @@ export async function embedMissing(): Promise<{ ok: true; remaining: number } | 
         .limit(8);
     const { data, error } = await missing();
     if (error) throw new Error(error.message);
-    await embedByIds(db, (data ?? []).map((r) => r.id as string));
+    await embedByIds(db, (data ?? []).map((r) => r.id as string), member.studioId);
     const { count } = await missing();
     return { ok: true, remaining: count ?? 0 };
   } catch (error) {

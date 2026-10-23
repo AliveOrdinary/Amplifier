@@ -42,7 +42,7 @@ export function RubricEditor({
     <div className="pt-8">
       <RescoreBar stale={stale} rescoring={rescoring} toCheck={toCheck} />
 
-      <div className="mt-8 grid gap-x-10 gap-y-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <div className="mt-8 grid gap-x-6 gap-y-4 lg:grid-cols-[200px_minmax(0,1fr)]">
         <div className="text-sm leading-relaxed text-muted">
           <p>
             Each dimension is a spectrum between two ends. Claude scores every library image on each one, and briefs use them

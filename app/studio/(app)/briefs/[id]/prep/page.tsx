@@ -126,8 +126,8 @@ export default async function PrepPage({ params }: PageProps<"/studio/briefs/[id
   const stats = [
     brief.completed_at ? `Completed ${day(brief.completed_at)}` : "Not finished",
     brief.started_at && brief.completed_at ? `${minutes(brief.started_at, brief.completed_at)} min` : null,
-    `${ev.swipeCount} swipes`,
-    `${ev.pairCount} pairs`,
+    ev.swipeCount === 1 ? "1 swipe" : `${ev.swipeCount} swipes`,
+    ev.pairCount === 1 ? "1 pair" : `${ev.pairCount} pairs`,
     ev.medianMs ? `Typical pick ${seconds(ev.medianMs)}` : null,
     brief.meeting_at ? `Meeting ${day(brief.meeting_at)}` : null,
   ].filter(Boolean);
