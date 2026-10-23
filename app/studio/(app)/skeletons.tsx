@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 /**
  * What shows the moment a studio link is clicked, until the page arrives:
@@ -10,6 +11,15 @@ import { usePathname } from "next/navigation";
 const bar = "bg-panel";
 
 export function RouteSkeleton() {
+  // The path is only known in the browser; a plain outline stands in until then.
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <ByPath />
+    </Suspense>
+  );
+}
+
+function ByPath() {
   const pathname = usePathname() ?? "";
   if (pathname.startsWith("/studio/library")) return <LibrarySkeleton withBar />;
   if (pathname.startsWith("/studio/settings")) return <PageSkeleton tabs sections={3} />;
