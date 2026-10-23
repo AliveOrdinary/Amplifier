@@ -21,6 +21,7 @@ export function RouteSkeleton() {
 
 function ByPath() {
   const pathname = usePathname() ?? "";
+  if (pathname.startsWith("/studio/library/coverage")) return <LibrarySkeleton withBar sections />;
   if (pathname.startsWith("/studio/library")) return <LibrarySkeleton withBar />;
   if (pathname.startsWith("/studio/settings")) return <PageSkeleton tabs sections={3} />;
   if (/^\/studio\/briefs\/[^/]+\/prep/.test(pathname)) return <PageSkeleton sections={3} />;
@@ -111,7 +112,7 @@ function SectionsSkeletonInner({ count }: { count: number }) {
 }
 
 /** A grid of image tiles; with the library's tab bar when that isn't showing yet. */
-export function LibrarySkeleton({ withBar }: { withBar?: boolean }) {
+export function LibrarySkeleton({ withBar, sections }: { withBar?: boolean; sections?: boolean }) {
   return (
     <div aria-busy="true" data-workspace className="flex flex-1 flex-col">
       <span className="sr-only">Loading…</span>
@@ -123,12 +124,41 @@ export function LibrarySkeleton({ withBar }: { withBar?: boolean }) {
             ))}
           </div>
         ) : null}
-        <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 sm:p-6 lg:grid-cols-5">
-          {Array.from({ length: 10 }, (_, i) => (
-            <div key={i} className={`aspect-[4/5] ${bar}`} />
-          ))}
-        </div>
+        {sections ? (
+          <div className="w-full max-w-[1360px] px-4 pt-2 sm:px-6">
+            <SectionsSkeletonInner count={2} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 sm:p-6 lg:grid-cols-5">
+            {Array.from({ length: 10 }, (_, i) => (
+              <div key={i} className={`aspect-[4/5] ${bar}`} />
+            ))}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+/** Inside the library: a grid for Review and Browse, sections for Coverage. */
+export function LibraryRouteSkeleton() {
+  return (
+    <Suspense fallback={<LibrarySkeleton />}>
+      <LibraryByPath />
+    </Suspense>
+  );
+}
+
+function LibraryByPath() {
+  const pathname = usePathname() ?? "";
+  return pathname.endsWith("/coverage") ? <CoverageSkeleton /> : <LibrarySkeleton />;
+}
+
+/** Coverage's sections, at the library's left edge. */
+export function CoverageSkeleton() {
+  return (
+    <div className="w-full max-w-[1360px] px-4 pt-2 pb-24 sm:px-6">
+      <SectionsSkeleton count={2} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import { LibrarySkeleton } from "../skeletons";
+import { LibraryRouteSkeleton } from "../skeletons";
 
 export default function Loading() {
-  return <LibrarySkeleton />;
+  return <LibraryRouteSkeleton />;
 }

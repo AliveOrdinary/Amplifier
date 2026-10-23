@@ -111,7 +111,12 @@ export function BrowseScreen({ initialCheck = false, firstPage }: { initialCheck
 
   /* ---------------------------------------------------- what's shown */
 
-  const byId = useMemo(() => new Map(images.map((i) => [i.id, i])), [images]);
+  // The server's first page counts as loaded straight away, before it reaches the library's cache.
+  const byId = useMemo(() => {
+    const map = new Map((firstPage?.images ?? []).map((i) => [i.id, i]));
+    for (const image of images) map.set(image.id, image);
+    return map;
+  }, [images, firstPage]);
   const needsCheck = useCallback((i: LibraryImage) => dimensions.some((d) => i.scores[d.key]?.check), [dimensions]);
   const matches = useCallback(
     (i: LibraryImage) =>
