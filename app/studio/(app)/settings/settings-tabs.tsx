@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/components/ui/primitives";
+import { PendingDot } from "../link-pending";
 
 const tabs = [
   { href: "/studio/settings", label: "General" },
@@ -23,6 +24,7 @@ export function SettingsTabs() {
             className={cn("flex h-8 items-center px-3 text-sm", active ? "bg-ink text-paper" : "text-muted hover:text-ink")}
           >
             {tab.label}
+            <PendingDot />
           </Link>
         );
       })}

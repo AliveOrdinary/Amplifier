@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Field, Input, Mono } from "@/components/ui/primitives";
+import { Button, Input, Mono } from "@/components/ui/primitives";
 import { setSpendingAlert } from "./actions";
 
 export type SpendingLine = { label: string; detail: string; cost: number };
@@ -27,7 +27,7 @@ export function SpendingPanel({ thisMonth, lastMonth, alert }: { thisMonth: Mont
       </p>
 
       <form
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-2.5"
         onSubmit={(e) => {
           e.preventDefault();
           start(async () => {
@@ -40,21 +40,31 @@ export function SpendingPanel({ thisMonth, lastMonth, alert }: { thisMonth: Mont
           });
         }}
       >
-        <div className="flex flex-wrap items-end gap-3">
-          <Field label="Monthly alert" htmlFor="alert" hint="An alert shows across the studio once the month passes this. Empty: no alert.">
+        <label htmlFor="alert" className="text-sm">
+          Monthly alert
+        </label>
+        <div className="flex items-center gap-2">
+          <div className="relative w-36">
+            <span aria-hidden className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[15px] text-muted">
+              $
+            </span>
             <Input
               id="alert"
               inputMode="decimal"
-              placeholder="e.g. 25"
+              placeholder="25"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              className="w-40"
+              aria-describedby="alert-hint"
+              className="pl-7"
             />
-          </Field>
-          <Button type="submit" disabled={pending}>
+          </div>
+          <Button type="submit" disabled={pending} className="h-11">
             {pending ? "Saving…" : "Save"}
           </Button>
         </div>
+        <p id="alert-hint" className="-mt-1 max-w-[60ch] text-sm text-muted">
+          Everyone sees an alert across the studio once the month passes this. Leave it empty for no alert.
+        </p>
         {message ? (
           <p role={message.error ? "alert" : "status"} className={message.error ? "text-sm text-danger" : "text-sm text-ink-soft"}>
             {message.text}

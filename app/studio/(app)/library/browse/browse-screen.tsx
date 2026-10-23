@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MEDIA, mediumLabel } from "@/lib/library/constants";
 import type { ImageStatus, LibraryImage } from "@/lib/library/types";
 import type { LibraryFilters, PageCursor } from "@/lib/library/queries";
-import { Button, Mono, cn } from "@/components/ui/primitives";
+import { Button, Mono, Select, cn } from "@/components/ui/primitives";
 import { useLibrary } from "../library-provider";
 import { browsePage, findSimilar, imagesById } from "../actions";
 import { ImageStage, ScorePanel, SecondaryActions, hotkeyIndex, isTypingTarget } from "../editor";
@@ -169,7 +169,7 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const select = "h-8 max-w-[220px] border border-rule-strong bg-paper px-2 text-sm text-ink";
+  const select = "w-auto max-w-[220px]";
 
   return (
     <div className={cn("grid min-h-0 flex-1 grid-cols-1", selected && "lg:grid-cols-[minmax(0,1fr)_440px]")}>
@@ -201,27 +201,27 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
             <label className="sr-only" htmlFor="browse-medium">
               Medium
             </label>
-            <select id="browse-medium" value={medium} onChange={(e) => setMedium(e.target.value)} className={select}>
+            <Select id="browse-medium" value={medium} onChange={(e) => setMedium(e.target.value)} size="xs" wrapperClassName={select}>
               <option value="">All media</option>
               {MEDIA.map((m) => (
                 <option key={m.key} value={m.key}>
                   {m.label}
                 </option>
               ))}
-            </select>
+            </Select>
             {boards.length ? (
               <>
                 <label className="sr-only" htmlFor="browse-board">
                   Board
                 </label>
-                <select id="browse-board" value={board} onChange={(e) => setBoard(e.target.value)} className={select}>
+                <Select id="browse-board" value={board} onChange={(e) => setBoard(e.target.value)} size="xs" wrapperClassName={select}>
                   <option value="">All boards</option>
                   {boards.map((b) => (
                     <option key={b.name} value={b.name}>
                       {b.name} ({b.images})
                     </option>
                   ))}
-                </select>
+                </Select>
               </>
             ) : null}
             <label className="sr-only" htmlFor="browse-search">

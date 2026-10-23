@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/components/ui/primitives";
+import { NavLabel } from "./link-pending";
 
 const items = [
   { href: "/studio/briefs", label: "Briefs" },
@@ -26,12 +26,9 @@ export function NavLinks({ pathname }: { pathname: string | null }) {
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className={cn(
-              "border-b-2 pt-[18px] pb-4",
-              active ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink",
-            )}
+            className="group"
           >
-            {item.label}
+            <NavLabel label={item.label} active={active} />
           </Link>
         );
       })}

@@ -5,6 +5,7 @@ import { Mono, Wordmark } from "@/components/ui/primitives";
 import { signOut } from "../auth/actions";
 import { NavLinks, StudioNav } from "./studio-nav";
 import { SpendingAlert } from "./spending-alert";
+import { RouteSkeleton } from "./skeletons";
 
 export default function StudioLayout({ children }: LayoutProps<"/studio">) {
   return (
@@ -31,7 +32,7 @@ export default function StudioLayout({ children }: LayoutProps<"/studio">) {
       </Suspense>
 
       <main className="flex min-h-0 flex-1 flex-col">
-        <Suspense fallback={<PageSkeleton />}>
+        <Suspense fallback={<RouteSkeleton />}>
           <RequireMember>{children}</RequireMember>
         </Suspense>
       </main>
@@ -68,16 +69,6 @@ async function Account() {
       >
         {initials}
       </span>
-    </div>
-  );
-}
-
-function PageSkeleton() {
-  return (
-    <div aria-hidden className="mx-auto w-full max-w-[1360px] animate-pulse px-4 pt-8 sm:px-10">
-      <div className="h-3 w-40 bg-panel" />
-      <div className="mt-4 h-12 w-72 bg-panel" />
-      <div className="mt-6 h-px bg-rule" />
     </div>
   );
 }
