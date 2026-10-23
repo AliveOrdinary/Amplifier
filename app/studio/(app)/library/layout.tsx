@@ -36,7 +36,7 @@ export default async function LibraryLayout({ children }: LayoutProps<"/studio/l
         rightDefinition,
       }))}
     >
-      <div className="flex flex-col lg:h-[calc(100dvh-57px)]">
+      <div data-workspace className="flex flex-col lg:h-[calc(100dvh-57px)]">
         <LibraryBar />
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       </div>

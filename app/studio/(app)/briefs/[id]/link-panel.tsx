@@ -104,7 +104,7 @@ export function LinkPanel({
       </dl>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-rule pt-4">
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => extendLink(briefId))}>
+        <Button size="sm" variant="ghost" className="-ml-3" disabled={pending} onClick={() => run(() => extendLink(briefId))}>
           Extend 30 days
         </Button>
         <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => archiveBrief(briefId, status !== "archived"))}>

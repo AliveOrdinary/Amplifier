@@ -9,7 +9,7 @@ export function NavLabel({ label, active }: { label: string; active: boolean }) 
   return (
     <span
       className={cn(
-        "block border-b-2 pt-[18px] pb-4 transition-colors",
+        "block border-b-2 pt-1 pb-3 transition-colors sm:pt-[18px] sm:pb-4",
         active || pending ? "border-ink text-ink" : "border-transparent text-muted group-hover:text-ink",
         pending && "border-ink/50",
       )}

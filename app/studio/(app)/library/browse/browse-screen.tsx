@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MEDIA, mediumLabel } from "@/lib/library/constants";
+import { MEDIA, mediumLabel, openingFilters } from "@/lib/library/constants";
 import type { ImageStatus, LibraryImage } from "@/lib/library/types";
 import type { LibraryFilters, PageCursor } from "@/lib/library/queries";
 import { Button, Mono, Select, cn } from "@/components/ui/primitives";
@@ -22,7 +22,9 @@ const STATUS_FILTERS: { key: ImageStatus | "all"; label: string }[] = [
  * (images live in the library provider); an image that no longer matches
  * the filters drops out, unless it's the one open.
  */
-export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean }) {
+export type FirstPage = { images: LibraryImage[]; next: PageCursor | null };
+
+export function BrowseScreen({ initialCheck = false, firstPage }: { initialCheck?: boolean; firstPage?: FirstPage }) {
   const { images, counts, boards, remember, dimensions, decide, setScore, notify } = useLibrary();
   const [similar, setSimilar] = useState<{ id: string; ids: string[] } | null>(null);
   const [finding, setFinding] = useState(false);
@@ -48,12 +50,18 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
 
   /* ---------------------------------------------------------- pages */
 
-  const [page, setPage] = useState<{ key: string; ids: string[]; next: PageCursor | null; since: string }>({
-    key: "",
-    ids: [],
-    next: null,
-    since: "",
-  });
+  const [page, setPage] = useState<{ key: string; ids: string[]; next: PageCursor | null; since: string }>(() =>
+    firstPage
+      ? {
+          key: JSON.stringify(openingFilters(initialCheck)),
+          ids: firstPage.images.map((i) => i.id),
+          next: firstPage.next,
+          since: firstPage.images[0]?.createdAt ?? new Date(0).toISOString(),
+        }
+      : { key: "", ids: [], next: null, since: "" },
+  );
+  // The page the server sent: into the library's image cache once, and no second fetch for it.
+  const seeded = useRef(firstPage ?? null);
   const [more, setMore] = useState(false);
   const request = useRef(0);
   const filterKey = JSON.stringify(filters);
@@ -82,8 +90,16 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
     [filters, filterKey, remember, notify],
   );
 
-  // A fresh first page whenever the filters change.
   useEffect(() => {
+    if (firstPage) remember(firstPage.images);
+  }, [firstPage, remember]);
+
+  // A fresh first page whenever the filters change (the opening one came with the page).
+  useEffect(() => {
+    if (seeded.current) {
+      seeded.current = null;
+      return;
+    }
     void load(null);
   }, [load]);
 
@@ -169,7 +185,7 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const select = "w-auto max-w-[220px]";
+  const select = "min-w-0 flex-1 basis-36 sm:w-auto sm:max-w-[220px] sm:flex-none";
 
   return (
     <div className={cn("grid min-h-0 flex-1 grid-cols-1", selected && "lg:grid-cols-[minmax(0,1fr)_440px]")}>
@@ -288,7 +304,18 @@ export function BrowseScreen({ initialCheck = false }: { initialCheck?: boolean 
             <p className="p-8 text-center text-[15px] text-ink-soft">No images match.</p>
           )}
           <div ref={sentinel} aria-hidden className="h-px" />
-          {loading ? <Mono className="block py-6 text-center">Loading…</Mono> : null}
+          {loading && !visible.length ? (
+            <ul aria-label="Loading" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+              {Array.from({ length: 12 }, (_, i) => (
+                <li key={i} aria-hidden className="animate-pulse">
+                  <span className="block aspect-[4/5] bg-panel" />
+                  <span className="mt-2.5 block h-2.5 w-16 bg-panel" />
+                </li>
+              ))}
+            </ul>
+          ) : loading ? (
+            <Mono className="block py-6 text-center">Loading more…</Mono>
+          ) : null}
         </div>
       </section>
 

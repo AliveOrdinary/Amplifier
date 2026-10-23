@@ -88,7 +88,7 @@ function MemberItem({
         {!member.joined ? <span aria-hidden className="size-1.5 bg-signal" /> : null}
         {member.joined ? "Joined" : "Invited · not joined yet"}
       </Mono>
-      <div className="flex flex-wrap gap-1">
+      <div className="-ml-3 flex flex-wrap gap-1 sm:-mr-3 sm:ml-0">
         {!renaming ? (
           <Button size="sm" variant="ghost" onClick={() => setRenaming(true)}>
             Rename

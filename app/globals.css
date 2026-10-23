@@ -96,3 +96,17 @@ body {
   outline: 2px solid var(--signal);
   outline-offset: 2px;
 }
+
+/*
+ * The library is a full-window workspace: on its pages the studio header
+ * spreads to the same edges as the library's bars, instead of sitting in the
+ * centred page column.
+ */
+body:has([data-workspace]) .studio-header-row {
+  max-width: none;
+}
+@media (min-width: 40rem) {
+  body:has([data-workspace]) .studio-header-row {
+    padding-inline: 1.5rem;
+  }
+}

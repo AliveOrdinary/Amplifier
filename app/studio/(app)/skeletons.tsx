@@ -46,7 +46,7 @@ export function PageSkeleton({
       <div aria-hidden className="animate-pulse">
         <div className="border-b border-rule-strong pb-5">
           <div className={`h-3 w-32 ${bar}`} />
-          <div className={`mt-4 h-10 w-64 max-w-full ${bar}`} />
+          <div className={`mt-2.5 h-14 w-64 max-w-full ${bar}`} />
         </div>
         {tabs ? (
           <div className="mt-4 flex gap-1">
@@ -113,7 +113,7 @@ function SectionsSkeletonInner({ count }: { count: number }) {
 /** A grid of image tiles; with the library's tab bar when that isn't showing yet. */
 export function LibrarySkeleton({ withBar }: { withBar?: boolean }) {
   return (
-    <div aria-busy="true" className="flex flex-1 flex-col">
+    <div aria-busy="true" data-workspace className="flex flex-1 flex-col">
       <span className="sr-only">Loading…</span>
       <div aria-hidden className="flex flex-1 animate-pulse flex-col">
         {withBar ? (

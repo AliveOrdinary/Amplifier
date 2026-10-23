@@ -76,7 +76,7 @@ export function Results({ results, completed }: { results: BriefResults; complet
                     <span className="absolute top-0.5 size-3 -translate-x-1/2 rounded-full bg-ink" style={{ left: pct(d.mean) }} />
                   </span>
                   <span className="truncate text-right text-[14px]">{d.right}</span>
-                  <Mono className="hidden text-right sm:inline">{d.asked} pairs</Mono>
+                  <Mono className="hidden text-right sm:inline">{d.asked} {d.asked === 1 ? "pair" : "pairs"}</Mono>
                 </li>
               );
             })}
