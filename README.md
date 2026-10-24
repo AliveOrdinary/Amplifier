@@ -2,7 +2,7 @@
 
 The studio site, the client Visual Brief and the studio's reference library, in one Next.js app.
 
-- **Portfolio** (`/`): public site. Rebuilt in phase 5; amplifier.studio serves the current site until launch.
+- **Portfolio** (`/`, `/projects`): public site. The engine is in place (Studio › Portfolio and `lib/portfolio`); the site design is being built on it. amplifier.studio serves the old site until launch.
 - **Brief** (`/b/…`): a private link per client. Phase 3.
 - **Studio** (`/studio`): library, briefs, prep pages and portfolio projects, for studio members only.
 
@@ -64,6 +64,7 @@ Migrations are in `supabase/migrations`, applied in filename order:
 10. `…10_brief_matching.sql` adds `images_near`: the approved images closest to a piece of text.
 11. `…11_library_paging.sql` adds the queries behind a paged library: `library_page` (Browse, with every filter), `library_counts`, `library_boards`, `library_coverage`, `library_media` and `library_pick` (the pickers).
 12. `…12_usage_and_members.sql` adds `api_usage` (one row per Claude or Voyage call, with the tokens reported and an estimated cost), `usage_summary`, and the studio's monthly alert amount.
+13. `…13_portfolio_engine.sql` turns projects into a list of blocks, records each file's size and description, adds the cover and the publish date, and checks addresses.
 
 Apply them with the Supabase CLI (`supabase db push`) or paste each file into the SQL editor, in order.
 
@@ -105,3 +106,36 @@ Everyone has the same rights: anyone can invite, rename or remove anyone but the
 Every Claude and Voyage call records the tokens the API reports and an estimated cost at list prices (Batch API at half price, Voyage images at 50,000 pixels minimum). **Settings › Spending** shows this month and last, by what it was for. Set a monthly alert there and a banner shows across the studio once the month passes it; each person can dismiss it until next month or until the amount changes. The figures are estimates: the Anthropic and Voyage consoles have the actual bills.
 
 A signed-in account that isn't in `members` is signed out and shown a notice.
+
+## Portfolio
+
+Projects are written and published in **Studio › Portfolio**. Each one has details (name, address, client, year, services, summary), its images and videos, a cover, and a case study made of blocks:
+
+- **Text**: Markdown (`## heading`, paragraphs, lists, links, `**bold**`).
+- **Media**: one to three images or videos side by side, with an optional caption.
+
+Videos marked **Has sound** should get controls; the rest play as a silent loop. Files go straight from the browser to the public `portfolio` bucket (up to 50 MB each, Supabase's default). **Preview** opens the project's public page, drafts included, for that member only.
+
+### Building the site on it
+
+Everything the site needs comes from `@/lib/portfolio`, in Server Components:
+
+```ts
+import { getProject, listProjects } from "@/lib/portfolio";
+
+const projects = await listProjects();                   // Works, in the studio's order
+const featured = await listProjects({ featured: true });  // Home
+const project = await getProject(slug);                  // null → notFound()
+```
+
+The shapes are in `lib/portfolio/types.ts`:
+
+- `ProjectCard`: `slug`, `title`, `client`, `year`, `services`, `summary`, `featured`, `cover`.
+- `Project`: a `ProjectCard` plus `blocks`, all of its `media`, and `previous` and `next` for links. `draft` and `preview` are true while a member previews; show `<PreviewBanner project={project} />` then.
+- `PortfolioMedia`: `kind` (`image` or `video`), `url`, `width`, `height`, `alt`, `caption`, `hasAudio`. Use the width and height to reserve space so the page doesn't jump.
+
+Results are cached and refresh as soon as anyone saves in the studio, so the pages stay static and fast. `app/projects` holds plain working pages, and `components/portfolio` a `Media` component (image or video at its own proportions) and `ProjectBlocks` (a case study's blocks). Restyle them, or replace them and keep the data calls.
+
+A production build prerenders `/projects`, so it needs the real Supabase variables (as on Vercel).
+
+**Crums** moves over from the old site with **Bring Crums over** in Studio › Portfolio. It reads the files in `public/images/uploads/crums`, so delete those, and `content/`, only after it has arrived.

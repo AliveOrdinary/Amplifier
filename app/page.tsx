@@ -8,9 +8,14 @@ export default function Home() {
     <main className="mx-auto flex w-full max-w-[1360px] flex-1 flex-col px-4 sm:px-10">
       <header className="flex h-16 items-center justify-between">
         <Wordmark className="text-2xl" />
-        <Link href="/studio" className="text-[15px] hover:text-muted">
-          Studio
-        </Link>
+        <nav className="flex gap-6 text-[15px]">
+          <Link href="/projects" className="hover:text-muted">
+            Works
+          </Link>
+          <Link href="/studio" className="hover:text-muted">
+            Studio
+          </Link>
+        </nav>
       </header>
       <section className="border-b border-ink py-24">
         <Mono className="normal-case tracking-[0.04em]">

@@ -110,3 +110,41 @@ body:has([data-workspace]) .studio-header-row {
     padding-inline: 1.5rem;
   }
 }
+
+/* Text blocks in case studies (Markdown). The site design can restyle these. */
+.portfolio-prose > * + * {
+  margin-top: 1em;
+}
+.portfolio-prose h2,
+.portfolio-prose h3 {
+  color: var(--ink);
+  font-weight: 500;
+  line-height: 1.2;
+  margin-top: 1.6em;
+}
+.portfolio-prose h2 {
+  font-size: 1.375rem;
+}
+.portfolio-prose h3 {
+  font-size: 1.125rem;
+}
+.portfolio-prose > :first-child {
+  margin-top: 0;
+}
+.portfolio-prose ul {
+  list-style: disc;
+  padding-left: 1.25em;
+}
+.portfolio-prose ol {
+  list-style: decimal;
+  padding-left: 1.25em;
+}
+.portfolio-prose a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.portfolio-prose strong {
+  color: var(--ink);
+  font-weight: 500;
+}
