@@ -66,9 +66,7 @@ export default async function Home() {
           </dl>
         </Section>
 
-        <Section n="01" name="Selected" id="work" title="Selected work, on the desk.">
-          <Desk projects={projects} />
-        </Section>
+        <Section n="01" name="Selected" id="work" title="Selected work, on the desk." wide={<Desk projects={projects} />} />
 
         <Section n="02" name="Studio" id="studio" title="Who’s at the desk.">
           <p className="max-w-[860px] text-[clamp(22px,2.4vw,30px)] leading-[1.3] tracking-[-0.01em] text-ink-soft">
@@ -121,6 +119,7 @@ function Section({
   id,
   title,
   first,
+  wide,
   children,
 }: {
   n: string;
@@ -128,7 +127,9 @@ function Section({
   id: string;
   title?: string;
   first?: boolean;
-  children: ReactNode;
+  /** Content that runs the full width of the page, under the title. */
+  wide?: ReactNode;
+  children?: ReactNode;
 }) {
   return (
     <section id={id} className={cn("grid scroll-mt-24 gap-x-10 gap-y-6 lg:grid-cols-[200px_1fr]", first ? "pt-20 sm:pt-28" : "pt-32 sm:pt-40")}>
@@ -141,6 +142,7 @@ function Section({
         ) : null}
         {children}
       </div>
+      {wide ? <div className="min-w-0 lg:col-span-2">{wide}</div> : null}
     </section>
   );
 }

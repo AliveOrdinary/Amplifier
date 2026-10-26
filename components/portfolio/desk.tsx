@@ -6,8 +6,10 @@ import type { ProjectCard } from "@/lib/portfolio/types";
 import { FADERS, FLAT_MIX, match, mixFor, type Mix } from "@/lib/portfolio/channels";
 import { cn } from "@/components/ui/primitives";
 
-const SEGMENTS = 16;
 const label = "font-mono text-[12px] uppercase tracking-[0.08em]";
+
+/** Every tile is the same rounded square (the second shape in Lumark's opening row). */
+const TILE_RADIUS = "16%";
 
 /**
  * Selected work as a mixing desk. Every featured project is a channel card;
@@ -23,8 +25,9 @@ export function Desk({ projects }: { projects: ProjectCard[] }) {
     level: match(mix, mixFor(p.slug)),
   }));
   const solo = touched && channels.length ? channels.reduce((a, b) => (b.level > a.level ? b : a)) : null;
-  // Keep the grid even: an odd count leaves one open channel.
-  const open = channels.length % 2 === 1 ? 1 : 0;
+  // The orange Amplifier circle sits in the middle of the row, like Lumark's yellow one.
+  const tiles: Array<(typeof channels)[number] | "mark"> = [...channels];
+  tiles.splice(Math.ceil(tiles.length / 2), 0, "mark");
 
   return (
     <div className="flex flex-col gap-4">
@@ -35,69 +38,42 @@ export function Desk({ projects }: { projects: ProjectCard[] }) {
         </span>
       </div>
 
-      <ul className="grid gap-4 md:grid-cols-2">
-        {channels.map(({ project, ch, level }, i) => {
+      <ul
+        className="grid grid-cols-2 gap-y-8 sm:grid-cols-[repeat(var(--cols),minmax(0,1fr))]"
+        style={{ "--cols": Math.min(tiles.length, 5) } as CSSProperties}
+      >
+        {tiles.map((t) => {
+          if (t === "mark") {
+            return (
+              <li key="mark" aria-hidden className="tile">
+                <span className="tile-shape grid aspect-square place-items-center bg-signal" style={{ borderRadius: TILE_RADIUS }}>
+                  <span className="tile-burst text-[clamp(90px,11vw,170px)] leading-none text-black">✺</span>
+                </span>
+              </li>
+            );
+          }
+          const { project, level } = t;
           const isSolo = solo?.project.id === project.id;
           const dim = touched && !isSolo && level < 0.6;
           return (
-            <li key={project.id} className={cn("channel", i % 2 ? "channel-right" : "channel-left")}>
-              <Link
-                href={`/projects/${project.slug}`}
-                className={cn(
-                  "group flex h-full flex-col rounded-[28px] border p-3 transition-[opacity,border-color] duration-300",
-                  isSolo ? "border-signal" : "border-rule-strong hover:border-muted",
-                  dim && "opacity-40",
-                )}
-              >
-                <span className={cn(label, "flex items-center justify-between gap-4 px-3 pt-2 pb-4")}>
-                  <span className="flex items-center gap-2.5">
-                    <span
-                      className={cn(
-                        "size-2 rounded-full transition-colors",
-                        isSolo ? "bg-signal shadow-[0_0_10px_var(--signal)]" : level >= 0.6 ? "bg-ink" : "bg-rule-strong",
-                      )}
-                    />
-                    ( CH {ch} ✺ {project.services[0] ?? "Project"}
-                  </span>
-                  <span>{project.year ? `…${project.year} )` : ")"}</span>
-                </span>
-
-                <span className="relative block overflow-hidden rounded-[22px] bg-panel">
+            <li key={project.id} className={cn("tile transition-opacity duration-300", dim && "opacity-35")}>
+              <Link href={`/projects/${project.slug}`} className="group block" aria-label={`${project.title}, ${project.services[0] ?? "project"}${project.year ? `, ${project.year}` : ""}`}>
+                <span
+                  className={cn("tile-shape relative block aspect-square overflow-hidden bg-panel", isSolo && "ring-2 ring-signal ring-offset-4 ring-offset-paper")}
+                  style={{ borderRadius: TILE_RADIUS }}
+                >
                   <Cover project={project} />
-                  <span
-                    aria-hidden
-                    className="absolute right-4 bottom-4 grid size-14 place-items-center rounded-full bg-ink text-xl text-paper transition-transform duration-300 group-hover:rotate-45"
-                  >
-                    ↗
-                  </span>
                 </span>
-
-                <span className="flex flex-col gap-3 px-3 pt-5 pb-2">
-                  <span className="flex items-baseline justify-between gap-4">
-                    <span className="text-[28px] leading-none font-medium tracking-[-0.02em]">{project.title}</span>
-                    <span className={cn(label, "shrink-0 text-muted")}>Match {Math.round(level * 100)}%</span>
+                <span className={cn(label, "mt-3 flex justify-between gap-3 px-3 text-muted group-hover:text-ink sm:px-5")}>
+                  <span className="truncate">
+                    {project.title} <span className={isSolo ? "text-signal" : ""}>✺</span> {project.services[0] ?? ""}
                   </span>
-                  <span aria-hidden className="grid grid-cols-16 gap-[3px]">
-                    {Array.from({ length: SEGMENTS }, (_, s) => (
-                      <span
-                        key={s}
-                        className={cn(
-                          "h-1.5 rounded-full transition-colors duration-300",
-                          s >= Math.round(level * SEGMENTS) ? "bg-rule" : s >= SEGMENTS - 3 ? "bg-signal" : "bg-ink",
-                        )}
-                      />
-                    ))}
-                  </span>
+                  <span className="shrink-0">{project.year ?? ""}</span>
                 </span>
               </Link>
             </li>
           );
         })}
-        {open ? (
-          <li className="channel channel-right hidden min-h-[320px] place-items-center rounded-[28px] border border-dashed border-rule-strong md:grid">
-            <span className={cn(label, "text-muted")}>( CH {String(channels.length + 1).padStart(2, "0")} ✺ No signal yet )</span>
-          </li>
-        ) : null}
       </ul>
 
       <div className="mt-2 rounded-[28px] border border-rule-strong p-5 sm:p-7">
@@ -150,7 +126,7 @@ export function Desk({ projects }: { projects: ProjectCard[] }) {
 
 function Cover({ project }: { project: ProjectCard }) {
   const c = project.cover;
-  const cls = "block aspect-[3/2] w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]";
+  const cls = "block size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]";
   if (!c) return <span className={cn(cls, "bg-[radial-gradient(circle_at_30%_30%,#2a2926,#121211)]")} />;
   if (c.kind === "video")
     return <video src={c.url} className={cls} autoPlay muted loop playsInline preload="metadata" aria-label={c.alt || project.title} />;

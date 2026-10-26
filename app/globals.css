@@ -232,6 +232,20 @@ body:has([data-workspace]) .studio-header-row {
     }
   }
 }
+.tile-shape {
+  aspect-ratio: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tile-burst {
+    animation: burst 24s linear infinite;
+  }
+}
+@keyframes burst {
+  to {
+    rotate: 360deg;
+  }
+}
+
 @keyframes channel-in {
   from {
     transform: translateY(60px) rotate(var(--tilt, -4deg));
