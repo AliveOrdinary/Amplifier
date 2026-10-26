@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { GeistMono } from "geist/font/mono";
+import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 
 const montreal = localFont({
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${montreal.variable} ${GeistMono.variable} h-full`}>
+    <html lang="en" className={`${montreal.variable} ${GeistMono.variable} ${GeistSans.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-paper text-ink">{children}</body>
     </html>
   );
