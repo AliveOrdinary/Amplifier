@@ -18,6 +18,7 @@ import {
 } from "@/lib/portfolio/blocks";
 import type { ProjectFrench, StoredBlock } from "@/lib/portfolio/types";
 import { CRUMS } from "@/lib/portfolio/legacy";
+import { hasFrenchColumn } from "@/lib/portfolio/read";
 
 type Fail = { ok: false; error: string };
 type Ok<T = object> = { ok: true } & T;
@@ -139,6 +140,13 @@ export async function saveProject(id: string, input: ProjectDraft): Promise<Ok<{
       return ids.length ? [{ id: b.id, type: "media", media: ids, caption: b.caption?.trim() || null }] : [];
     });
 
+    // French needs migration 14; until then the English still saves.
+    const fr = cleanFrench(d.fr, blocks, own);
+    const canSaveFrench = await hasFrenchColumn(db);
+    if (!canSaveFrench && Object.keys(fr).length) {
+      throw new Error("French can't be saved yet: apply the database update …14_portfolio_french.sql in Supabase first.");
+    }
+
     const { data, error } = await db
       .from("projects")
       .update({
@@ -149,7 +157,7 @@ export async function saveProject(id: string, input: ProjectDraft): Promise<Ok<{
         services: d.services,
         short_summary: d.summary || null,
         blocks,
-        fr: cleanFrench(d.fr, blocks, own),
+        ...(canSaveFrench ? { fr } : {}),
       })
       .eq("id", id)
       .select("updated_at")

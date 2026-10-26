@@ -35,12 +35,38 @@ export type ProjectRow = {
   sort: number;
   cover_media_id: string | null;
   blocks: StoredBlock[];
-  fr: ProjectFrench | null;
+  /** Missing until migration 14 is applied. */
+  fr?: ProjectFrench | null;
   updated_at: string;
 };
 
-export const PROJECT_COLUMNS =
-  "id, slug, title, client, year, services, short_summary, featured, published, published_at, sort, cover_media_id, blocks, fr, updated_at";
+const BASE_COLUMNS =
+  "id, slug, title, client, year, services, short_summary, featured, published, published_at, sort, cover_media_id, blocks, updated_at";
+
+/*
+ * The French column arrives with migration 14. Until it's applied, read
+ * projects without it, so the site keeps working in English everywhere
+ * instead of failing. Checked once per server, and only remembered once
+ * the database has answered.
+ */
+let frenchColumn: boolean | undefined;
+
+export async function hasFrenchColumn(db: SupabaseClient): Promise<boolean> {
+  if (frenchColumn !== undefined) return frenchColumn;
+  const { error } = await db.from("projects").select("fr").limit(1);
+  if (!error) return (frenchColumn = true);
+  // 42703: undefined column. Any other error is left for the real query to report.
+  if (error.code === "42703" || /column .*fr.* does not exist/i.test(error.message)) {
+    console.warn("projects.fr is missing: apply supabase/migrations/…14_portfolio_french.sql for French project text.");
+    return (frenchColumn = false);
+  }
+  return true;
+}
+
+/** The project columns to select: with `fr` once migration 14 is applied. */
+export async function projectColumns(db: SupabaseClient) {
+  return (await hasFrenchColumn(db)) ? `${BASE_COLUMNS}, fr` : BASE_COLUMNS;
+}
 export const MEDIA_COLUMNS =
   "id, project_id, kind, storage_path, caption, has_audio, width, height, alt, bytes, mime, sort, created_at";
 
@@ -65,7 +91,7 @@ export function toMedia(db: SupabaseClient, row: MediaRow): PortfolioMedia {
 const filled = (s: string | undefined | null) => (s && s.trim() ? s : undefined);
 
 /** The French to lay over a row, or null for English (or a project with no French yet). */
-function french(row: Pick<ProjectRow, "fr">, locale: Locale): ProjectFrench | null {
+function french(row: { fr?: ProjectFrench | null }, locale: Locale): ProjectFrench | null {
   return locale === "fr" && row.fr && typeof row.fr === "object" ? row.fr : null;
 }
 
@@ -113,12 +139,12 @@ export async function readCards(
   db: SupabaseClient,
   options: { featured?: boolean; includeDrafts?: boolean; locale?: Locale } = {},
 ): Promise<ProjectCard[]> {
-  let query = db.from("projects").select(`${PROJECT_COLUMNS}, created_at`);
+  let query = db.from("projects").select(`${await projectColumns(db)}, created_at`);
   if (!options.includeDrafts) query = query.eq("published", true);
   if (options.featured) query = query.eq("featured", true);
   const { data, error } = await order(query);
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as ProjectRow[];
+  const rows = (data ?? []) as unknown as ProjectRow[];
 
   const coverIds = rows.flatMap((r) => (r.cover_media_id ? [r.cover_media_id] : []));
   const covers = new Map<string, PortfolioMedia>();
@@ -136,16 +162,17 @@ export async function readProject(
   slug: string,
   options: { includeDrafts?: boolean; preview?: boolean; locale?: Locale } = {},
 ): Promise<Project | null> {
-  let query = db.from("projects").select(PROJECT_COLUMNS).eq("slug", slug).limit(1);
+  let query = db.from("projects").select(await projectColumns(db)).eq("slug", slug).limit(1);
   if (!options.includeDrafts) query = query.eq("published", true);
   const { data, error } = await query.maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const row = data as ProjectRow;
+  const row = data as unknown as ProjectRow;
+  const withFrench = await hasFrenchColumn(db);
 
   const [{ data: media, error: mediaError }, { data: list, error: listError }] = await Promise.all([
     db.from("project_media").select(MEDIA_COLUMNS).eq("project_id", row.id).order("sort").order("created_at"),
-    order(db.from("projects").select("slug, title, fr, sort, created_at").eq("published", true)),
+    order(db.from("projects").select(withFrench ? "slug, title, fr, sort, created_at" : "slug, title, sort, created_at").eq("published", true)),
   ]);
   if (mediaError) throw new Error(mediaError.message);
   if (listError) throw new Error(listError.message);
@@ -154,7 +181,7 @@ export async function readProject(
   const fr = french(row, locale);
   const files = ((media ?? []) as MediaRow[]).map((m) => localMedia(toMedia(db, m), fr));
   const byId = new Map(files.map((m) => [m.id, m]));
-  const neighbours = (list ?? []) as { slug: string; title: string; fr: ProjectFrench | null }[];
+  const neighbours = (list ?? []) as unknown as { slug: string; title: string; fr?: ProjectFrench | null }[];
   const at = neighbours.findIndex((p) => p.slug === row.slug);
   const pick = (i: number) => {
     if (i < 0 || i >= neighbours.length) return null;

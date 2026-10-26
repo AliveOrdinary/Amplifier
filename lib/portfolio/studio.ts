@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEDIA_COLUMNS, PROJECT_COLUMNS, toMedia, type MediaRow, type ProjectRow } from "./read";
+import { MEDIA_COLUMNS, projectColumns, toMedia, type MediaRow, type ProjectRow } from "./read";
 import type { PortfolioMedia, ProjectFrench, StoredBlock } from "./types";
 
 /** What Studio › Portfolio reads, as the signed-in member (drafts included). */
@@ -49,11 +49,11 @@ const studioMedia = (db: SupabaseClient, row: MediaRow): StudioMedia => ({
 export async function studioProjects(db: SupabaseClient): Promise<StudioProjectRow[]> {
   const { data, error } = await db
     .from("projects")
-    .select(PROJECT_COLUMNS)
+    .select(await projectColumns(db))
     .order("sort", { ascending: true })
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as ProjectRow[];
+  const rows = (data ?? []) as unknown as ProjectRow[];
 
   const coverIds = rows.flatMap((r) => (r.cover_media_id ? [r.cover_media_id] : []));
   const covers = new Map<string, PortfolioMedia>();
@@ -77,10 +77,10 @@ export async function studioProjects(db: SupabaseClient): Promise<StudioProjectR
 }
 
 export async function editorProject(db: SupabaseClient, id: string): Promise<EditorProject | null> {
-  const { data, error } = await db.from("projects").select(PROJECT_COLUMNS).eq("id", id).maybeSingle();
+  const { data, error } = await db.from("projects").select(await projectColumns(db)).eq("id", id).maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const row = data as ProjectRow;
+  const row = data as unknown as ProjectRow;
   const { data: media, error: mediaError } = await db
     .from("project_media")
     .select(MEDIA_COLUMNS)
