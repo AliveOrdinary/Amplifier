@@ -73,16 +73,18 @@ export async function HomePage({ locale }: { locale: Locale }) {
 
         <Section n="01" name={t.sections.selected} id="work" title={t.work.title} wide={<Desk projects={projects} copy={t.desk} />} />
 
-        <Section n="02" name={t.sections.studio} id="studio" title={t.studio.title}>
-          <p className="max-w-[860px] text-[clamp(22px,2.4vw,30px)] leading-[1.3] tracking-[-0.01em] text-ink-soft">{t.studio.body}</p>
-          <ul className="mt-12 border-t border-rule">
+        {/* Laid out like the opening: a big heading, a short paragraph, then a row of labels. */}
+        <Section n="02" name={t.sections.studio} id="studio">
+          <h2 className="text-[clamp(48px,7vw,96px)] leading-[0.92] font-medium tracking-[-0.035em]">{t.studio.title}</h2>
+          <p className="mt-8 max-w-[620px] text-lg leading-relaxed text-ink-soft">{t.studio.body}</p>
+          <dl className="mt-14 grid gap-x-8 gap-y-5 border-t border-rule pt-6 sm:grid-cols-2 lg:grid-cols-4">
             {TEAM.map((p) => (
-              <li key={p.name} className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-rule py-6">
-                <span className="text-[clamp(26px,3vw,40px)] leading-none font-medium tracking-[-0.02em]">{p.name}</span>
-                <span className={cn(label, "text-muted")}>{t.studio.roles[p.role]}</span>
-              </li>
+              <div key={p.name}>
+                <dt className={cn(label, "text-muted")}>{t.studio.roles[p.role]}</dt>
+                <dd className="mt-1.5 text-[17px]">{p.name}</dd>
+              </div>
             ))}
-          </ul>
+          </dl>
         </Section>
 
         <Section n="03" name={t.sections.contact} id="contact" title={t.contact.title}>
