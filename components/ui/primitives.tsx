@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import { extendTailwindMerge } from "tailwind-merge";
+import { Logo } from "./logo";
 
 /** Our own text sizes, so they aren't mistaken for colours when classes merge. */
 const merge = extendTailwindMerge({ extend: { theme: { text: ["display", "title", "label"] } } });
@@ -12,8 +13,13 @@ export function cn(...parts: Array<string | false | null | undefined>) {
 
 /* ---------------------------------------------------------------- Wordmark */
 
+/** The Amplifier logo, sized by the text size it's given (text-2xl, text-[19px]…) and drawn in the text colour. */
 export function Wordmark({ className }: { className?: string }) {
-  return <span className={cn("tracking-[-0.01em]", className)}>amplifier.</span>;
+  return (
+    <span className={cn("inline-flex items-center leading-none", className)}>
+      <Logo className="h-[1.05em] w-auto" />
+    </span>
+  );
 }
 
 /* -------------------------------------------------------------- Mono label */
