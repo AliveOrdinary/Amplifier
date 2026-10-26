@@ -22,6 +22,8 @@ export type HomeCopy = {
     channels: string;
     solo: string;
     none: string;
+    /** Shown when no project is marked Featured and published yet. */
+    empty: string;
     mix: string;
     reset: string;
     faders: Record<FaderKey, { name: string; left: string; right: string }>;
@@ -51,6 +53,7 @@ export const HOME_COPY: Record<Locale, HomeCopy> = {
       channels: "Channels ✺ {n} in use",
       solo: "Solo",
       none: "none",
+      empty: "New work is on the way.",
       mix: "Mix to your taste",
       reset: "Reset",
       faders: {
@@ -92,6 +95,7 @@ export const HOME_COPY: Record<Locale, HomeCopy> = {
       channels: "Pistes ✺ {n} actives",
       solo: "Solo",
       none: "aucun",
+      empty: "De nouveaux projets arrivent bientôt.",
       mix: "Mixez selon vos goûts",
       reset: "Remettre à zéro",
       faders: {

@@ -39,10 +39,9 @@ export function Desk({ projects, copy }: { projects: ProjectCard[]; copy: HomeCo
         </span>
       </div>
 
-      <ul
-        className="grid grid-cols-2 gap-y-8 sm:grid-cols-[repeat(var(--cols),minmax(0,1fr))]"
-        style={{ "--cols": Math.min(tiles.length, 5) } as CSSProperties}
-      >
+      {/* Fixed columns, so a tile is the same size however many projects there are. */}
+      {channels.length ? (
+      <ul className="grid grid-cols-2 gap-y-8 sm:grid-cols-4 lg:grid-cols-5">
         {tiles.map((t) => {
           if (t === "mark") {
             return (
@@ -76,6 +75,9 @@ export function Desk({ projects, copy }: { projects: ProjectCard[]; copy: HomeCo
           );
         })}
       </ul>
+      ) : (
+        <p className="rounded-[28px] border border-dashed border-rule-strong px-6 py-16 text-center text-ink-soft">{copy.empty}</p>
+      )}
 
       <div className="mt-2 rounded-[28px] border border-rule-strong p-5 sm:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
