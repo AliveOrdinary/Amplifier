@@ -4,6 +4,7 @@ import { listProjects, type ProjectCard } from "@/lib/portfolio";
 import { Desk } from "@/components/portfolio/desk";
 import { GREETINGS } from "@/components/site/greetings";
 import { Preloader } from "@/components/site/preloader";
+import { Wayfinding } from "@/components/site/wayfinding";
 import { Wordmark, cn } from "@/components/ui/primitives";
 
 const label = "font-mono text-[12px] uppercase tracking-[0.08em]";
@@ -12,6 +13,13 @@ const TEAM = [
   { name: "Eldhose Kuriyan", role: "Art direction, design" },
   { name: "Francis Xavier", role: "Art direction, design" },
   { name: "Navaneeth Krishnan", role: "Technology" },
+];
+
+const SECTIONS = [
+  { id: "top", label: "Intro" },
+  { id: "work", label: "Selected" },
+  { id: "studio", label: "Studio" },
+  { id: "contact", label: "Contact" },
 ];
 
 const FACTS = [
@@ -30,9 +38,10 @@ export default async function Home() {
   return (
     <div className="site flex-1">
       <Preloader />
+      <Wayfinding sections={SECTIONS} />
 
       <header className="sticky top-0 z-40 border-b border-rule bg-paper/85 backdrop-blur-md">
-        <div className="mx-auto grid h-[72px] w-full max-w-[1360px] grid-cols-[1fr_auto] items-center px-4 sm:grid-cols-3 sm:px-10">
+        <div className="mx-auto grid h-[72px] w-full max-w-[1360px] xl:max-w-[min(1360px,calc(100vw-320px))] grid-cols-[1fr_auto] items-center px-4 sm:grid-cols-3 sm:px-10">
           <Link href="/" aria-label="Amplifier, home" className="justify-self-start">
             <Wordmark className="text-2xl" />
           </Link>
@@ -48,7 +57,7 @@ export default async function Home() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1360px] px-4 sm:px-10">
+      <main className="mx-auto w-full max-w-[1360px] xl:max-w-[min(1360px,calc(100vw-320px))] px-4 sm:px-10">
         <Section n="00" name="MMXXVI" id="top" first>
           <h1 className="text-[clamp(48px,7vw,96px)] leading-[0.92] font-medium tracking-[-0.035em]">
             Branding, type and motion for people who make things.
@@ -98,7 +107,7 @@ export default async function Home() {
         </Section>
       </main>
 
-      <footer className="mx-auto mt-24 w-full max-w-[1360px] px-4 sm:px-10">
+      <footer className="mx-auto mt-24 w-full max-w-[1360px] xl:max-w-[min(1360px,calc(100vw-320px))] px-4 sm:px-10">
         <div className={cn(label, "flex flex-wrap justify-between gap-4 border-t border-rule pt-6 pb-10 normal-case text-muted")}>
           <span className="flex flex-wrap gap-x-3">
             {GREETINGS.map((g) => (
