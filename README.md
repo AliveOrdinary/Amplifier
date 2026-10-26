@@ -65,6 +65,7 @@ Migrations are in `supabase/migrations`, applied in filename order:
 11. `…11_library_paging.sql` adds the queries behind a paged library: `library_page` (Browse, with every filter), `library_counts`, `library_boards`, `library_coverage`, `library_media` and `library_pick` (the pickers).
 12. `…12_usage_and_members.sql` adds `api_usage` (one row per Claude or Voyage call, with the tokens reported and an estimated cost), `usage_summary`, and the studio's monthly alert amount.
 13. `…13_portfolio_engine.sql` turns projects into a list of blocks, records each file's size and description, adds the cover and the publish date, and checks addresses.
+14. `…14_portfolio_french.sql` adds `projects.fr`: each project's French title, summary, services, text, captions and alt text, for the French site.
 
 Apply them with the Supabase CLI (`supabase db push`) or paste each file into the SQL editor, in order.
 
@@ -137,5 +138,13 @@ The shapes are in `lib/portfolio/types.ts`:
 Results are cached and refresh as soon as anyone saves in the studio, so the pages stay static and fast. `app/projects` holds plain working pages, and `components/portfolio` a `Media` component (image or video at its own proportions) and `ProjectBlocks` (a case study's blocks). Restyle them, or replace them and keep the data calls.
 
 A production build prerenders `/projects`, so it needs the real Supabase variables (as on Vercel).
+
+### French
+
+The public site is in English and French. Every page has a French address under `/fr` (`/fr`, `/fr/projects`, `/fr/projects/crums`) and an EN / FR switch that keeps you on the same page.
+
+- **Site text** (menus, headings, the homepage) lives in `lib/i18n/home.ts` and `lib/i18n/site.ts`, English and French side by side. The French is a first draft to be checked by a fluent speaker.
+- **Project text** is written in Studio › Portfolio › a project › **French**, beside the English it translates: name, services, summary, each text block, each caption and each file's alt text. Anything left empty shows in English on the French site, so a project can be translated a piece at a time. **Aperçu FR** previews the French page.
+- In code, pass the language to the data calls: `listProjects({ locale: "fr" })`, `getProject(slug, "fr")`. `localePath("fr", "/projects")` gives `/fr/projects`.
 
 **Crums** moves over from the old site with **Bring Crums over** in Studio › Portfolio. It reads the files in `public/images/uploads/crums`, so delete those, and `content/`, only after it has arrived.

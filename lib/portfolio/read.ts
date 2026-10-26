@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PORTFOLIO_BUCKET } from "./blocks";
-import type { Block, PortfolioMedia, Project, ProjectCard, StoredBlock } from "./types";
+import type { Block, Locale, PortfolioMedia, Project, ProjectCard, ProjectFrench, StoredBlock } from "./types";
 
 /** Reading projects from the database into the shapes in ./types. Callers pick the client. */
 
@@ -35,11 +35,12 @@ export type ProjectRow = {
   sort: number;
   cover_media_id: string | null;
   blocks: StoredBlock[];
+  fr: ProjectFrench | null;
   updated_at: string;
 };
 
 export const PROJECT_COLUMNS =
-  "id, slug, title, client, year, services, short_summary, featured, published, published_at, sort, cover_media_id, blocks, updated_at";
+  "id, slug, title, client, year, services, short_summary, featured, published, published_at, sort, cover_media_id, blocks, fr, updated_at";
 export const MEDIA_COLUMNS =
   "id, project_id, kind, storage_path, caption, has_audio, width, height, alt, bytes, mime, sort, created_at";
 
@@ -60,27 +61,47 @@ export function toMedia(db: SupabaseClient, row: MediaRow): PortfolioMedia {
   };
 }
 
-function toCard(row: ProjectRow, cover: PortfolioMedia | null): ProjectCard {
+/** Trimmed text, or undefined when there's nothing to show. */
+const filled = (s: string | undefined | null) => (s && s.trim() ? s : undefined);
+
+/** The French to lay over a row, or null for English (or a project with no French yet). */
+function french(row: Pick<ProjectRow, "fr">, locale: Locale): ProjectFrench | null {
+  return locale === "fr" && row.fr && typeof row.fr === "object" ? row.fr : null;
+}
+
+/** A file's alt text in the reader's language. */
+function localMedia(media: PortfolioMedia, fr: ProjectFrench | null): PortfolioMedia {
+  const alt = filled(fr?.alt?.[media.id]);
+  return alt ? { ...media, alt } : media;
+}
+
+function toCard(row: ProjectRow, cover: PortfolioMedia | null, locale: Locale = "en"): ProjectCard {
+  const fr = french(row, locale);
   return {
     id: row.id,
     slug: row.slug,
-    title: row.title,
+    title: filled(fr?.title) ?? row.title,
     client: row.client,
     year: row.year,
-    services: row.services ?? [],
-    summary: row.short_summary,
+    services: fr?.services?.filter(Boolean).length ? fr.services.filter(Boolean) : (row.services ?? []),
+    summary: filled(fr?.summary) ?? row.short_summary,
     featured: row.featured,
-    cover,
+    cover: cover ? localMedia(cover, fr) : null,
     publishedAt: row.published_at,
   };
 }
 
 /** Media blocks get their files; ids that no longer exist are dropped, and so are blocks left empty. */
-export function resolveBlocks(stored: StoredBlock[], byId: Map<string, PortfolioMedia>): Block[] {
+export function resolveBlocks(stored: StoredBlock[], byId: Map<string, PortfolioMedia>, fr: ProjectFrench | null = null): Block[] {
   return (stored ?? []).flatMap((block): Block[] => {
-    if (block.type === "text") return block.text.trim() ? [{ id: block.id, type: "text", text: block.text }] : [];
+    const tr = fr?.blocks?.[block.id];
+    if (block.type === "text") {
+      const text = filled(tr?.text) ?? block.text;
+      return text.trim() ? [{ id: block.id, type: "text", text }] : [];
+    }
     const media = block.media.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
-    return media.length ? [{ id: block.id, type: "media", media, caption: block.caption?.trim() || null }] : [];
+    const caption = filled(tr?.caption) ?? block.caption?.trim() ?? null;
+    return media.length ? [{ id: block.id, type: "media", media, caption: caption || null }] : [];
   });
 }
 
@@ -90,7 +111,7 @@ const order = <T extends { order: (column: string, options: { ascending: boolean
 /** Projects in the studio's order. `published` limits to what's public (the anon client only sees those anyway). */
 export async function readCards(
   db: SupabaseClient,
-  options: { featured?: boolean; includeDrafts?: boolean } = {},
+  options: { featured?: boolean; includeDrafts?: boolean; locale?: Locale } = {},
 ): Promise<ProjectCard[]> {
   let query = db.from("projects").select(`${PROJECT_COLUMNS}, created_at`);
   if (!options.includeDrafts) query = query.eq("published", true);
@@ -106,14 +127,14 @@ export async function readCards(
     if (mediaError) throw new Error(mediaError.message);
     for (const m of (media ?? []) as MediaRow[]) covers.set(m.id, toMedia(db, m));
   }
-  return rows.map((r) => toCard(r, r.cover_media_id ? (covers.get(r.cover_media_id) ?? null) : null));
+  return rows.map((r) => toCard(r, r.cover_media_id ? (covers.get(r.cover_media_id) ?? null) : null, options.locale));
 }
 
 /** One project by its address, with its blocks resolved and its neighbours. */
 export async function readProject(
   db: SupabaseClient,
   slug: string,
-  options: { includeDrafts?: boolean; preview?: boolean } = {},
+  options: { includeDrafts?: boolean; preview?: boolean; locale?: Locale } = {},
 ): Promise<Project | null> {
   let query = db.from("projects").select(PROJECT_COLUMNS).eq("slug", slug).limit(1);
   if (!options.includeDrafts) query = query.eq("published", true);
@@ -124,20 +145,26 @@ export async function readProject(
 
   const [{ data: media, error: mediaError }, { data: list, error: listError }] = await Promise.all([
     db.from("project_media").select(MEDIA_COLUMNS).eq("project_id", row.id).order("sort").order("created_at"),
-    order(db.from("projects").select("slug, title, sort, created_at").eq("published", true)),
+    order(db.from("projects").select("slug, title, fr, sort, created_at").eq("published", true)),
   ]);
   if (mediaError) throw new Error(mediaError.message);
   if (listError) throw new Error(listError.message);
 
-  const files = ((media ?? []) as MediaRow[]).map((m) => toMedia(db, m));
+  const locale = options.locale ?? "en";
+  const fr = french(row, locale);
+  const files = ((media ?? []) as MediaRow[]).map((m) => localMedia(toMedia(db, m), fr));
   const byId = new Map(files.map((m) => [m.id, m]));
-  const neighbours = (list ?? []) as { slug: string; title: string }[];
+  const neighbours = (list ?? []) as { slug: string; title: string; fr: ProjectFrench | null }[];
   const at = neighbours.findIndex((p) => p.slug === row.slug);
-  const pick = (i: number) => (i >= 0 && i < neighbours.length ? { slug: neighbours[i].slug, title: neighbours[i].title } : null);
+  const pick = (i: number) => {
+    if (i < 0 || i >= neighbours.length) return null;
+    const n = neighbours[i];
+    return { slug: n.slug, title: filled(french(n, locale)?.title) ?? n.title };
+  };
 
   return {
-    ...toCard(row, row.cover_media_id ? (byId.get(row.cover_media_id) ?? null) : null),
-    blocks: resolveBlocks(row.blocks, byId),
+    ...toCard(row, row.cover_media_id ? (byId.get(row.cover_media_id) ?? null) : null, locale),
+    blocks: resolveBlocks(row.blocks, byId, fr),
     media: files,
     previous: at >= 0 ? pick(at - 1) : null,
     next: at >= 0 ? pick(at + 1) : null,

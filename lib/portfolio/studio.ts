@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { MEDIA_COLUMNS, PROJECT_COLUMNS, toMedia, type MediaRow, type ProjectRow } from "./read";
-import type { PortfolioMedia, StoredBlock } from "./types";
+import type { PortfolioMedia, ProjectFrench, StoredBlock } from "./types";
 
 /** What Studio › Portfolio reads, as the signed-in member (drafts included). */
 
@@ -33,6 +33,8 @@ export type EditorProject = {
   featured: boolean;
   coverId: string | null;
   blocks: StoredBlock[];
+  /** The French version, keyed to the English blocks and files. */
+  fr: ProjectFrench;
   updatedAt: string;
   media: StudioMedia[];
 };
@@ -100,6 +102,7 @@ export async function editorProject(db: SupabaseClient, id: string): Promise<Edi
     featured: row.featured,
     coverId: row.cover_media_id,
     blocks: Array.isArray(row.blocks) ? row.blocks : [],
+    fr: row.fr && typeof row.fr === "object" ? row.fr : {},
     updatedAt: row.updated_at,
     media: ((media ?? []) as MediaRow[]).map((m) => studioMedia(db, m)),
   };

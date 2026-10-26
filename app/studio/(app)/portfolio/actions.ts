@@ -16,7 +16,7 @@ import {
   VIDEO_TYPES,
   slugify,
 } from "@/lib/portfolio/blocks";
-import type { StoredBlock } from "@/lib/portfolio/types";
+import type { ProjectFrench, StoredBlock } from "@/lib/portfolio/types";
 import { CRUMS } from "@/lib/portfolio/legacy";
 
 type Fail = { ok: false; error: string };
@@ -70,6 +70,38 @@ export async function createProject(title: string): Promise<Fail> {
   redirect(`/studio/portfolio/${id}`);
 }
 
+/** The French version: everything optional, since anything left empty shows the English. */
+const French = z
+  .object({
+    title: z.string().trim().max(120).optional(),
+    summary: z.string().trim().max(600, "Keep the French summary under 600 characters.").optional(),
+    services: z.array(z.string().trim().max(60)).max(16).optional(),
+    blocks: z
+      .record(z.string().max(64), z.object({ text: z.string().max(20000).optional(), caption: z.string().trim().max(400).optional() }))
+      .optional(),
+    alt: z.record(z.string().max(64), z.string().trim().max(400)).optional(),
+  })
+  .default({});
+
+/** Keeps only French that still belongs to this project's blocks and files, without empty entries. */
+function cleanFrench(fr: z.output<typeof French>, blocks: StoredBlock[], own: Set<string>): ProjectFrench {
+  const out: ProjectFrench = {};
+  if (fr.title) out.title = fr.title;
+  if (fr.summary) out.summary = fr.summary;
+  const services = (fr.services ?? []).filter(Boolean);
+  if (services.length) out.services = services;
+  const byBlock: NonNullable<ProjectFrench["blocks"]> = {};
+  for (const b of blocks) {
+    const tr = fr.blocks?.[b.id];
+    if (b.type === "text" && tr?.text?.trim()) byBlock[b.id] = { text: tr.text };
+    if (b.type === "media" && tr?.caption) byBlock[b.id] = { caption: tr.caption };
+  }
+  if (Object.keys(byBlock).length) out.blocks = byBlock;
+  const alt = Object.fromEntries(Object.entries(fr.alt ?? {}).filter(([id, text]) => own.has(id) && text));
+  if (Object.keys(alt).length) out.alt = alt;
+  return out;
+}
+
 const Details = z.object({
   title: z.string().trim().min(1, "Give the project a name.").max(120),
   slug: z
@@ -83,11 +115,12 @@ const Details = z.object({
   services: z.array(z.string().trim().min(1).max(60)).max(16, "Up to 16 services."),
   summary: z.string().trim().max(600, "Keep the summary under 600 characters."),
   blocks: StoredBlocksSchema,
+  fr: French,
 });
 
 export type ProjectDraft = z.input<typeof Details>;
 
-/** Details and the case study, saved together. */
+/** Details, the case study and its French, saved together. */
 export async function saveProject(id: string, input: ProjectDraft): Promise<Ok<{ updatedAt: string }> | Fail> {
   await getMember();
   try {
@@ -116,6 +149,7 @@ export async function saveProject(id: string, input: ProjectDraft): Promise<Ok<{
         services: d.services,
         short_summary: d.summary || null,
         blocks,
+        fr: cleanFrench(d.fr, blocks, own),
       })
       .eq("id", id)
       .select("updated_at")

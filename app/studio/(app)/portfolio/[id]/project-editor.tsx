@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import type { EditorProject } from "@/lib/portfolio/studio";
-import type { StoredBlock } from "@/lib/portfolio/types";
+import type { ProjectFrench, StoredBlock } from "@/lib/portfolio/types";
 import { slugify } from "@/lib/portfolio/blocks";
 import { Button, Field, Input, Mono, PageContainer, PageHeader, Section, cn } from "@/components/ui/primitives";
 import { deleteProject, saveProject, setPublished } from "../actions";
 import { BlocksEditor } from "./blocks-editor";
+import { FrenchEditor } from "./french-editor";
 import { MediaPanel } from "./media-panel";
 
 type Form = {
@@ -18,6 +19,7 @@ type Form = {
   services: string;
   summary: string;
   blocks: StoredBlock[];
+  fr: ProjectFrench;
 };
 
 const toForm = (p: EditorProject): Form => ({
@@ -28,6 +30,7 @@ const toForm = (p: EditorProject): Form => ({
   services: p.services.join(", "),
   summary: p.summary ?? "",
   blocks: p.blocks,
+  fr: p.fr,
 });
 
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { day: "numeric", month: "short", year: "numeric" });
@@ -63,6 +66,7 @@ export function ProjectEditor({ project }: { project: EditorProject }) {
         services: form.services.split(",").map((s) => s.trim()).filter(Boolean),
         summary: form.summary,
         blocks: form.blocks,
+        fr: form.fr,
       });
       if (!r.ok) return setError(r.error);
       setError(null);
@@ -122,6 +126,15 @@ export function ProjectEditor({ project }: { project: EditorProject }) {
               className="inline-flex h-11 items-center border border-ink px-[18px] text-[15px] hover:bg-panel"
             >
               Preview{dirty ? " (saved version)" : ""}
+            </a>
+            <a
+              href={`/api/portfolio/preview?id=${project.id}&lang=fr`}
+              target="_blank"
+              rel="noreferrer"
+              lang="fr"
+              className="inline-flex h-11 items-center border border-ink px-[18px] text-[15px] hover:bg-panel"
+            >
+              Aperçu FR
             </a>
             <Button variant={project.published ? "secondary" : "primary"} onClick={togglePublished} disabled={publishing}>
               {publishing ? "…" : project.published ? "Unpublish" : "Publish"}
@@ -200,7 +213,22 @@ export function ProjectEditor({ project }: { project: EditorProject }) {
         <BlocksEditor blocks={form.blocks} media={project.media} onChange={(blocks) => set("blocks", blocks)} areaClass={area} />
       </Section>
 
-      <Section number="04" title="Delete" description="Removes the project and its files from the site and the studio." className="border-b-0">
+      <Section
+        number="04"
+        title="French"
+        description="The French site at /fr. Write it beside the English; anything left empty shows in English there."
+      >
+        <FrenchEditor
+          english={{ title: form.title, services: form.services, summary: form.summary }}
+          blocks={form.blocks}
+          media={project.media}
+          fr={form.fr}
+          onChange={(fr) => set("fr", fr)}
+          areaClass={area}
+        />
+      </Section>
+
+      <Section number="05" title="Delete" description="Removes the project and its files from the site and the studio." className="border-b-0">
         <DeleteProject id={project.id} title={saved.title} />
       </Section>
 

@@ -5,6 +5,7 @@ import { useState, type CSSProperties } from "react";
 import type { ProjectCard } from "@/lib/portfolio/types";
 import { FADERS, FLAT_MIX, match, mixFor, type Mix } from "@/lib/portfolio/channels";
 import { cn } from "@/components/ui/primitives";
+import type { HomeCopy } from "@/lib/i18n/home";
 
 const label = "font-mono text-[12px] uppercase tracking-[0.08em]";
 
@@ -15,7 +16,7 @@ const TILE_RADIUS = "16%";
  * Selected work as a mixing desk. Every featured project is a channel card;
  * the faders light up the cards that fit and solo the closest one.
  */
-export function Desk({ projects }: { projects: ProjectCard[] }) {
+export function Desk({ projects, copy }: { projects: ProjectCard[]; copy: HomeCopy["desk"] }) {
   const [mix, setMix] = useState<Mix>(FLAT_MIX);
   const touched = FADERS.some((f) => mix[f.key] !== 0);
 
@@ -32,9 +33,9 @@ export function Desk({ projects }: { projects: ProjectCard[] }) {
   return (
     <div className="flex flex-col gap-4">
       <div className={cn(label, "flex flex-wrap justify-between gap-3 text-muted")}>
-        <span>( Channels ✺ {String(channels.length).padStart(2, "0")} in use )</span>
+        <span>( {copy.channels.replace("{n}", String(channels.length).padStart(2, "0"))} )</span>
         <span aria-live="polite">
-          ( Solo → <span className={solo ? "text-signal" : ""}>{solo ? solo.project.title : "none"}</span> )
+          ( {copy.solo} → <span className={solo ? "text-signal" : ""}>{solo ? solo.project.title : copy.none}</span> )
         </span>
       </div>
 
@@ -78,18 +79,19 @@ export function Desk({ projects }: { projects: ProjectCard[] }) {
 
       <div className="mt-2 rounded-[28px] border border-rule-strong p-5 sm:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className={cn(label, "text-muted")}>( Mix to your taste )</span>
+          <span className={cn(label, "text-muted")}>( {copy.mix} )</span>
           <button
             type="button"
             onClick={() => setMix(FLAT_MIX)}
             disabled={!touched}
             className={cn(label, "h-10 rounded-full bg-ink px-5 text-paper transition-opacity hover:opacity-85 disabled:opacity-30")}
           >
-            Reset
+            {copy.reset}
           </button>
         </div>
         <div className="mt-6 grid gap-x-10 gap-y-7 sm:grid-cols-2 lg:grid-cols-4">
-          {FADERS.map((f, i) => {
+          {FADERS.map(({ key }, i) => {
+            const f = { key, ...copy.faders[key] };
             const v = mix[f.key];
             const readout = v === 0 ? "0" : `${v > 0 ? "+" : "−"}${Math.abs(v)}`;
             return (

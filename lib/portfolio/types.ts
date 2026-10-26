@@ -59,6 +59,22 @@ export type Project = ProjectCard & {
 
 /* --------------------------------------------- as stored in the database */
 
+/** The languages the public site is written in. English is the original; others fall back to it. */
+export type Locale = "en" | "fr";
+
+/**
+ * A project's French, stored beside the English (projects.fr). Blocks and
+ * alt text are keyed by the English block and file ids, so reordering or
+ * editing the English keeps them attached. Empty means "use the English".
+ */
+export type ProjectFrench = {
+  title?: string;
+  summary?: string;
+  services?: string[];
+  blocks?: Record<string, { text?: string; caption?: string }>;
+  alt?: Record<string, string>;
+};
+
 /** Blocks as saved: media blocks hold media ids, resolved into PortfolioMedia on read. */
 export type StoredBlock =
   | { id: string; type: "text"; text: string }
