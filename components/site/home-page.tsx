@@ -1,14 +1,13 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { listProjects, type ProjectCard } from "@/lib/portfolio";
 import { Desk } from "@/components/portfolio/desk";
 import { GREETINGS } from "@/components/site/greetings";
 import { Preloader } from "@/components/site/preloader";
 import { Wayfinding } from "@/components/site/wayfinding";
-import { Wordmark, cn } from "@/components/ui/primitives";
+import { cn } from "@/components/ui/primitives";
 import { HOME_COPY } from "@/lib/i18n/home";
 import { SITE_COPY, alternates, localePath, type Locale } from "@/lib/i18n/site";
-import { LanguageSwitch } from "./language-switch";
+import { SiteHeader } from "./site-header";
 
 const label = "font-mono text-[12px] uppercase tracking-[0.08em]";
 
@@ -37,27 +36,20 @@ export async function HomePage({ locale }: { locale: Locale }) {
       <Preloader />
       <Wayfinding sections={sections} />
 
-      <header className="sticky top-0 z-40 border-b border-rule bg-paper/85 backdrop-blur-md">
-        <div className="mx-auto grid h-[72px] w-full max-w-[1360px] xl:max-w-[min(1360px,calc(100vw-320px))] grid-cols-[1fr_auto] items-center px-4 sm:grid-cols-3 sm:px-10">
-          <Link href={localePath(locale, "/")} aria-label={SITE_COPY[locale].homeLabel} className="justify-self-start">
-            <Wordmark className="text-2xl" />
-          </Link>
-          <nav aria-label="Main" className={cn(label, "flex gap-6 justify-self-end text-[13px] text-muted sm:justify-self-center sm:gap-10")}>
-            <a href="#work" className="hover:text-ink">{t.nav.work}</a>
-            <a href="#studio" className="hover:text-ink">{t.nav.studio}</a>
-            <a href="#contact" className="hover:text-ink">{t.nav.contact}</a>
-          </nav>
-          <div className="hidden items-center gap-6 justify-self-end sm:flex">
-            <LanguageSwitch locale={locale} paths={alternates("/")} />
-            <span className={cn(label, "flex items-center gap-2")}>
-              <span aria-hidden className="power-led size-2 rounded-full bg-signal shadow-[0_0_10px_var(--signal)]" />
-              {t.power}
-            </span>
-          </div>
-        </div>
-      </header>
+      <SiteHeader
+        locale={locale}
+        homeHref={localePath(locale, "/")}
+        homeLabel={SITE_COPY[locale].homeLabel}
+        links={[
+          { id: "work", label: t.nav.work },
+          { id: "studio", label: t.nav.studio },
+          { id: "contact", label: t.nav.contact },
+        ]}
+        languages={alternates("/")}
+        power={t.power}
+      />
 
-      <main className="mx-auto w-full max-w-[1360px] xl:max-w-[min(1360px,calc(100vw-320px))] px-4 sm:px-10">
+      <main className="mx-auto w-full pt-12 max-w-[1360px] xl:max-w-[min(1360px,calc(100vw-320px))] px-4 sm:px-10">
         <Section n="00" name="MMXXVI" id="top" first>
           <h1 className="text-[clamp(48px,7vw,96px)] leading-[0.92] font-medium tracking-[-0.035em]">{t.hero.title}</h1>
           <p className="mt-8 max-w-[520px] text-lg leading-relaxed text-ink-soft">{t.hero.intro}</p>
