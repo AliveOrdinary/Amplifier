@@ -151,8 +151,8 @@ function MediaTile({ media: m, projectId, cover, placed }: { media: StudioMedia;
         {m.width && m.height ? <span>{`${m.width} × ${m.height}`}</span> : null}
         {m.bytes ? <span>{size(m.bytes)}</span> : null}
         <span className="flex items-center gap-1.5">
-          {placed ? null : <span aria-hidden className="size-1.5 rounded-full bg-signal" />}
-          {placed ? "In the case study" : "Not placed yet"}
+          {placed || cover ? null : <span aria-hidden className="size-1.5 rounded-full bg-signal" />}
+          {placed ? "In the case study" : cover ? "Shown at the top" : "Not placed yet"}
         </span>
       </Mono>
 
