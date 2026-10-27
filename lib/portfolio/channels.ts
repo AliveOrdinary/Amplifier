@@ -28,6 +28,7 @@ export const CHANNEL_MIX: Record<string, Partial<Mix>> = {
   crums: { density: 1, volume: 1.5, tone: 1.5, form: -0.5 },
   "sanjo-construction": { density: -1, volume: 0, tone: -1.5, form: 2 },
   teeta: { density: 0.5, volume: 0.5, tone: 1, form: -1 },
+  izanagi: { density: 1.5, volume: 2, tone: -0.5, form: 1 },
 };
 
 export function mixFor(slug: string): Mix {

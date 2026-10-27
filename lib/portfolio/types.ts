@@ -39,8 +39,10 @@ export type ProjectCard = {
   /** A sentence or two: what it was and why it mattered. */
   summary: string | null;
   featured: boolean;
-  /** Image or video to show for the project. Null when none was chosen. */
+  /** Image or video that opens the case study. Null when none was chosen. */
   cover: PortfolioMedia | null;
+  /** Image or video for the project's tile (Home, Works). Null: the tile shows the cover. */
+  thumbnail: PortfolioMedia | null;
   publishedAt: string | null;
 };
 

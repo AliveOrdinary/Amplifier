@@ -18,7 +18,7 @@ import {
 } from "@/lib/portfolio/blocks";
 import type { ProjectFrench, StoredBlock } from "@/lib/portfolio/types";
 import { CRUMS } from "@/lib/portfolio/legacy";
-import { hasFrenchColumn } from "@/lib/portfolio/read";
+import { hasColumn, hasFrenchColumn } from "@/lib/portfolio/read";
 
 type Fail = { ok: false; error: string };
 type Ok<T = object> = { ok: true } & T;
@@ -346,6 +346,27 @@ export async function setCover(projectId: string, mediaId: string | null): Promi
       if (!data) throw new Error("That file isn't part of this project.");
     }
     const { error } = await db.from("projects").update({ cover_media_id: mediaId }).eq("id", projectId);
+    if (error) throw new Error(error.message);
+    changed();
+    return { ok: true };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** The image or video on the project's tile (Home, Works); null goes back to the cover. */
+export async function setThumbnail(projectId: string, mediaId: string | null): Promise<Ok | Fail> {
+  await getMember();
+  try {
+    const db = await createClient();
+    if (!(await hasColumn(db, "thumbnail_media_id"))) {
+      throw new Error("Thumbnails need the database update in supabase/migrations/…15_portfolio_thumbnail.sql.");
+    }
+    if (mediaId) {
+      const { data } = await db.from("project_media").select("id").eq("id", mediaId).eq("project_id", projectId).maybeSingle();
+      if (!data) throw new Error("That file isn't part of this project.");
+    }
+    const { error } = await db.from("projects").update({ thumbnail_media_id: mediaId }).eq("id", projectId);
     if (error) throw new Error(error.message);
     changed();
     return { ok: true };

@@ -200,7 +200,7 @@ export function ProjectEditor({ project }: { project: EditorProject }) {
       <Section
         number="02"
         title="Images and video"
-        description="Everything for this project. Pick the cover here; choose what the case study shows below."
+        description="Everything for this project. Pick the cover (top of the case study) and, if it should differ, the thumbnail (its tile on Home and Works) here; choose what the case study shows below."
       >
         <MediaPanel project={project} blocks={form.blocks} />
       </Section>

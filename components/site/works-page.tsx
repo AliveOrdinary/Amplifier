@@ -30,7 +30,11 @@ export async function WorksPage({ locale }: { locale: Locale }) {
           {projects.map((p, i) => (
             <li key={p.id}>
               <Link href={localePath(locale, `/projects/${p.slug}`)} className="group block">
-                {p.cover ? <Media media={{ ...p.cover, hasAudio: false }} priority={i < 2} /> : <div className="aspect-[4/3] bg-panel" />}
+                {(p.thumbnail ?? p.cover) ? (
+                  <Media media={{ ...(p.thumbnail ?? p.cover)!, hasAudio: false }} priority={i < 2} />
+                ) : (
+                  <div className="aspect-[4/3] bg-panel" />
+                )}
                 <div className="mt-3 flex items-baseline justify-between gap-4">
                   <h2 className="text-[19px] font-medium group-hover:underline group-hover:underline-offset-4">{p.title}</h2>
                   {p.year ? <Mono>{p.year}</Mono> : null}

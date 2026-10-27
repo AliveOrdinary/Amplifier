@@ -37,6 +37,8 @@ export type ProjectRow = {
   blocks: StoredBlock[];
   /** Missing until migration 14 is applied. */
   fr?: ProjectFrench | null;
+  /** Missing until migration 15 is applied. */
+  thumbnail_media_id?: string | null;
   updated_at: string;
 };
 
@@ -44,28 +46,34 @@ const BASE_COLUMNS =
   "id, slug, title, client, year, services, short_summary, featured, published, published_at, sort, cover_media_id, blocks, updated_at";
 
 /*
- * The French column arrives with migration 14. Until it's applied, read
- * projects without it, so the site keeps working in English everywhere
- * instead of failing. Checked once per server, and only remembered once
- * the database has answered.
+ * Columns added by later migrations: `fr` (14, French text) and
+ * `thumbnail_media_id` (15, the tile's own image). Until a migration is
+ * applied, projects are read without its column, so the site keeps working
+ * (in English, with covers on the tiles) instead of failing. Checked once per
+ * server, and only remembered once the database has answered.
  */
-let frenchColumn: boolean | undefined;
+const OPTIONAL = { fr: "14_portfolio_french", thumbnail_media_id: "15_portfolio_thumbnail" } as const;
+type OptionalColumn = keyof typeof OPTIONAL;
+const present: Partial<Record<OptionalColumn, boolean>> = {};
 
-export async function hasFrenchColumn(db: SupabaseClient): Promise<boolean> {
-  if (frenchColumn !== undefined) return frenchColumn;
-  const { error } = await db.from("projects").select("fr").limit(1);
-  if (!error) return (frenchColumn = true);
+export async function hasColumn(db: SupabaseClient, column: OptionalColumn): Promise<boolean> {
+  if (present[column] !== undefined) return present[column];
+  const { error } = await db.from("projects").select(column).limit(1);
+  if (!error) return (present[column] = true);
   // 42703: undefined column. Any other error is left for the real query to report.
-  if (error.code === "42703" || /column .*fr.* does not exist/i.test(error.message)) {
-    console.warn("projects.fr is missing: apply supabase/migrations/…14_portfolio_french.sql for French project text.");
-    return (frenchColumn = false);
+  if (error.code === "42703" || new RegExp(`column .*${column}.* does not exist`, "i").test(error.message)) {
+    console.warn(`projects.${column} is missing: apply supabase/migrations/…${OPTIONAL[column]}.sql.`);
+    return (present[column] = false);
   }
   return true;
 }
 
-/** The project columns to select: with `fr` once migration 14 is applied. */
+export const hasFrenchColumn = (db: SupabaseClient) => hasColumn(db, "fr");
+
+/** The project columns to select, with the optional ones that exist. */
 export async function projectColumns(db: SupabaseClient) {
-  return (await hasFrenchColumn(db)) ? `${BASE_COLUMNS}, fr` : BASE_COLUMNS;
+  const [fr, thumb] = await Promise.all([hasColumn(db, "fr"), hasColumn(db, "thumbnail_media_id")]);
+  return [BASE_COLUMNS, fr && "fr", thumb && "thumbnail_media_id"].filter(Boolean).join(", ");
 }
 export const MEDIA_COLUMNS =
   "id, project_id, kind, storage_path, caption, has_audio, width, height, alt, bytes, mime, sort, created_at";
@@ -101,7 +109,7 @@ function localMedia(media: PortfolioMedia, fr: ProjectFrench | null): PortfolioM
   return alt ? { ...media, alt } : media;
 }
 
-function toCard(row: ProjectRow, cover: PortfolioMedia | null, locale: Locale = "en"): ProjectCard {
+function toCard(row: ProjectRow, cover: PortfolioMedia | null, locale: Locale = "en", thumbnail: PortfolioMedia | null = null): ProjectCard {
   const fr = french(row, locale);
   return {
     id: row.id,
@@ -113,6 +121,7 @@ function toCard(row: ProjectRow, cover: PortfolioMedia | null, locale: Locale = 
     summary: filled(fr?.summary) ?? row.short_summary,
     featured: row.featured,
     cover: cover ? localMedia(cover, fr) : null,
+    thumbnail: thumbnail ? localMedia(thumbnail, fr) : null,
     publishedAt: row.published_at,
   };
 }
@@ -146,14 +155,15 @@ export async function readCards(
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as unknown as ProjectRow[];
 
-  const coverIds = rows.flatMap((r) => (r.cover_media_id ? [r.cover_media_id] : []));
-  const covers = new Map<string, PortfolioMedia>();
-  if (coverIds.length) {
-    const { data: media, error: mediaError } = await db.from("project_media").select(MEDIA_COLUMNS).in("id", coverIds);
+  const fileIds = rows.flatMap((r) => [r.cover_media_id, r.thumbnail_media_id].filter((id): id is string => Boolean(id)));
+  const files = new Map<string, PortfolioMedia>();
+  if (fileIds.length) {
+    const { data: media, error: mediaError } = await db.from("project_media").select(MEDIA_COLUMNS).in("id", fileIds);
     if (mediaError) throw new Error(mediaError.message);
-    for (const m of (media ?? []) as MediaRow[]) covers.set(m.id, toMedia(db, m));
+    for (const m of (media ?? []) as MediaRow[]) files.set(m.id, toMedia(db, m));
   }
-  return rows.map((r) => toCard(r, r.cover_media_id ? (covers.get(r.cover_media_id) ?? null) : null, options.locale));
+  const file = (id: string | null | undefined) => (id ? (files.get(id) ?? null) : null);
+  return rows.map((r) => toCard(r, file(r.cover_media_id), options.locale, file(r.thumbnail_media_id)));
 }
 
 /** One project by its address, with its blocks resolved and its neighbours. */
@@ -190,7 +200,12 @@ export async function readProject(
   };
 
   return {
-    ...toCard(row, row.cover_media_id ? (byId.get(row.cover_media_id) ?? null) : null, locale),
+    ...toCard(
+      row,
+      row.cover_media_id ? (byId.get(row.cover_media_id) ?? null) : null,
+      locale,
+      row.thumbnail_media_id ? (byId.get(row.thumbnail_media_id) ?? null) : null,
+    ),
     blocks: resolveBlocks(row.blocks, byId, fr),
     media: files,
     previous: at >= 0 ? pick(at - 1) : null,

@@ -66,6 +66,9 @@ Migrations are in `supabase/migrations`, applied in filename order:
 12. `…12_usage_and_members.sql` adds `api_usage` (one row per Claude or Voyage call, with the tokens reported and an estimated cost), `usage_summary`, and the studio's monthly alert amount.
 13. `…13_portfolio_engine.sql` turns projects into a list of blocks, records each file's size and description, adds the cover and the publish date, and checks addresses.
 14. `…14_portfolio_french.sql` adds `projects.fr`: each project's French title, summary, services, text, captions and alt text, for the French site.
+15. `…15_portfolio_thumbnail.sql` adds `projects.thumbnail_media_id`: an image or video shown on the project's tile (Home, Works) instead of its cover. Pick it in Studio › Portfolio with "Make thumbnail".
+
+To bring in the first four projects (Sanjo, Crums, Izanagi, Teeta) with their files, add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local` and run `npm run import:portfolio -- --dry-run`, then `npm run import:portfolio`. Projects already in Studio are skipped; save any project in Studio afterwards so the site refreshes. See `scripts/import-portfolio/`.
 
 Apply them with the Supabase CLI (`supabase db push`) or paste each file into the SQL editor, in order.
 

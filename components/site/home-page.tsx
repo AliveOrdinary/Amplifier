@@ -161,6 +161,7 @@ const sample = (slug: string, title: string, service: string, year: number, url:
   summary: null,
   featured: true,
   cover: url ? { id: `${slug}-cover`, kind: "image", url, width: null, height: null, alt: title, caption: null, hasAudio: false } : null,
+  thumbnail: null,
   publishedAt: null,
 });
 

@@ -26,10 +26,6 @@ export function Desk({ projects, copy }: { projects: ProjectCard[]; copy: HomeCo
     level: match(mix, mixFor(p.slug)),
   }));
   const solo = touched && channels.length ? channels.reduce((a, b) => (b.level > a.level ? b : a)) : null;
-  // The orange Amplifier circle sits in the middle of the row, like Lumark's yellow one.
-  const tiles: Array<(typeof channels)[number] | "mark"> = [...channels];
-  tiles.splice(Math.ceil(tiles.length / 2), 0, "mark");
-
   return (
     <div className="flex flex-col gap-4">
       <div className={cn(label, "flex flex-wrap justify-between gap-3 text-muted")}>
@@ -41,17 +37,8 @@ export function Desk({ projects, copy }: { projects: ProjectCard[]; copy: HomeCo
 
       {/* Fixed columns, so a tile is the same size however many projects there are. */}
       {channels.length ? (
-      <ul className="grid grid-cols-2 gap-y-8 sm:grid-cols-4 lg:grid-cols-5">
-        {tiles.map((t) => {
-          if (t === "mark") {
-            return (
-              <li key="mark" aria-hidden className="tile">
-                <span className="tile-shape grid aspect-square place-items-center bg-signal" style={{ borderRadius: TILE_RADIUS }}>
-                  <span className="tile-burst text-[clamp(90px,11vw,170px)] leading-none text-black">✺</span>
-                </span>
-              </li>
-            );
-          }
+      <ul className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-4 sm:gap-x-5">
+        {channels.map((t) => {
           const { project, level } = t;
           const isSolo = solo?.project.id === project.id;
           const dim = touched && !isSolo && level < 0.6;
@@ -128,8 +115,9 @@ export function Desk({ projects, copy }: { projects: ProjectCard[]; copy: HomeCo
   );
 }
 
+/** The project's thumbnail, or its cover when it has none. */
 function Cover({ project }: { project: ProjectCard }) {
-  const c = project.cover;
+  const c = project.thumbnail ?? project.cover;
   const cls = "block size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]";
   if (!c) return <span className={cn(cls, "bg-[radial-gradient(circle_at_30%_30%,#2a2926,#121211)]")} />;
   if (c.kind === "video")
