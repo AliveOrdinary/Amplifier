@@ -9,14 +9,40 @@ import { Media } from "./media";
  * the full width, two or three side by side on larger screens, and open out
  * to the full width of the screen as you scroll, like the cover.
  */
+/**
+ * The case study's sections: every text block with a label, numbered from
+ * 01 in order. Their ids are what the side scale scrolls to.
+ */
+export function sectionsOf(blocks: Block[]) {
+  return blocks.flatMap((b) => (b.type === "text" && b.label ? [{ id: `s-${b.id}`, block: b.id, label: b.label }] : [])).map((s, i) => ({
+    ...s,
+    n: String(i + 1).padStart(2, "0"),
+  }));
+}
+
+const LABEL = "font-mono text-[12px] uppercase tracking-[0.08em] text-muted";
+
 export function ProjectBlocks({ blocks }: { blocks: Block[] }) {
+  const sections = new Map(sectionsOf(blocks).map((s) => [s.block, s]));
   return (
     <div className="grid gap-x-10 gap-y-10 sm:gap-y-16 lg:grid-cols-[200px_1fr]">
       {blocks.map((block) =>
         block.type === "text" ? (
-          <div key={block.id} className="portfolio-prose max-w-[62ch] text-[17px] leading-relaxed text-ink-soft lg:col-start-2">
-            <Markdown>{block.text}</Markdown>
-          </div>
+          // A labelled block opens a section: "01 / The challenge" on the left, like Home's sections.
+          <section
+            key={block.id}
+            id={sections.get(block.id)?.id}
+            className="grid scroll-mt-24 gap-x-10 gap-y-4 lg:col-span-2 lg:grid-cols-[200px_1fr]"
+          >
+            {sections.has(block.id) ? (
+              <div className={`${LABEL} lg:pt-1.5`}>
+                {sections.get(block.id)!.n} / {block.label}
+              </div>
+            ) : null}
+            <div className="portfolio-prose max-w-[62ch] text-[17px] leading-relaxed text-ink-soft lg:col-start-2">
+              <Markdown>{block.text}</Markdown>
+            </div>
+          </section>
         ) : (
           <div key={block.id} className="lg:col-span-2">
             <GrowingFigure block={block} />

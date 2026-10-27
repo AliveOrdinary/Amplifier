@@ -132,7 +132,8 @@ export function resolveBlocks(stored: StoredBlock[], byId: Map<string, Portfolio
     const tr = fr?.blocks?.[block.id];
     if (block.type === "text") {
       const text = filled(tr?.text) ?? block.text;
-      return text.trim() ? [{ id: block.id, type: "text", text }] : [];
+      const label = filled(tr?.label) ?? (block.label?.trim() || null);
+      return text.trim() ? [{ id: block.id, type: "text", text, label }] : [];
     }
     const media = block.media.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
     const caption = filled(tr?.caption) ?? block.caption?.trim() ?? null;

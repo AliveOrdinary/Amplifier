@@ -6,6 +6,7 @@ export const StoredBlockSchema = z.discriminatedUnion("type", [
     id: z.string().min(1).max(64),
     type: z.literal("text"),
     text: z.string().max(20000, "A text block can hold up to 20,000 characters."),
+    label: z.string().trim().max(40, "Keep section labels short (40 characters).").nullish(),
   }),
   z.object({
     id: z.string().min(1).max(64),

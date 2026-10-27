@@ -21,7 +21,8 @@ export type PortfolioMedia = {
 };
 
 /** A run of text, written in Markdown (## headings, paragraphs, lists, links, **bold**). */
-export type TextBlock = { id: string; type: "text"; text: string };
+/** `label`: a short section name ("The challenge"), shown as "01 / The challenge" beside the text and on the side scale. */
+export type TextBlock = { id: string; type: "text"; text: string; label: string | null };
 
 /** One to three images or videos shown side by side, with an optional caption under them. */
 export type MediaBlock = { id: string; type: "media"; media: PortfolioMedia[]; caption: string | null };
@@ -73,11 +74,11 @@ export type ProjectFrench = {
   title?: string;
   summary?: string;
   services?: string[];
-  blocks?: Record<string, { text?: string; caption?: string }>;
+  blocks?: Record<string, { text?: string; caption?: string; label?: string }>;
   alt?: Record<string, string>;
 };
 
 /** Blocks as saved: media blocks hold media ids, resolved into PortfolioMedia on read. */
 export type StoredBlock =
-  | { id: string; type: "text"; text: string }
+  | { id: string; type: "text"; text: string; label?: string | null }
   | { id: string; type: "media"; media: string[]; caption?: string | null };

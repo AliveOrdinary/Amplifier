@@ -28,8 +28,8 @@ export function FrenchEditor({
   areaClass: string;
 }) {
   const byId = new Map(media.map((m) => [m.id, m]));
-  const setBlock = (id: string, value: { text?: string; caption?: string }) =>
-    onChange({ ...fr, blocks: { ...fr.blocks, [id]: value } });
+  const setBlock = (id: string, value: { text?: string; caption?: string; label?: string }) =>
+    onChange({ ...fr, blocks: { ...fr.blocks, [id]: { ...fr.blocks?.[id], ...value } } });
 
   // How much is written: the details, each text block and caption, and alt text for each file.
   const parts: boolean[] = [
@@ -88,6 +88,21 @@ export function FrenchEditor({
                 </Mono>
                 {b.type === "text" ? (
                   <>
+                    {b.label?.trim() ? (
+                      <div className="mb-3 flex flex-wrap items-center gap-3">
+                        <label htmlFor={`fr-l-${b.id}`} className="text-sm text-muted">
+                          Section label <span lang="en">(English: {b.label})</span>
+                        </label>
+                        <Input
+                          id={`fr-l-${b.id}`}
+                          lang="fr"
+                          className="h-9 max-w-xs"
+                          value={fr.blocks?.[b.id]?.label ?? ""}
+                          placeholder={b.label}
+                          onChange={(e) => setBlock(b.id, { label: e.target.value })}
+                        />
+                      </div>
+                    ) : null}
                     <English text={b.text} markdown />
                     <label htmlFor={`fr-b-${b.id}`} className="sr-only">
                       French text

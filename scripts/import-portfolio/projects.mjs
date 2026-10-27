@@ -4,7 +4,8 @@
  * Everything here can be edited in Studio › Portfolio after the import.
  *
  * `cover` opens the case study; `thumbnail`, when set, is shown on the
- * project's tile instead of it. Blocks: a string is a text block (Markdown); an object is one to three
+ * project's tile instead of it. Blocks: { label, text } is a text block
+ * (Markdown) under a section label; { media } is one to three
  * files side by side, with an optional caption. A file is a URL, or
  * { url, alt } when it has alt text.
  */
@@ -14,7 +15,10 @@ const ELDHO = "https://framerusercontent.com/";
 
 const f = (name, alt) => ({ url: FRANCIS + name, alt });
 const e = (path, alt) => ({ url: ELDHO + path, alt });
-const text = (heading, body) => `## ${heading}\n\n${body}`;
+/** A text block: its section label (shown as "01 / The challenge"), a heading and the body. */
+const text = (label, heading, body) => ({ label, text: `## ${heading}\n\n${body}` });
+/** A text block without a heading, under a label. */
+const note = (label, body) => ({ label, text: body });
 
 export const PROJECTS = [
   {
@@ -26,7 +30,7 @@ export const PROJECTS = [
     summary: "A modular identity for a GTA home renovation company with 19+ years of word-of-mouth reputation.",
     cover: f("sanjo-logo.webm"),
     blocks: [
-      text(
+      text("The challenge",
         "A strong reputation, a dated brand",
         "Sanjo has spent 19+ years renovating homes across the GTA, from kitchens and basements to decks and full remodels. Their reputation was built on word of mouth, but their brand hadn’t kept up: a dated logo and nothing that told homeowners why Sanjo over anyone else.",
       ),
@@ -37,12 +41,12 @@ export const PROJECTS = [
         ],
         caption: "Before and after",
       },
-      text(
+      text("The idea",
         "Every renovation starts with a floor plan",
         "The SANJO wordmark is built the same way: each letter sits in its own square, like rooms or structural modules laid out on a blueprint.",
       ),
       { media: [f("grid.webp", "SANJO wordmark built on a modular square grid")] },
-      text(
+      text("One system",
         "Modules that rearrange to fit",
         "Because the six modules (five letters plus “CONSTRUCTION”) are the same size, the wordmark rearranges to fit the space without being redrawn.",
       ),
@@ -52,17 +56,17 @@ export const PROJECTS = [
           "Horizontal (6 × 1) for cards and signage · Vertical (2 × 3) for van doors and banners · Stacked (3 × 2) for caps and social",
       },
       { media: [f("grid-animation.webm")] },
-      text(
+      text("Typography",
         "Built from the same material",
         "The wordmark is paired with Jagerlay, whose wide, heavy capitals carry the same block-like weight, so the type and the logo feel built from the same material.",
       ),
       { media: [f("type-motion.webm")] },
-      text(
+      text("Colour",
         "Sanjo’s purple, made into a system",
         "Purple was Sanjo’s own choice, built into a four-colour palette that works across print, motion and signage, and sets Sanjo apart from the orange and navy common in renovation branding.",
       ),
       { media: [f("colour-palette.webm")] },
-      text(
+      text("Motion",
         "A name that builds itself",
         "The letters move like modules being placed on a plan, scattering and snapping back into their squares. The sequence was storyboarded and its timing tested frame by frame in Procreate before it went to the animator.",
       ),
@@ -71,7 +75,7 @@ export const PROJECTS = [
         caption: "Storyboard for the letter animation, drawn frame by frame",
       },
       { media: [f("sanjo-animatic.webm"), f("sanjo_letters.webm")], caption: "Procreate animatic (left) · Final animation (right)" },
-      text(
+      text("In use",
         "From the business card to the billboard",
         "The system carries from stationery and merchandise to bold, type-led posters built on Sanjo’s own promises.",
       ),
@@ -83,7 +87,7 @@ export const PROJECTS = [
       },
       { media: [f("3-frames.webm")] },
       { media: [f("tiles.webm")] },
-      "Proposed identity, 2025. Not yet rolled out. Letter animation by a freelance animator.",
+      note("Status", "Proposed identity, 2025. Not yet rolled out. Letter animation by a freelance animator."),
     ],
   },
 
@@ -99,7 +103,7 @@ export const PROJECTS = [
     // Only on the tile; the case study still opens with the cover.
     thumbnail: e("assets/nhRkMlKfWTPXpLDfYC3zX5MMao.mp4"),
     blocks: [
-      text(
+      text("The brand",
         "Fourteen flavours, one pouch",
         "Crums is a startup bringing the flavours of South Indian snacks to a new generation. But with 14 snack variations, traditional packaging was too costly. The challenge? Cut costs without sacrificing a fresh, exciting brand presence.",
       ),
@@ -112,11 +116,11 @@ export const PROJECTS = [
       { media: [e("images/7ZJr9AVf7Fw1Lm1Dl4vdNmGZBM.png")] },
       { media: [e("images/sYO1sYIyQYNGgaN3tTLA0rbuWc.png")] },
       { media: [e("assets/EPsGoSEmUsMy5VdM0pCe9CkbnGM.mp4")] },
-      text(
+      text("The website",
         "The website: one brand, fourteen flavours",
         "The pouch and its colour-coded flavour stickers solved the range on the shelf. The website needed to do the same online: show the whole range clearly, keep each flavour distinct, and make ordering quick.",
       ),
-      text(
+      text("The homepage",
         "Built around the best-sellers",
         "The homepage leads with a hero product and goes straight into best-sellers, then a flavour slider, shop-by-category, Kerala specials, the brand story and best picks, so first-time visitors see what to buy within the first scroll.",
       ),
@@ -130,18 +134,18 @@ export const PROJECTS = [
         ],
         caption: "The full homepage design",
       },
-      text(
+      text("Every flavour",
         "Stickers, on screen",
         "Each flavour has its own hero slide, carrying the pack’s sticker labels (100% natural, vegan, sweet, salt, spice) onto the screen, so the site feels like the packaging.",
       ),
       { media: [f("slides-varients.webm")] },
       { media: [f("product-names.webm")] },
-      text(
+      text("Search",
         "Search that works like a shop counter",
         "With so many flavours, search sits at the top of every page, live and quick, with the cart count always in view.",
       ),
       { media: [f("search.webm")] },
-      text(
+      text("Details",
         "Small pieces of the same system",
         "Rounded green-and-yellow controls for search, cart and navigation echo the pack’s sticker shapes, alongside a favicon built from the wordmark’s C.",
       ),
@@ -152,7 +156,7 @@ export const PROJECTS = [
         ],
         caption: "Favicon (left) · UI elements (right)",
       },
-      "Brand identity and packaging by Eldhose Kuriyan. Website design by Francis Xavier, built by the client’s team. Designed in 2025; the site is no longer live.",
+      note("Credits", "Brand identity and packaging by Eldhose Kuriyan. Website design by Francis Xavier, built by the client’s team. Designed in 2025; the site is no longer live."),
     ],
   },
 
@@ -166,7 +170,7 @@ export const PROJECTS = [
       "A bold identity for an events company bringing top Indian artists to Canada, built to stand out beside every artist it works with.",
     cover: e("assets/s7UQMKGd0b9qmY7yHRqt36ssB2I.mp4"),
     blocks: [
-      text(
+      text("The challenge",
         "Lost in the spotlight",
         "Izanagi Events was making noise in the entertainment industry, bringing top Indian artists to Canada for concerts and music festivals. But there was one problem—their brand was getting lost in the spotlight. Each artist had their own personal branding, making it tough for Izanagi to stand out. They needed an identity that would stay bold and recognizable, no matter who they collaborated with.",
       ),
@@ -192,12 +196,12 @@ export const PROJECTS = [
     summary: "Naming and identity for a café in Kochi, built around one idea: food is the common factor.",
     cover: f("teeta-logo-portrait.webm"),
     blocks: [
-      text(
+      text("The name",
         "A common factor, and something to eat",
         "Teeta was named together with the client. In maths, theta (θ) is a common factor, the thing that connects everything else. In Malayalam, തീറ്റ (theeta) is an informal word for eating. Together they make a name that’s playful, local and easy to remember.",
       ),
       { media: [f("teeta-naming.png", "The Greek letter theta plus the Malayalam word theeta equals the Teeta wordmark")] },
-      text(
+      text("The wordmark",
         "Both halves of the name, in the logo",
         "The first “e” is drawn like θ, a loop for the common factor. The second is a smiling face, the look of someone enjoying a good meal. The wordmark works as a single line or a stacked block, with a round seal for smaller spaces. Alongside it sits a set of hand-drawn food icons, drawn in Procreate and mixed into patterns or paired with the logo.",
       ),
@@ -211,7 +215,7 @@ export const PROJECTS = [
         media: [f("cover.jpg", "Teeta wordmark surrounded by a pattern of food icons on red")],
         caption: "Pattern includes some food icons sourced from Pinterest",
       },
-      text(
+      text("Where it started",
         "From the café’s sign to a refined wordmark",
         "Teeta opened with the original logo, which already had θ, here as the “a”, and the looped “e”. The wordmark was later refined: θ moved into the first “e”, the second “e” gained a smile, and the letterforms became softer and friendlier.",
       ),
@@ -222,7 +226,7 @@ export const PROJECTS = [
         ],
         caption: "Original logo, used in Kochi (left) · Refined wordmark (right)",
       },
-      text(
+      text("The line",
         "“Cos Teeta is a common factor”",
         "The naming idea became the café’s voice. Wrapped around a soft, round seal, the line appeared on the shop sign and carries onto coasters, cups and the back of the staff tees.",
       ),
@@ -233,12 +237,12 @@ export const PROJECTS = [
           f("t-shirt-03.png", "Chef’s t-shirt with “Cos teeta is a common factor” printed on the back"),
         ],
       },
-      text(
+      text("Colour",
         "Chilli, charcoal and cream",
         "A warm chilli red (`#E94A38`), a charcoal (`#2C2926`) and a soft cream (`#FFF8F3`). Bold enough for signage, warm enough for food.",
       ),
       { media: [f("teeta-colour-palette.webm"), f("tote-bag.jpg", "Cream tote bag printed with the Teeta wordmark in red")] },
-      text(
+      text("Food and posters",
         "The menu as posters",
         "The copy is as playful as the name. Lines like “Eat eat and eat” and “Chicken grilled with hummus” turn the menu into posters, built on Teeta’s own food photography.",
       ),
@@ -255,7 +259,7 @@ export const PROJECTS = [
         ],
         caption: "Food photography courtesy of Teeta",
       },
-      text(
+      text("In use",
         "From the counter to the street",
         "The identity carries across packaging and merchandise, from takeaway cups to staff tees and caps.",
       ),
@@ -266,10 +270,10 @@ export const PROJECTS = [
           f("teeta-cap.jpg", "Red cap with the Teeta wordmark"),
         ],
       },
-      text("Type-led, food-first", "Bold type posters and photo tiles for Instagram, built from the same wordmark, seal and colours."),
+      text("Social", "Type-led, food-first", "Bold type posters and photo tiles for Instagram, built from the same wordmark, seal and colours."),
       { media: [f("posters01.webm")] },
       { media: [f("social-media-tiles.webm")], caption: "Social media concepts. Photography is AI-generated for illustration." },
-      "Teeta opened in Kochi in 2024 with the original logo and the “cos teeta is…” line, and has since closed. The wordmark shown here is a later refinement; the logo animation was produced with AI tools.",
+      note("Status", "Teeta opened in Kochi in 2024 with the original logo and the “cos teeta is…” line, and has since closed. The wordmark shown here is a later refinement; the logo animation was produced with AI tools."),
     ],
   },
 ];

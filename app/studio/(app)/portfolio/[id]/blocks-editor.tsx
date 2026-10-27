@@ -60,6 +60,17 @@ export function BlocksEditor({
               <div className="p-4">
                 {block.type === "text" ? (
                   <>
+                    <label htmlFor={`l-${block.id}`} className="mb-1.5 block text-sm text-muted">
+                      Section label <span className="text-muted/70">(optional: shown as “01 / The challenge” beside the text and on the side scale)</span>
+                    </label>
+                    <input
+                      id={`l-${block.id}`}
+                      value={block.label ?? ""}
+                      maxLength={40}
+                      onChange={(e) => update(i, { ...block, label: e.target.value })}
+                      placeholder="The challenge"
+                      className="mb-3 h-9 w-full max-w-xs border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
+                    />
                     <label htmlFor={`b-${block.id}`} className="sr-only">
                       Text
                     </label>

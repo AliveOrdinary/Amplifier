@@ -78,7 +78,10 @@ const French = z
     summary: z.string().trim().max(600, "Keep the French summary under 600 characters.").optional(),
     services: z.array(z.string().trim().max(60)).max(16).optional(),
     blocks: z
-      .record(z.string().max(64), z.object({ text: z.string().max(20000).optional(), caption: z.string().trim().max(400).optional() }))
+      .record(
+        z.string().max(64),
+        z.object({ text: z.string().max(20000).optional(), caption: z.string().trim().max(400).optional(), label: z.string().trim().max(40).optional() }),
+      )
       .optional(),
     alt: z.record(z.string().max(64), z.string().trim().max(400)).optional(),
   })
@@ -94,7 +97,9 @@ function cleanFrench(fr: z.output<typeof French>, blocks: StoredBlock[], own: Se
   const byBlock: NonNullable<ProjectFrench["blocks"]> = {};
   for (const b of blocks) {
     const tr = fr.blocks?.[b.id];
-    if (b.type === "text" && tr?.text?.trim()) byBlock[b.id] = { text: tr.text };
+    if (b.type === "text" && (tr?.text?.trim() || tr?.label)) {
+      byBlock[b.id] = { ...(tr?.text?.trim() ? { text: tr.text } : {}), ...(tr?.label ? { label: tr.label } : {}) };
+    }
     if (b.type === "media" && tr?.caption) byBlock[b.id] = { caption: tr.caption };
   }
   if (Object.keys(byBlock).length) out.blocks = byBlock;
@@ -135,7 +140,7 @@ export async function saveProject(id: string, input: ProjectDraft): Promise<Ok<{
     const { data: media } = await db.from("project_media").select("id").eq("project_id", id);
     const own = new Set((media ?? []).map((m) => m.id));
     const blocks: StoredBlock[] = d.blocks.flatMap((b): StoredBlock[] => {
-      if (b.type === "text") return [{ id: b.id, type: "text", text: b.text }];
+      if (b.type === "text") return [{ id: b.id, type: "text", text: b.text, label: b.label?.trim() || null }];
       const ids = b.media.filter((m) => own.has(m));
       return ids.length ? [{ id: b.id, type: "media", media: ids, caption: b.caption?.trim() || null }] : [];
     });

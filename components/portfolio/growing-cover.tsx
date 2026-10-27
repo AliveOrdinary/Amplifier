@@ -30,9 +30,11 @@ export function GrowingCover({ children, split = false }: { children: ReactNode;
       const raw = (vh * 0.8 - top) / (vh * 0.85);
       const p = still.matches ? 1 : Math.min(1, Math.max(0, raw));
       const ease = 1 - (1 - p) ** 2;
-      const gutter = vw >= 640 ? 24 : 16;
-      const from = vw >= 1024 ? 0.8 : vw >= 640 ? 0.84 : 0.86;
-      const width = vw * from + (vw - 2 * gutter - vw * from) * ease;
+      // From 1280px the side scale sits in the right margin: stop short of it on both sides.
+      const gutter = vw >= 1280 ? 176 : vw >= 640 ? 24 : 16;
+      const full = vw - 2 * gutter;
+      const start = Math.min(vw * (vw >= 1024 ? 0.8 : vw >= 640 ? 0.84 : 0.86), full * 0.82);
+      const width = start + (full - start) * ease;
       el.style.width = `${width}px`;
       if (!split) pic.style.transform = `translateY(${(0.5 - p) * 6}%) scale(1.08)`;
     };

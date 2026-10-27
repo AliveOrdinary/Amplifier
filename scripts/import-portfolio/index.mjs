@@ -55,7 +55,7 @@ export function filesOf(project) {
   };
   if (project.cover) add(project.cover);
   if (project.thumbnail) add(project.thumbnail);
-  for (const b of project.blocks) if (typeof b !== "string") b.media.forEach(add);
+  for (const b of project.blocks) if (b.media) b.media.forEach(add);
   return [...seen.values()];
 }
 
@@ -97,8 +97,8 @@ export async function download(file, { fetch = globalThis.fetch, sharp } = {}) {
 /** Blocks as stored: text, or media by their new ids. */
 export function storedBlocks(project, ids) {
   return project.blocks.map((b) =>
-    typeof b === "string"
-      ? { id: blockId(), type: "text", text: b }
+    typeof b === "string" || !b.media
+      ? { id: blockId(), type: "text", text: typeof b === "string" ? b : b.text, label: typeof b === "string" ? null : (b.label ?? null) }
       : {
           id: blockId(),
           type: "media",
@@ -252,7 +252,7 @@ async function main() {
   );
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
     console.error(`\n${error.message}`);
     process.exit(1);
