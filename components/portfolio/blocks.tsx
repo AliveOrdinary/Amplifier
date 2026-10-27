@@ -25,24 +25,29 @@ const LABEL = "font-mono text-[12px] uppercase tracking-[0.08em] text-muted";
 export function ProjectBlocks({ blocks }: { blocks: Block[] }) {
   const sections = new Map(sectionsOf(blocks).map((s) => [s.block, s]));
   return (
-    <div className="grid gap-x-10 gap-y-10 sm:gap-y-16 lg:grid-cols-[200px_1fr]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-x-10 gap-y-10 sm:gap-y-16 lg:grid-cols-[200px_minmax(0,1fr)]">
       {blocks.map((block) =>
         block.type === "text" ? (
-          // A labelled block opens a section: "01 / The challenge" on the left, like Home's sections.
-          <section
-            key={block.id}
-            id={sections.get(block.id)?.id}
-            className="grid scroll-mt-24 gap-x-10 gap-y-4 lg:col-span-2 lg:grid-cols-[200px_1fr]"
-          >
-            {sections.has(block.id) ? (
-              <div className={`${LABEL} lg:pt-1.5`}>
+          // A labelled block opens a section, as on francisdes.com: a hairline across the page, then
+          // "01 / The challenge" in the left column, level with the heading on the menu's line.
+          sections.has(block.id) ? (
+            <section
+              key={block.id}
+              id={sections.get(block.id)!.id}
+              className="mt-8 grid scroll-mt-24 grid-cols-[minmax(0,1fr)] gap-x-10 border-t border-rule pt-5 sm:mt-16 lg:col-span-2 lg:grid-cols-[200px_minmax(0,1fr)]"
+            >
+              <div className={`${LABEL} mt-8 lg:mt-10 lg:pt-2`}>
                 {sections.get(block.id)!.n} / {block.label}
               </div>
-            ) : null}
-            <div className="portfolio-prose max-w-[62ch] text-[17px] leading-relaxed text-ink-soft lg:col-start-2">
+              <div className="portfolio-prose mt-4 max-w-[62ch] text-[17px] leading-relaxed text-ink-soft lg:col-start-2 lg:mt-10">
+                <Markdown>{block.text}</Markdown>
+              </div>
+            </section>
+          ) : (
+            <div key={block.id} className="portfolio-prose max-w-[62ch] text-[17px] leading-relaxed text-ink-soft lg:col-start-2">
               <Markdown>{block.text}</Markdown>
             </div>
-          </section>
+          )
         ) : (
           <div key={block.id} className="lg:col-span-2">
             <GrowingFigure block={block} />

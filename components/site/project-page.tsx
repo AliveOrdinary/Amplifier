@@ -106,11 +106,11 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
         </div>
 
         {more ? (
-          <nav id="more" aria-label={t.project.more} className={cn(COLUMNS, "mt-32 scroll-mt-24 sm:mt-40")}>
-            <div className={cn(LABEL, "pt-3 text-muted")}>
+          <nav id="more" aria-label={t.project.more} className={cn(COLUMNS, "mt-32 scroll-mt-24 border-t border-rule pt-5 sm:mt-40")}>
+            <div className={cn(LABEL, "mt-8 text-muted lg:mt-10 lg:pt-1")}>
               {String(sections.length + 1).padStart(2, "0")} / {t.project.more}
             </div>
-            <div className="grid gap-8 border-t border-rule pt-6 sm:grid-cols-2">
+            <div className="mt-4 grid gap-8 sm:grid-cols-2 lg:mt-10">
               {project.previous ? (
                 <Link href={href(project.previous.slug)} className="group block">
                   <span className={cn(LABEL, "text-muted")}>← {t.project.previous}</span>

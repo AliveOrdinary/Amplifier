@@ -9,7 +9,7 @@ import { cn } from "@/components/ui/primitives";
 export const PAGE = "mx-auto w-full max-w-[1360px] px-4 sm:px-10 xl:max-w-[min(1360px,calc(100vw-320px))]";
 
 /** Two columns from large screens: a 200px label column, then the content (in line with the menu). */
-export const COLUMNS = "grid gap-x-10 gap-y-6 lg:grid-cols-[200px_1fr]";
+export const COLUMNS = "grid grid-cols-[minmax(0,1fr)] gap-x-10 gap-y-6 lg:grid-cols-[200px_minmax(0,1fr)]";
 
 /** Small mono labels: "01 / Selected", "Client". */
 export const LABEL = "font-mono text-[12px] uppercase tracking-[0.08em]";
