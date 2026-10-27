@@ -3,12 +3,14 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
 /**
- * After atmos.gallery: the cover starts as a smaller rounded frame under the
- * title and opens out to the full width of the screen as you scroll, while
- * the picture inside drifts a little slower than the frame (a light
- * parallax). Reduced motion: shown full width, still.
+ * After atmos.gallery: a picture starts as a rounded frame a little narrower
+ * than the screen and opens out to its full width as you scroll, while the
+ * picture inside drifts a little slower than the frame (a light parallax).
+ * Used for the cover and every image block of a case study. Two or three
+ * pictures side by side (`split`) grow together, each with its own rounded
+ * corners, without the parallax. Reduced motion: full width, still.
  */
-export function GrowingCover({ children }: { children: ReactNode }) {
+export function GrowingCover({ children, split = false }: { children: ReactNode; split?: boolean }) {
   const frame = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
 
@@ -32,7 +34,7 @@ export function GrowingCover({ children }: { children: ReactNode }) {
       const from = vw >= 1024 ? 0.8 : vw >= 640 ? 0.84 : 0.86;
       const width = vw * from + (vw - 2 * gutter - vw * from) * ease;
       el.style.width = `${width}px`;
-      pic.style.transform = `translateY(${(0.5 - p) * 6}%) scale(1.08)`;
+      if (!split) pic.style.transform = `translateY(${(0.5 - p) * 6}%) scale(1.08)`;
     };
     const queue = () => {
       if (!raf) raf = requestAnimationFrame(draw);
@@ -45,12 +47,19 @@ export function GrowingCover({ children }: { children: ReactNode }) {
       window.removeEventListener("scroll", queue);
       window.removeEventListener("resize", queue);
     };
-  }, []);
+  }, [split]);
 
   return (
     // Breaks out of the page column so it can reach the screen's edges.
     <div className="relative left-1/2 flex w-screen -translate-x-1/2 justify-center">
-      <div ref={frame} className="w-[86vw] overflow-hidden rounded-[24px] bg-panel [clip-path:inset(0_round_24px)] sm:w-[84vw] lg:w-[80vw]">
+      <div
+        ref={frame}
+        className={
+          split
+            ? "w-[86vw] sm:w-[84vw] lg:w-[80vw]"
+            : "w-[86vw] overflow-hidden rounded-[24px] bg-panel [clip-path:inset(0_round_24px)] sm:w-[84vw] lg:w-[80vw]"
+        }
+      >
         <div ref={inner}>
           {children}
         </div>
