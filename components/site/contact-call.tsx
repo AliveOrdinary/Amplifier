@@ -84,9 +84,12 @@ export function ContactCall({
       frame = 0;
       const box = el.getBoundingClientRect();
       const run = rail.getBoundingClientRect();
-      // The section holds still while the track scrolls past: 0 when it pins, 1 when it lets go.
-      const raw = -run.top / Math.max(1, run.height - window.innerHeight);
-      const p = still.matches ? 1 : Math.min(1, Math.max(0, raw * 1.15));
+      // Starts while the section is still coming up (its top about a third of the way down the
+      // screen), so the tiles are already moving as it arrives; done a little before it lets go.
+      const vh = window.innerHeight;
+      const start = vh * 0.4;
+      const raw = (start - run.top) / Math.max(1, start + run.height - vh);
+      const p = still.matches ? 1 : Math.min(1, Math.max(0, raw * 1.1));
       const ease = 1 - (1 - p) ** 3;
       el.style.setProperty("--p", String(ease));
 
@@ -135,7 +138,7 @@ export function ContactCall({
 
   return (
     // A tall track; the section inside it stays pinned to the screen while the tiles deal out.
-    <div ref={track} className="relative h-[200svh] motion-reduce:h-auto">
+    <div ref={track} className="relative h-[170svh] motion-reduce:h-auto">
     <div
       ref={root}
       className="sticky top-0 isolate flex h-svh min-h-[640px] flex-col items-center justify-center overflow-hidden text-center motion-reduce:relative motion-reduce:h-auto motion-reduce:py-32"
