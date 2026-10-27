@@ -29,7 +29,8 @@ export type HomeCopy = {
     faders: Record<FaderKey, { name: string; left: string; right: string }>;
   };
   studio: { title: string; body: string; roles: Record<"design" | "technology", string> };
-  contact: { title: string; body: string };
+  /** The closing call: one line in two halves, the button between them. */
+  contact: { lead: string; tail: string; cta: string; body: string; mixed: string };
 };
 
 export const HOME_COPY: Record<Locale, HomeCopy> = {
@@ -69,7 +70,10 @@ export const HOME_COPY: Record<Locale, HomeCopy> = {
       roles: { design: "Art direction, design", technology: "Technology" },
     },
     contact: {
-      title: "Every project starts with a visual brief.",
+      lead: "Every project starts",
+      tail: "with a visual brief.",
+      cta: "Start a brief",
+      mixed: "Mixed from your settings",
       body: "Tell us about yours and we’ll send you one: a few questions and a run of images that show us your taste before we meet.",
     },
   },
@@ -111,7 +115,10 @@ export const HOME_COPY: Record<Locale, HomeCopy> = {
       roles: { design: "Direction artistique, design", technology: "Technologie" },
     },
     contact: {
-      title: "Chaque projet commence par un brief visuel.",
+      lead: "Chaque projet commence",
+      tail: "par un brief visuel.",
+      cta: "Lancer un brief",
+      mixed: "Mixé selon vos réglages",
       body: "Parlez-nous du vôtre et nous vous en enverrons un : quelques questions et une série d’images qui nous montrent vos goûts avant notre rencontre.",
     },
   },

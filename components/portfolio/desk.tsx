@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import type { ProjectCard } from "@/lib/portfolio/types";
-import { FADERS, FLAT_MIX, match, mixFor, type Mix } from "@/lib/portfolio/channels";
+import { FADERS, FLAT_MIX, match, mixFor } from "@/lib/portfolio/channels";
+import { setMix, useMix } from "@/lib/portfolio/mix-store";
 import { cn } from "@/components/ui/primitives";
 import type { HomeCopy } from "@/lib/i18n/home";
 
@@ -17,7 +18,8 @@ const TILE_RADIUS = "16%";
  * the faders light up the cards that fit and solo the closest one.
  */
 export function Desk({ projects, copy }: { projects: ProjectCard[]; copy: HomeCopy["desk"] }) {
-  const [mix, setMix] = useState<Mix>(FLAT_MIX);
+  // Shared with the closing call, which lays the work out by the same mix.
+  const mix = useMix();
   const touched = FADERS.some((f) => mix[f.key] !== 0);
 
   const channels = projects.map((p, i) => ({

@@ -7,6 +7,7 @@ import { Wayfinding } from "@/components/site/wayfinding";
 import { cn } from "@/components/ui/primitives";
 import { HOME_COPY } from "@/lib/i18n/home";
 import { SITE_COPY, alternates, localePath, type Locale } from "@/lib/i18n/site";
+import { ContactCall } from "./contact-call";
 import { SiteHeader } from "./site-header";
 
 const label = "font-mono text-[12px] uppercase tracking-[0.08em]";
@@ -79,16 +80,18 @@ export async function HomePage({ locale }: { locale: Locale }) {
           </dl>
         </Section>
 
-        <Section n="03" name={t.sections.contact} id="contact" title={t.contact.title}>
-          <p className="max-w-[620px] text-lg leading-relaxed text-ink-soft">{t.contact.body}</p>
-          <a
-            href={STUDIO_EMAIL.startsWith("[") ? "#contact" : `mailto:${STUDIO_EMAIL}`}
-            className="mt-10 inline-flex items-center gap-4 rounded-full border border-rule-strong py-3 pr-3 pl-7 text-[clamp(20px,2.4vw,30px)] tracking-[-0.01em] transition-colors hover:border-signal"
-          >
-            {STUDIO_EMAIL}
-            <span aria-hidden className="grid size-12 place-items-center rounded-full bg-ink text-lg text-paper">↗</span>
-          </a>
-        </Section>
+        <Section
+          n="03"
+          name={t.sections.contact}
+          id="contact"
+          wide={
+            <ContactCall
+              {...t.contact}
+              href={STUDIO_EMAIL.startsWith("[") ? "#contact" : `mailto:${STUDIO_EMAIL}`}
+              projects={projects}
+            />
+          }
+        />
       </main>
 
       <footer className="mx-auto mt-24 w-full max-w-[1360px] xl:max-w-[min(1360px,calc(100vw-320px))] px-4 sm:px-10">
