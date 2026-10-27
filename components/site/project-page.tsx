@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProject } from "@/lib/portfolio";
 import { ProjectBlocks } from "@/components/portfolio/blocks";
+import { GrowingCover } from "@/components/portfolio/growing-cover";
 import { Media } from "@/components/portfolio/media";
 import { PreviewBanner } from "@/components/portfolio/preview-banner";
 import { COLUMNS, LABEL, PAGE, SiteFooter } from "@/components/site/site-frame";
@@ -46,7 +47,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
   ].filter((f): f is { k: string; v: string } => f !== null);
 
   return (
-    <div className="site flex-1" lang={locale}>
+    <div className="site flex-1 overflow-x-clip" lang={locale}>
       {project.preview ? <PreviewBanner project={project} french={locale === "fr"} /> : null}
       <SiteHeader
         locale={locale}
@@ -86,7 +87,9 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
 
         {project.cover ? (
           <div className="mt-16 sm:mt-24">
-            <Media media={project.cover} priority sizes="100vw" />
+            <GrowingCover>
+              <Media media={project.cover} priority sizes="100vw" />
+            </GrowingCover>
           </div>
         ) : null}
 
