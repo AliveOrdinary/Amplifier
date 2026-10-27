@@ -7,6 +7,7 @@
  *   npm run import:portfolio -- --dry-run download and check every file, change nothing
  *   npm run import:portfolio -- --replace delete these projects first, then import them again
  *   npm run import:portfolio -- teeta     only the projects named (by address)
+ *   npm run import:portfolio -- --labels  projects already imported: add the section labels only
  *
  * Needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or
  * SUPABASE_SECRET_KEY) in .env.local. Afterwards, save any project in
@@ -224,6 +225,43 @@ export async function importProjects({ db, projects = PROJECTS, dryRun = false, 
   return results;
 }
 
+/** First line of a text block, without the "## ": how a block already in Studio is recognised. */
+const firstLine = (text) => (text ?? "").trim().split("\n")[0].replace(/^#+\s*/, "").trim();
+
+/**
+ * For projects already in Studio: gives their text blocks the section labels
+ * from ./projects.mjs, matched by each block's first line. Labels someone has
+ * already set in Studio are kept; nothing else is touched.
+ */
+export async function addLabels({ db, projects = PROJECTS, dryRun = false, log = console.log }) {
+  const { data: studio, error } = await db.from("studios").select("id").eq("slug", "amplifier").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!studio) throw new Error("No studio with the address “amplifier” in this database.");
+  for (const project of projects) {
+    const { data: row } = await db.from("projects").select("id, blocks").eq("studio_id", studio.id).eq("slug", project.slug).maybeSingle();
+    if (!row) {
+      log(`${project.title}: not in Studio, skipped`);
+      continue;
+    }
+    const wanted = new Map(
+      project.blocks.flatMap((b) => (typeof b !== "string" && !b.media && b.label ? [[firstLine(b.text), b.label]] : [])),
+    );
+    let added = 0;
+    const blocks = (row.blocks ?? []).map((b) => {
+      if (b.type !== "text" || b.label?.trim()) return b;
+      const label = wanted.get(firstLine(b.text));
+      if (!label) return b;
+      added++;
+      return { ...b, label };
+    });
+    log(`${project.title}: ${added} label${added === 1 ? "" : "s"} ${dryRun ? "to add" : "added"}`);
+    if (added && !dryRun) {
+      const { error: saveError } = await db.from("projects").update({ blocks }).eq("id", row.id);
+      if (saveError) throw new Error(saveError.message);
+    }
+  }
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
@@ -232,9 +270,10 @@ async function main() {
   const projects = only.length ? PROJECTS.filter((p) => only.includes(p.slug)) : PROJECTS;
   if (!projects.length) throw new Error(`No project with the address ${only.join(", ")}. Try: ${PROJECTS.map((p) => p.slug).join(", ")}`);
 
+  const labelsOnly = args.includes("--labels");
   const { default: sharp } = await import("sharp");
   let db = null;
-  if (!dryRun) {
+  if (!dryRun || labelsOnly) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) {
@@ -242,6 +281,12 @@ async function main() {
     }
     const { createClient } = await import("@supabase/supabase-js");
     db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  }
+
+  if (labelsOnly) {
+    await addLabels({ db, projects, dryRun });
+    console.log(dryRun ? "\nDry run: nothing was changed." : "\nDone. Save any project in Studio › Portfolio (or redeploy) so the site shows the labels.");
+    return;
   }
 
   await importProjects({ db, projects, dryRun, replace, sharp });

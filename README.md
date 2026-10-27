@@ -68,7 +68,7 @@ Migrations are in `supabase/migrations`, applied in filename order:
 14. `…14_portfolio_french.sql` adds `projects.fr`: each project's French title, summary, services, text, captions and alt text, for the French site.
 15. `…15_portfolio_thumbnail.sql` adds `projects.thumbnail_media_id`: an image or video shown on the project's tile (Home, Works) instead of its cover. Pick it in Studio › Portfolio with "Make thumbnail".
 
-To bring in the first four projects (Sanjo, Crums, Izanagi, Teeta) with their files, add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local` and run `npm run import:portfolio -- --dry-run`, then `npm run import:portfolio`. Projects already in Studio are skipped; save any project in Studio afterwards so the site refreshes. See `scripts/import-portfolio/`.
+To bring in the first four projects (Sanjo, Crums, Izanagi, Teeta) with their files, add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local` and run `npm run import:portfolio -- --dry-run`, then `npm run import:portfolio`. Projects already in Studio are skipped; save any project in Studio afterwards so the site refreshes. Projects imported before section labels existed get them with `npm run import:portfolio -- --labels` (only empty labels are filled; nothing else changes). See `scripts/import-portfolio/`.
 
 Apply them with the Supabase CLI (`supabase db push`) or paste each file into the SQL editor, in order.
 
