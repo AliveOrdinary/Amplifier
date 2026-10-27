@@ -84,11 +84,13 @@ export function ContactCall({
       frame = 0;
       const box = el.getBoundingClientRect();
       const run = rail.getBoundingClientRect();
-      // Starts while the section is still coming up (its top about a third of the way down the
-      // screen), so the tiles are already moving as it arrives; done a little before it lets go.
+      // Starts as the "03 / Contact" label passes 45% down the screen, so the tiles are already
+      // moving while the section comes up; done a little before it lets go.
       const vh = window.innerHeight;
-      const start = vh * 0.4;
-      const raw = (start - run.top) / Math.max(1, start + run.height - vh);
+      const label = rail.closest("section")?.firstElementChild?.getBoundingClientRect().top ?? run.top;
+      const lead = run.top - label;
+      const start = vh * 0.45;
+      const raw = (start - label) / Math.max(1, start - (vh - run.height - lead));
       const p = still.matches ? 1 : Math.min(1, Math.max(0, raw * 1.1));
       const ease = 1 - (1 - p) ** 3;
       el.style.setProperty("--p", String(ease));
