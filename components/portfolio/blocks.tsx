@@ -58,25 +58,42 @@ export function ProjectBlocks({ blocks }: { blocks: Block[] }) {
   );
 }
 
-/** Rounded like the cover; the picture fills its frame. */
-const ROUND = "rounded-[24px] [clip-path:inset(0_round_24px)]";
+/** Rounded like the cover. */
+const ROUND = "rounded-[16px] [clip-path:inset(0_round_16px)]";
 
-/** A media block that opens out as you scroll, like the cover. */
+/**
+ * A media block that opens out as you scroll, like the cover. As on
+ * francisdes.com: one picture at its own proportions; two or three side by
+ * side cropped to equal squares with a gap, or touching as one picture
+ * (`join`).
+ */
 function GrowingFigure({ block }: { block: MediaBlock }) {
   const n = block.media.length;
+  const cols = n === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3";
+  const sizes = `(min-width: 640px) ${Math.round(100 / n)}vw, 100vw`;
   return (
     <figure>
-      <GrowingCover split={n > 1}>
-        {n === 1 ? (
+      {n === 1 ? (
+        <GrowingCover>
           <Media media={block.media[0]} sizes="100vw" />
-        ) : (
-          <div className={n === 2 ? "grid gap-3 sm:grid-cols-2" : "grid gap-3 sm:grid-cols-3"}>
+        </GrowingCover>
+      ) : block.join ? (
+        <GrowingCover>
+          <div className={`grid ${cols}`}>
             {block.media.map((m) => (
-              <Media key={m.id} media={m} sizes={`(min-width: 640px) ${Math.round(100 / n)}vw, 100vw`} className={ROUND} />
+              <Media key={m.id} media={m} sizes={sizes} aspect="1 / 1" className="object-cover" />
             ))}
           </div>
-        )}
-      </GrowingCover>
+        </GrowingCover>
+      ) : (
+        <GrowingCover split>
+          <div className={`grid gap-3 sm:gap-6 ${cols}`}>
+            {block.media.map((m) => (
+              <Media key={m.id} media={m} sizes={sizes} aspect="1 / 1" className={`object-cover ${ROUND}`} />
+            ))}
+          </div>
+        </GrowingCover>
+      )}
       {block.caption ? <figcaption className="mt-3 text-sm text-muted">{block.caption}</figcaption> : null}
     </figure>
   );

@@ -142,7 +142,7 @@ export async function saveProject(id: string, input: ProjectDraft): Promise<Ok<{
     const blocks: StoredBlock[] = d.blocks.flatMap((b): StoredBlock[] => {
       if (b.type === "text") return [{ id: b.id, type: "text", text: b.text, label: b.label?.trim() || null }];
       const ids = b.media.filter((m) => own.has(m));
-      return ids.length ? [{ id: b.id, type: "media", media: ids, caption: b.caption?.trim() || null }] : [];
+      return ids.length ? [{ id: b.id, type: "media", media: ids, caption: b.caption?.trim() || null, ...(b.join && ids.length > 1 ? { join: true } : {}) }] : [];
     });
 
     // French needs migration 14; until then the English still saves.

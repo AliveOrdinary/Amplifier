@@ -6,8 +6,21 @@ import { cn } from "@/components/ui/primitives";
  * silent loop like a moving image; videos with sound get controls.
  * A starting point: restyle or replace freely.
  */
-export function Media({ media, className, sizes, priority }: { media: PortfolioMedia; className?: string; sizes?: string; priority?: boolean }) {
-  const ratio = media.width && media.height ? `${media.width} / ${media.height}` : undefined;
+export function Media({
+  media,
+  className,
+  sizes,
+  priority,
+  aspect,
+}: {
+  media: PortfolioMedia;
+  className?: string;
+  sizes?: string;
+  priority?: boolean;
+  /** Crop to this shape ("1 / 1") instead of the file's own proportions. */
+  aspect?: string;
+}) {
+  const ratio = aspect ?? (media.width && media.height ? `${media.width} / ${media.height}` : undefined);
 
   if (media.kind === "video") {
     return (

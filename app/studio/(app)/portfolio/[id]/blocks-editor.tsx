@@ -185,6 +185,17 @@ function MediaBlockEditor({
             className="h-9"
           />
         </div>
+        {chosen.length > 1 ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.join)}
+              onChange={(e) => onChange({ ...block, join: e.target.checked })}
+              className="size-4 accent-[var(--signal)]"
+            />
+            No gap (show them as one picture)
+          </label>
+        ) : null}
       </div>
 
       {choosing ? (

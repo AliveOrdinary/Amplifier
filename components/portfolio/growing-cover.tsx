@@ -59,7 +59,7 @@ export function GrowingCover({ children, split = false }: { children: ReactNode;
         className={
           split
             ? "w-[86vw] sm:w-[84vw] lg:w-[80vw]"
-            : "w-[86vw] overflow-hidden rounded-[24px] bg-panel [clip-path:inset(0_round_24px)] sm:w-[84vw] lg:w-[80vw]"
+            : "w-[86vw] overflow-hidden rounded-[16px] bg-panel [clip-path:inset(0_round_16px)] sm:w-[84vw] lg:w-[80vw]"
         }
       >
         <div ref={inner}>

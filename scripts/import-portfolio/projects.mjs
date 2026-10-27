@@ -241,7 +241,7 @@ export const PROJECTS = [
         "Chilli, charcoal and cream",
         "A warm chilli red (`#E94A38`), a charcoal (`#2C2926`) and a soft cream (`#FFF8F3`). Bold enough for signage, warm enough for food.",
       ),
-      { media: [f("teeta-colour-palette.webm"), f("tote-bag.jpg", "Cream tote bag printed with the Teeta wordmark in red")] },
+      { media: [f("teeta-colour-palette.webm"), f("tote-bag.jpg", "Cream tote bag printed with the Teeta wordmark in red")], join: true },
       text("Food and posters",
         "The menu as posters",
         "The copy is as playful as the name. Lines like “Eat eat and eat” and “Chicken grilled with hummus” turn the menu into posters, built on Teeta’s own food photography.",

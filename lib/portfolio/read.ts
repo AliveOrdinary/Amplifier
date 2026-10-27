@@ -137,7 +137,7 @@ export function resolveBlocks(stored: StoredBlock[], byId: Map<string, Portfolio
     }
     const media = block.media.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
     const caption = filled(tr?.caption) ?? block.caption?.trim() ?? null;
-    return media.length ? [{ id: block.id, type: "media", media, caption: caption || null }] : [];
+    return media.length ? [{ id: block.id, type: "media", media, caption: caption || null, join: Boolean(block.join) }] : [];
   });
 }
 
