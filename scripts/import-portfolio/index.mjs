@@ -8,6 +8,7 @@
  *   npm run import:portfolio -- --replace delete these projects first, then import them again
  *   npm run import:portfolio -- teeta     only the projects named (by address)
  *   npm run import:portfolio -- --labels  projects already imported: add the section labels only
+ *   npm run import:portfolio -- --covers teeta   projects already imported: replace the cover / thumbnail
  *
  * Needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or
  * SUPABASE_SECRET_KEY) in .env.local. Afterwards, save any project in
@@ -263,6 +264,60 @@ export async function addLabels({ db, projects = PROJECTS, dryRun = false, log =
   }
 }
 
+/**
+ * For projects already in Studio: uploads the cover (and thumbnail) named in
+ * ./projects.mjs and makes them the project's cover and thumbnail. Earlier
+ * files stay in Studio; nothing else changes.
+ */
+export async function setCovers({ db, projects = PROJECTS, dryRun = false, fetch, sharp, log = console.log }) {
+  const { data: studio, error } = await db.from("studios").select("id").eq("slug", "amplifier").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!studio) throw new Error("No studio with the address “amplifier” in this database.");
+  for (const project of projects) {
+    const { data: row } = await db.from("projects").select("id").eq("studio_id", studio.id).eq("slug", project.slug).maybeSingle();
+    if (!row) {
+      log(`${project.title}: not in Studio, skipped`);
+      continue;
+    }
+    const { data: last } = await db.from("project_media").select("sort").eq("project_id", row.id).order("sort", { ascending: false }).limit(1).maybeSingle();
+    let sort = (last?.sort ?? -1) + 1;
+    const update = {};
+    for (const [field, file] of [["cover_media_id", project.cover], ["thumbnail_media_id", project.thumbnail]]) {
+      if (!file) continue;
+      const f = typeof file === "string" ? { url: file } : file;
+      const got = await download(f, { fetch, sharp });
+      const name = decodeURIComponent(new URL(f.url).pathname.split("/").pop());
+      log(`${project.title}: ${field === "cover_media_id" ? "cover" : "thumbnail"} ← ${name} ${mb(got.body.length)}`);
+      if (dryRun) continue;
+      const path = `${studio.id}/${row.id}/${randomUUID()}.${got.ext}`;
+      const up = await db.storage.from(BUCKET).upload(path, got.body, { contentType: got.mime, upsert: false });
+      if (up.error) throw new Error(`${name}: ${up.error.message}`);
+      const { data, error: mediaError } = await db
+        .from("project_media")
+        .insert({
+          project_id: row.id,
+          kind: got.mime.startsWith("video/") ? "video" : "image",
+          storage_path: path,
+          alt: f.alt ?? null,
+          has_audio: false,
+          width: got.width,
+          height: got.height,
+          bytes: got.body.length,
+          mime: got.mime,
+          sort: sort++,
+        })
+        .select("id")
+        .single();
+      if (mediaError) throw new Error(mediaError.message);
+      update[field] = data.id;
+    }
+    if (!dryRun && Object.keys(update).length) {
+      const { error: saveError } = await db.from("projects").update(update).eq("id", row.id);
+      if (saveError) log(`  couldn't set it (${saveError.message}); pick it in Studio with “Make cover” / “Make thumbnail”`);
+    }
+  }
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
@@ -272,9 +327,10 @@ async function main() {
   if (!projects.length) throw new Error(`No project with the address ${only.join(", ")}. Try: ${PROJECTS.map((p) => p.slug).join(", ")}`);
 
   const labelsOnly = args.includes("--labels");
+  const coversOnly = args.includes("--covers");
   const { default: sharp } = await import("sharp");
   let db = null;
-  if (!dryRun || labelsOnly) {
+  if (!dryRun || labelsOnly || coversOnly) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) {
@@ -282,6 +338,12 @@ async function main() {
     }
     const { createClient } = await import("@supabase/supabase-js");
     db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  }
+
+  if (coversOnly) {
+    await setCovers({ db, projects, dryRun, sharp });
+    console.log(dryRun ? "\nDry run: nothing was changed." : "\nDone. Save any project in Studio › Portfolio (or redeploy) so the site shows the new covers.");
+    return;
   }
 
   if (labelsOnly) {

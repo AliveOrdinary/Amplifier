@@ -194,7 +194,9 @@ export const PROJECTS = [
     year: 2024,
     services: ["Naming", "Branding", "Art Direction", "Motion Graphics"],
     summary: "Naming and identity for a café in Kochi, built around one idea: food is the common factor.",
-    cover: f("teeta-logo-portrait.webm"),
+    cover: f("teeta-logo-animation.webm"),
+    // The portrait cut fits the square tile better.
+    thumbnail: f("teeta-logo-portrait.webm"),
     blocks: [
       text("The name",
         "A common factor, and something to eat",
