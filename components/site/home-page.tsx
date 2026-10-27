@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { listProjects, type ProjectCard } from "@/lib/portfolio";
 import { Desk } from "@/components/portfolio/desk";
-import { GREETINGS } from "@/components/site/greetings";
 import { Preloader } from "@/components/site/preloader";
 import { Wayfinding } from "@/components/site/wayfinding";
 import { cn } from "@/components/ui/primitives";
@@ -9,6 +8,7 @@ import { HOME_COPY } from "@/lib/i18n/home";
 import { SITE_COPY, alternates, localePath, type Locale } from "@/lib/i18n/site";
 import { ContactCall } from "./contact-call";
 import { SiteHeader } from "./site-header";
+import { COLUMNS, PAGE, SiteFooter } from "./site-frame";
 
 const label = "font-mono text-[12px] uppercase tracking-[0.08em]";
 
@@ -50,7 +50,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
         power={t.power}
       />
 
-      <main className="mx-auto w-full pt-12 max-w-[1360px] xl:max-w-[min(1360px,calc(100vw-320px))] px-4 sm:px-10">
+      <main className={cn(PAGE, "pt-12")}>
         <Section n="00" name="MMXXVI" id="top" first>
           <h1 className="text-[clamp(48px,7vw,96px)] leading-[0.92] font-medium tracking-[-0.035em]">{t.hero.title}</h1>
           <p className="mt-8 max-w-[520px] text-lg leading-relaxed text-ink-soft">{t.hero.intro}</p>
@@ -94,16 +94,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
         />
       </main>
 
-      <footer className="mx-auto mt-24 w-full max-w-[1360px] xl:max-w-[min(1360px,calc(100vw-320px))] px-4 sm:px-10">
-        <div className={cn(label, "flex flex-wrap justify-between gap-4 border-t border-rule pt-6 pb-10 normal-case text-muted")}>
-          <span className="flex flex-wrap gap-x-3">
-            {GREETINGS.map((g) => (
-              <span key={g}>{g}</span>
-            ))}
-          </span>
-          <span className="uppercase">© MMXXVI Amplifier</span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
@@ -128,7 +119,7 @@ function Section({
   children?: ReactNode;
 }) {
   return (
-    <section id={id} className={cn("grid scroll-mt-24 gap-x-10 gap-y-6 lg:grid-cols-[200px_1fr]", first ? "pt-20 sm:pt-28" : "pt-32 sm:pt-40")}>
+    <section id={id} className={cn(COLUMNS, "scroll-mt-24", first ? "pt-20 sm:pt-28" : "pt-32 sm:pt-40")}>
       <div className={cn(label, "pt-3 text-muted")}>
         {n} / {name}
       </div>

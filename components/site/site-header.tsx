@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Wordmark, cn } from "@/components/ui/primitives";
 import { LanguageSwitch } from "@/components/site/language-switch";
+import { PAGE } from "@/components/site/site-frame";
 import type { Locale } from "@/lib/i18n/site";
 
 /**
@@ -22,6 +23,7 @@ export function SiteHeader({
   links,
   languages,
   power,
+  linkBase = "",
 }: {
   locale: Locale;
   homeHref: string;
@@ -30,6 +32,8 @@ export function SiteHeader({
   languages: Record<Locale, string>;
   /** The label beside the orange light ("Power" / "Marche"). */
   power: string;
+  /** On pages other than Home: where the section links go ("/" → "/#work"). */
+  linkBase?: string;
 }) {
   const [active, setActive] = useState<string | null>(null);
 
@@ -55,7 +59,7 @@ export function SiteHeader({
 
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-40 text-white mix-blend-difference">
-      <div className="mx-auto grid w-full max-w-[1360px] grid-cols-[auto_1fr_auto] items-center gap-x-10 px-4 py-4 text-[13px] leading-none font-medium sm:px-10 lg:grid-cols-[200px_1fr_auto] xl:max-w-[min(1360px,calc(100vw-320px))]">
+      <div className={cn(PAGE, "grid grid-cols-[auto_1fr_auto] items-center gap-x-10 py-4 text-[13px] leading-none font-medium lg:grid-cols-[200px_1fr_auto]")}>
         <Link href={homeHref} aria-label={homeLabel} className="pointer-events-auto justify-self-start">
           <Wordmark className="text-[17px]" />
         </Link>
@@ -66,7 +70,7 @@ export function SiteHeader({
             {links.map((l) => (
               <li key={l.id}>
                 <a
-                  href={`#${l.id}`}
+                  href={`${linkBase}#${l.id}`}
                   aria-current={active === l.id ? "location" : undefined}
                   className={cn("transition-colors duration-100", active === l.id ? "text-white/45" : "hover:text-white/45")}
                 >
