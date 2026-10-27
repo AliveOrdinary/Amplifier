@@ -83,15 +83,15 @@ export function ContactCall({
     const draw = () => {
       frame = 0;
       const box = el.getBoundingClientRect();
-      const run = rail.getBoundingClientRect();
-      // Starts as the "03 / Contact" label passes 45% down the screen, so the tiles are already
-      // moving while the section comes up; done a little before it lets go.
+      // Scrolls like any section: the tiles start dealing out as the "03 / Contact" label passes
+      // 45% down the screen and land as the whole section comes into view (or the page ends).
       const vh = window.innerHeight;
-      const label = rail.closest("section")?.firstElementChild?.getBoundingClientRect().top ?? run.top;
-      const lead = run.top - label;
+      const label = rail.closest("section")?.firstElementChild?.getBoundingClientRect().top ?? box.top;
       const start = vh * 0.45;
-      const raw = (start - label) / Math.max(1, start - (vh - run.height - lead));
-      const p = still.matches ? 1 : Math.min(1, Math.max(0, raw * 1.1));
+      const end = vh - box.height - (box.top - label);
+      const atBottom = window.scrollY + vh >= document.documentElement.scrollHeight - 2;
+      const raw = atBottom ? 1 : (start - label) / Math.max(1, start - end);
+      const p = still.matches ? 1 : Math.min(1, Math.max(0, raw));
       const ease = 1 - (1 - p) ** 3;
       el.style.setProperty("--p", String(ease));
 
@@ -139,11 +139,10 @@ export function ContactCall({
   }, [key]);
 
   return (
-    // A tall track; the section inside it stays pinned to the screen while the tiles deal out.
-    <div ref={track} className="relative h-[170svh] motion-reduce:h-auto">
+    <div ref={track}>
     <div
       ref={root}
-      className="sticky top-0 isolate flex h-svh min-h-[640px] flex-col items-center justify-center overflow-hidden text-center motion-reduce:relative motion-reduce:h-auto motion-reduce:py-32"
+      className="relative isolate flex h-svh max-h-[960px] min-h-[640px] flex-col items-center justify-center overflow-hidden text-center"
       style={{ "--p": 1 } as CSSProperties}
     >
       {Array.from({ length: count }, (_, i) => {
