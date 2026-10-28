@@ -18,7 +18,7 @@ export function StudioNav() {
 /** The links alone: also the fallback while the current path is unknown. */
 export function NavLinks({ pathname }: { pathname: string | null }) {
   return (
-    <nav aria-label="Studio" className="flex gap-6 text-[15px]">
+    <nav aria-label="Studio" className="flex gap-5 text-[13px] font-light sm:h-14 sm:items-center">
       {items.map((item) => {
         const active = pathname !== null && (pathname === item.href || pathname.startsWith(`${item.href}/`));
         return (

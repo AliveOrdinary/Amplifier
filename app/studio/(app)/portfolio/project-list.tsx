@@ -130,7 +130,7 @@ function Row({
   return (
     <li className="flex flex-wrap items-center gap-x-5 gap-y-3 border-b border-rule py-3">
       <Link href={`/studio/portfolio/${p.id}`} className="group flex min-w-0 flex-1 basis-72 items-center gap-4">
-        <span className="block h-[54px] w-[72px] shrink-0 overflow-hidden bg-panel">
+        <span className="block h-[54px] w-[72px] shrink-0 overflow-hidden rounded-lg bg-panel">
           {p.cover?.kind === "image" ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={p.cover.url} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -161,7 +161,7 @@ function Row({
             onError(r.ok ? null : r.error);
           })
         }
-        className={cn("h-9 w-28 border px-3 text-sm", featured ? "border-ink text-ink" : "border-rule-strong text-muted hover:text-ink")}
+        className={cn("h-9 w-28 rounded-full border px-3 text-sm", featured ? "border-ink text-ink" : "border-rule-strong text-muted hover:text-ink")}
       >
         {featured ? "★ Featured" : "☆ Feature"}
       </button>

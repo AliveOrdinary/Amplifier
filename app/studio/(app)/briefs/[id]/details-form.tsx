@@ -86,7 +86,7 @@ export function DetailsForm({ briefId, initial }: { briefId: string; initial: Va
             maxLength={400}
             value={form.note}
             onChange={set("note")}
-            className="w-full resize-y border border-rule-strong bg-transparent px-3 py-2.5 text-[15px] text-ink focus:border-ink focus:outline-none"
+            className="w-full resize-y rounded-xl border border-rule-strong bg-transparent px-3 py-2.5 text-[15px] text-ink focus:border-ink focus:outline-none"
           />
         </Field>
       </div>

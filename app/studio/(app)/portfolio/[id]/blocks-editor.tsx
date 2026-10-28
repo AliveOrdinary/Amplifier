@@ -41,7 +41,7 @@ export function BlocksEditor({
       {blocks.length ? (
         <ol className="flex flex-col gap-4">
           {blocks.map((block, i) => (
-            <li key={block.id} className="border border-rule-strong">
+            <li key={block.id} className="overflow-hidden rounded-2xl border border-rule-strong">
               <div className="flex items-center gap-3 border-b border-rule px-4 py-2">
                 <Mono>{String(i + 1).padStart(2, "0")}</Mono>
                 <Mono className="text-ink">{block.type === "text" ? "Text" : block.media.length > 1 ? "Side by side" : "Image or video"}</Mono>
@@ -69,7 +69,7 @@ export function BlocksEditor({
                       maxLength={40}
                       onChange={(e) => update(i, { ...block, label: e.target.value })}
                       placeholder="The challenge"
-                      className="mb-3 h-9 w-full max-w-xs border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
+                      className="mb-3 h-9 w-full max-w-xs rounded-full border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
                     />
                     <label htmlFor={`b-${block.id}`} className="sr-only">
                       Text
@@ -221,7 +221,7 @@ function MediaBlockEditor({
                   disabled={full}
                   onClick={() => toggle(m.id)}
                   className={cn(
-                    "relative block w-full outline-offset-2 disabled:opacity-40",
+                    "relative block w-full overflow-hidden rounded-xl outline-offset-2 disabled:opacity-40",
                     on && "outline outline-2 outline-signal",
                   )}
                 >

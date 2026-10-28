@@ -10,12 +10,12 @@ import { RouteSkeleton } from "./skeletons";
 export default function StudioLayout({ children }: LayoutProps<"/studio">) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="sticky top-0 z-40 border-b border-rule bg-paper">
+      <header className="sticky top-0 z-40 border-b border-rule bg-paper/90 backdrop-blur-md">
         {/* Phones: wordmark and account on top, the sections underneath. */}
         <div className="studio-header-row mx-auto flex w-full max-w-[1360px] flex-wrap items-center gap-x-8 px-4 sm:min-h-14 sm:px-10">
           <Link href="/studio/briefs" className="flex items-baseline gap-2.5 py-3.5 sm:py-0">
-            <Wordmark className="text-[19px]" />
-            <Mono>Studio</Mono>
+            <Wordmark className="text-[17px]" />
+            <Mono className="text-[11px]">Studio</Mono>
           </Link>
           <div className="order-last -mx-4 w-[calc(100%+2rem)] overflow-x-auto px-4 sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0">
             <Suspense fallback={<NavLinks pathname={null} />}>

@@ -91,7 +91,7 @@ export function ReviewScreen() {
   if (!current) {
     return (
       <div className="flex flex-1 items-center justify-center p-4 sm:p-8">
-        <div className="flex w-full max-w-2xl flex-col items-center border border-dashed border-rule-strong px-6 py-12 text-center sm:px-12">
+        <div className="flex w-full max-w-2xl flex-col items-center rounded-[28px] border border-dashed border-rule-strong px-6 py-12 text-center sm:px-12">
           <h2 className="text-2xl font-medium">{hasLibrary ? "All caught up" : "Start your library"}</h2>
           <p className="mt-2 max-w-md text-[15px] text-ink-soft">
             {scoring
@@ -141,7 +141,7 @@ export function ReviewScreen() {
                 >
                   <span
                     className={cn(
-                      "relative block size-14 shrink-0 overflow-hidden bg-panel lg:size-[52px]",
+                      "relative block size-14 shrink-0 overflow-hidden rounded-lg bg-panel lg:size-[52px]",
                       active && "max-lg:outline max-lg:outline-2 max-lg:outline-signal",
                       done && "opacity-40",
                     )}
@@ -193,7 +193,7 @@ export function ReviewScreen() {
         <div className="mt-6 flex flex-col gap-3 lg:mt-auto lg:pt-6">
           <div className="flex gap-2">
             {current.status === "approved" ? (
-              <span className="flex h-12 flex-1 items-center justify-center border border-rule-strong text-[15px] text-muted">
+              <span className="flex h-12 flex-1 items-center justify-center rounded-full border border-rule-strong text-[15px] text-muted">
                 Approved
               </span>
             ) : (
@@ -202,7 +202,7 @@ export function ReviewScreen() {
               </button>
             )}
             {current.status === "rejected" ? (
-              <span className="flex h-12 flex-1 items-center justify-center border border-rule-strong text-[15px] text-muted">
+              <span className="flex h-12 flex-1 items-center justify-center rounded-full border border-rule-strong text-[15px] text-muted">
                 Rejected
               </span>
             ) : (

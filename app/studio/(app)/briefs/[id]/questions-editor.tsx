@@ -73,7 +73,7 @@ export function QuestionsEditor({ briefId, initial, locked }: { briefId: string;
                 maxLength={300}
                 placeholder="Write the question"
                 onChange={(e) => update(i, { prompt: e.target.value })}
-                className="h-11 w-full border border-rule-strong bg-transparent px-3 text-[15px] text-ink focus:border-ink focus:outline-none"
+                className="h-11 w-full rounded-full border border-rule-strong bg-transparent px-3 text-[15px] text-ink focus:border-ink focus:outline-none"
               />
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <Mono>{FORMAT_LABEL[q.format]}</Mono>

@@ -68,7 +68,7 @@ export function ExtensionKeys({ keys }: { keys: MemberKey[] }) {
         </div>
 
         {newKey ? (
-          <div className="mt-3 border border-signal p-4">
+          <div className="mt-3 rounded-2xl border border-signal p-5">
             <p className="text-sm">Copy this key now. It won&apos;t be shown again.</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <code className="min-w-0 flex-1 break-all bg-panel px-2 py-1.5 font-mono text-sm">{newKey}</code>

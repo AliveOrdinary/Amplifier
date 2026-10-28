@@ -36,7 +36,7 @@ const toForm = (p: EditorProject): Form => ({
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { day: "numeric", month: "short", year: "numeric" });
 
 const area =
-  "w-full border border-rule-strong bg-transparent px-3 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted focus:border-ink focus:outline-none";
+  "w-full rounded-xl border border-rule-strong bg-transparent px-3 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted focus:border-ink focus:outline-none";
 
 /**
  * One project: details and the case study are edited together and saved
@@ -123,7 +123,7 @@ export function ProjectEditor({ project }: { project: EditorProject }) {
               href={`/api/portfolio/preview?id=${project.id}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-11 items-center border border-ink px-[18px] text-[15px] hover:bg-panel"
+              className="inline-flex h-11 items-center rounded-full border border-rule-strong px-5 text-[15px] hover:border-ink"
             >
               Preview{dirty ? " (saved version)" : ""}
             </a>
@@ -132,7 +132,7 @@ export function ProjectEditor({ project }: { project: EditorProject }) {
               target="_blank"
               rel="noreferrer"
               lang="fr"
-              className="inline-flex h-11 items-center border border-ink px-[18px] text-[15px] hover:bg-panel"
+              className="inline-flex h-11 items-center rounded-full border border-rule-strong px-5 text-[15px] hover:border-ink"
             >
               Aperçu FR
             </a>
@@ -233,7 +233,7 @@ export function ProjectEditor({ project }: { project: EditorProject }) {
       </Section>
 
       {dirty || error ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink bg-paper">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-rule-strong bg-paper/95 backdrop-blur-md">
           <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-10">
             <p role={error ? "alert" : "status"} className={cn("flex-1 text-[15px]", error ? "text-danger" : "text-ink")}>
               {error ?? (project.published ? "Unsaved changes. The live page changes when you save." : "Unsaved changes.")}

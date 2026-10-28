@@ -61,7 +61,7 @@ export default async function PrepPage({ params }: PageProps<"/studio/briefs/[id
   const answers = new Map((answerRows ?? []).map((r) => [r.question_id as string, r.value as AnswerValue]));
 
   const header = (
-    <div className="flex flex-wrap items-end gap-6 border-b border-ink pb-5">
+    <div className="flex flex-wrap items-end gap-6 border-b border-rule pb-6">
       <div className="min-w-0 flex-[999_1_400px]">
         <div className="flex flex-wrap gap-4">
           <Mono>Prep</Mono>
@@ -214,7 +214,7 @@ function PairRow({
   aside: string;
 }) {
   const img = (t: Thumb, on: boolean, off: boolean) => (
-    <span className={`block size-14 shrink-0 overflow-hidden bg-panel ${on ? "outline outline-2 outline-offset-1 outline-signal" : ""} ${off ? "opacity-35" : ""}`}>
+    <span className={`block size-14 shrink-0 overflow-hidden rounded-lg bg-panel ${on ? "outline outline-2 outline-offset-1 outline-signal" : ""} ${off ? "opacity-35" : ""}`}>
       {t.url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={t.url} alt={t.description ?? ""} title={t.description ?? ""} className="h-full w-full object-cover" />

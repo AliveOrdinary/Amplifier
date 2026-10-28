@@ -211,7 +211,7 @@ export function BrowseScreen({ initialCheck = false, firstPage }: { initialCheck
                   aria-pressed={status === f.key}
                   onClick={() => setStatus(f.key)}
                   className={cn(
-                    "h-8 border px-3 text-sm",
+                    "h-8 rounded-full border px-3.5 text-sm",
                     status === f.key ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink",
                   )}
                 >
@@ -254,7 +254,7 @@ export function BrowseScreen({ initialCheck = false, firstPage }: { initialCheck
               placeholder="Search descriptions"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-8 min-w-0 flex-1 basis-48 border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:max-w-xs"
+              className="h-8 min-w-0 flex-1 basis-48 rounded-full border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none sm:max-w-xs"
             />
             {counts.toCheck || onlyCheck ? (
               <button
@@ -262,7 +262,7 @@ export function BrowseScreen({ initialCheck = false, firstPage }: { initialCheck
                 aria-pressed={onlyCheck}
                 onClick={() => setOnlyCheck((v) => !v)}
                 className={cn(
-                  "flex h-8 items-center gap-1.5 border px-3 text-sm",
+                  "flex h-8 items-center gap-1.5 rounded-full border px-3.5 text-sm",
                   onlyCheck ? "border-ink text-ink" : "border-rule-strong text-muted hover:text-ink",
                 )}
               >
@@ -284,11 +284,11 @@ export function BrowseScreen({ initialCheck = false, firstPage }: { initialCheck
                     onClick={() => setSelectedId(image.id)}
                     aria-current={selected?.id === image.id ? "true" : undefined}
                     className={cn(
-                      "group block w-full text-left outline-offset-2",
+                      "group block w-full rounded-xl text-left outline-offset-2",
                       selected?.id === image.id && "outline outline-2 outline-signal",
                     )}
                   >
-                    <span className="block aspect-[4/5] overflow-hidden bg-panel">
+                    <span className="block aspect-[4/5] overflow-hidden rounded-xl bg-panel">
                       {image.thumbUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -313,7 +313,7 @@ export function BrowseScreen({ initialCheck = false, firstPage }: { initialCheck
             <ul aria-label="Loading" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
               {Array.from({ length: 12 }, (_, i) => (
                 <li key={i} aria-hidden className="animate-pulse">
-                  <span className="block aspect-[4/5] bg-panel" />
+                  <span className="block aspect-[4/5] rounded-xl bg-panel" />
                   <span className="mt-2.5 block h-2.5 w-16 bg-panel" />
                 </li>
               ))}

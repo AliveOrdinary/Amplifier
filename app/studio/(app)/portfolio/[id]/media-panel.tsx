@@ -18,12 +18,12 @@ export function Thumb({ media, className }: { media: StudioMedia; className?: st
       muted
       playsInline
       preload="metadata"
-      className={cn("block h-32 w-full bg-panel object-contain", className)}
+      className={cn("block h-32 w-full rounded-xl bg-panel object-contain", className)}
       aria-label={media.alt || "Video"}
     />
   ) : (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={media.url} alt={media.alt} loading="lazy" className={cn("block h-32 w-full bg-panel object-contain", className)} />
+    <img src={media.url} alt={media.alt} loading="lazy" className={cn("block h-32 w-full rounded-xl bg-panel object-contain", className)} />
   );
 }
 
@@ -69,7 +69,7 @@ export function MediaPanel({ project, blocks }: { project: EditorProject; blocks
           if (!busy) void upload([...e.dataTransfer.files]);
         }}
         className={cn(
-          "flex flex-wrap items-center gap-x-4 gap-y-2 border border-dashed px-5 py-5",
+          "flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-dashed px-5 py-5",
           dragging ? "border-ink bg-panel" : "border-rule-strong",
         )}
       >
@@ -159,7 +159,7 @@ function MediaTile({
     <li className="flex min-w-0 flex-col gap-2">
       <div className="relative">
         {m.kind === "video" ? (
-          <video ref={video} src={m.url} muted playsInline controls preload="metadata" className="block h-44 w-full bg-panel object-contain" />
+          <video ref={video} src={m.url} muted playsInline controls preload="metadata" className="block h-44 w-full rounded-xl bg-panel object-contain" />
         ) : (
           <Thumb media={m} className="h-44" />
         )}
@@ -202,7 +202,7 @@ function MediaTile({
           onChange={(e) => setAlt(e.target.value)}
           onBlur={() => alt !== m.alt && run(() => updateMedia(m.id, { alt }))}
           placeholder={m.kind === "video" ? "What happens in it (for screen readers)" : "What it shows (for screen readers)"}
-          className="h-9 w-full border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
+          className="h-9 w-full rounded-full border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
         />
       </div>
 

@@ -12,7 +12,7 @@ export function LoginForm({ next, notice }: { next: string; notice?: string }) {
       <input type="hidden" name="next" value={next} />
 
       {notice && !state.error ? (
-        <p className="border border-rule-strong px-3 py-2.5 text-sm text-ink-soft" role="status">
+        <p className="rounded-xl border border-rule-strong px-3.5 py-2.5 text-sm text-ink-soft" role="status">
           {notice}
         </p>
       ) : null}

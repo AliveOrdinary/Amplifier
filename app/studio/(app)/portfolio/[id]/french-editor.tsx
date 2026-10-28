@@ -82,7 +82,7 @@ export function FrenchEditor({
           <Mono>Case study</Mono>
           <ol className="flex flex-col gap-4">
             {blocks.map((b, i) => (
-              <li key={b.id} className="border border-rule-strong p-4">
+              <li key={b.id} className="rounded-2xl border border-rule-strong p-4">
                 <Mono className="mb-3 block">
                   {String(i + 1).padStart(2, "0")} · {b.type === "text" ? "Text" : "Caption"}
                 </Mono>

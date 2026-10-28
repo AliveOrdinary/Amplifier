@@ -89,7 +89,7 @@ export function BriefFlow({ token, initialStep, initialProgress }: { token: stri
           <Screen step={step} pending={waiting} submit={submit} />
         )}
         {error ? (
-          <div role="alert" className="mt-3 flex flex-wrap items-center gap-3 border border-danger px-3 py-2 text-sm text-danger">
+          <div role="alert" className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-danger px-3.5 py-2.5 text-sm text-danger">
             <span className="min-w-0 flex-1">{error}</span>
             <button
               type="button"
@@ -135,7 +135,7 @@ function Header({ step, progress, intro }: { step: Step; progress: Progress; int
           aria-valuenow={progress.done}
           className="h-0.5 bg-rule"
         >
-          <div className="h-0.5 bg-ink transition-[width] duration-300" style={{ width: `${(100 * progress.done) / Math.max(1, progress.total)}%` }} />
+          <div className="h-0.5 bg-signal transition-[width] duration-300" style={{ width: `${(100 * progress.done) / Math.max(1, progress.total)}%` }} />
         </div>
       ) : null}
     </header>
@@ -190,12 +190,14 @@ function Screen({ step, pending, submit }: { step: Step; pending: boolean; submi
 
 /* --------------------------------------------------------------- screens */
 
-function Prose({ title, children, action }: { title: ReactNode; children?: ReactNode; action?: ReactNode }) {
+/** A screen of words: a small numbered label, a big headline (as on the site), then the text. */
+function Prose({ label, title, children, action }: { label?: string; title: ReactNode; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-1 flex-col pt-10 sm:pt-16">
-      <div className="max-w-xl">
-        <h1 className="text-[34px] leading-[1.05] font-medium tracking-[-0.02em] sm:text-[44px]">{title}</h1>
-        <div className="mt-5 space-y-4 text-[17px] leading-relaxed text-ink-soft">{children}</div>
+    <div className="flex flex-1 flex-col pt-12 sm:pt-20">
+      <div className="max-w-2xl">
+        {label ? <p className="mb-5 font-mono text-[12px] tracking-[0.08em] text-muted uppercase">{label}</p> : null}
+        <h1 className="text-[clamp(44px,8vw,80px)] leading-[0.92] font-medium tracking-[-0.035em]">{title}</h1>
+        <div className="mt-7 max-w-xl space-y-4 text-[18px] leading-relaxed text-ink-soft">{children}</div>
       </div>
       {action ? <div className="mt-auto pt-10 sm:mt-10">{action}</div> : null}
     </div>
@@ -206,6 +208,7 @@ function Welcome({ step, pending, onStart }: { step: Extract<Step, { kind: "welc
   const first = step.client.trim().split(/\s+/)[0];
   return (
     <Prose
+      label="00 / Visual brief"
       title={`Hi ${first}.`}
       action={
         <div className="flex flex-col gap-3 sm:max-w-xs">
@@ -232,17 +235,20 @@ function Interlude({ kind, step, onContinue }: { kind: Exclude<Intro, null>; ste
   const total = step.kind === "swipe" || step.kind === "pair" ? step.total : 0;
   const copy = {
     warmup: {
+      label: "01 / Warm-up",
       title: "First, a warm-up.",
       body: `${total} images, one at a time. Keep the ones you'd want around your project and skip the rest. Don't think too long.`,
     },
     pairs: {
+      label: "02 / This or that",
       title: "Now, this or that.",
       body: `${total} pairs. Tap the one that feels closer to what you want. If both or neither fit, say so.`,
     },
-    words: { title: "Last part.", body: "A few questions in words. Short answers are fine." },
+    words: { label: "03 / In words", title: "Last part.", body: "A few questions in words. Short answers are fine." },
   }[kind];
   return (
     <Prose
+      label={copy.label}
       title={copy.title}
       action={
         <Button variant="primary" className="h-14 w-full text-base sm:w-auto sm:px-10" onClick={onContinue} autoFocus>
@@ -260,7 +266,7 @@ function Done({ meetingAt }: { meetingAt: string | null }) {
     ? new Date(meetingAt).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })
     : null;
   return (
-    <Prose title="Thank you.">
+    <Prose label="04 / Done" title="Thank you.">
       <p>That&apos;s everything. We&apos;ll go through it before we meet{when ? ` on ${when}` : ""}.</p>
       <p>You can close this page.</p>
     </Prose>
@@ -275,7 +281,7 @@ function Closed({ reason }: { reason: Extract<Step, { kind: "closed" }>["reason"
         ? "This brief is closed. Thanks for your time."
         : "This brief isn't ready yet. Try again later.";
   return (
-    <Prose title="This link is closed.">
+    <Prose label="Visual brief" title="This link is closed.">
       <p>{body}</p>
     </Prose>
   );
@@ -305,7 +311,7 @@ function QuestionScreen({ question, pending, onAnswer }: { question: Question; p
           : null;
 
   const submit = () => value && !pending && onAnswer(value);
-  const field = "w-full border border-rule-strong bg-transparent px-3.5 text-[17px] text-ink placeholder:text-muted focus:border-ink focus:outline-none";
+  const field = "w-full rounded-2xl border border-rule-strong bg-transparent px-4 text-[17px] text-ink placeholder:text-muted focus:border-ink focus:outline-none";
 
   return (
     <form
@@ -316,7 +322,7 @@ function QuestionScreen({ question, pending, onAnswer }: { question: Question; p
       }}
     >
       <div className="max-w-xl">
-        <label htmlFor="answer" className="block text-[28px] leading-[1.1] font-medium tracking-[-0.015em] sm:text-[34px]">
+        <label htmlFor="answer" className="block text-[clamp(30px,5vw,48px)] leading-[1.02] font-medium tracking-[-0.03em]">
           {question.prompt}
         </label>
         {question.help ? <p className="mt-3 text-[16px] text-muted">{question.help}</p> : null}
@@ -361,7 +367,7 @@ function QuestionScreen({ question, pending, onAnswer }: { question: Question; p
                     type="button"
                     aria-pressed={on}
                     onClick={() => setChips((list) => (on ? list.filter((c) => c !== option) : [...list, option]))}
-                    className={cn("h-11 border px-4 text-[16px]", on ? "border-ink bg-ink text-paper" : "border-rule-strong hover:border-ink")}
+                    className={cn("h-11 rounded-full border px-5 text-[16px] transition-colors", on ? "border-ink bg-ink text-paper" : "border-rule-strong hover:border-ink")}
                   >
                     {option}
                   </button>
@@ -429,7 +435,7 @@ function BriefImage({ image, onReady, className }: { image: ShownImage; onReady?
     ready.current?.();
   };
   return (
-    <span className={cn("relative flex items-center justify-center overflow-hidden bg-panel", className)}>
+    <span className={cn("relative flex items-center justify-center overflow-hidden rounded-[24px] bg-panel", className)}>
       {image.thumb ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={image.thumb} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl" />
@@ -513,7 +519,7 @@ function SwipeScreen({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 pt-5 pb-4">
-        <h1 className="text-[26px] leading-[1.1] font-medium tracking-[-0.015em]">Keep or skip?</h1>
+        <h1 className="text-[28px] leading-[1.05] font-medium tracking-[-0.025em]">Keep or skip?</h1>
         <p className="mt-1 text-[15px] text-muted">
           {step.index < 2 ? "Swipe right to keep, left to skip. Or use the buttons." : "First instinct counts."}
         </p>
@@ -569,7 +575,7 @@ function SwipeLabel({ show, side, children }: { show: boolean; side: "left" | "r
     <span
       aria-hidden
       className={cn(
-        "absolute top-4 bg-paper px-3 py-1.5 font-mono text-sm tracking-[0.08em] uppercase transition-opacity",
+        "absolute top-4 rounded-full bg-paper px-3.5 py-1.5 font-mono text-sm tracking-[0.08em] uppercase transition-opacity",
         side === "right" ? "left-4 text-ink" : "right-4 text-ink",
         show ? "opacity-100" : "opacity-0",
       )}
@@ -618,7 +624,7 @@ function PairScreen({
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 pt-5 pb-4">
-        <h1 className="text-[26px] leading-[1.1] font-medium tracking-[-0.015em]">Which feels closer?</h1>
+        <h1 className="text-[28px] leading-[1.05] font-medium tracking-[-0.025em]">Which feels closer?</h1>
         <p className="mt-1 text-[15px] text-muted">Tap one. First instinct counts.</p>
       </div>
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:grid-rows-[minmax(0,1fr)]">
@@ -630,13 +636,13 @@ function PairScreen({
             disabled={pending || Boolean(picked)}
             onClick={() => choose(side)}
             className={cn(
-              "relative min-h-0 overflow-hidden outline-offset-2 disabled:cursor-default",
+              "relative min-h-0 overflow-hidden rounded-[24px] outline-offset-2 disabled:cursor-default",
               picked?.choice === side && "outline outline-3 outline-signal",
               picked && picked.choice !== side && "opacity-40",
             )}
           >
             <BriefImage image={step[side]} onReady={timer.onReady} className="h-full w-full" />
-            <span className="absolute top-3 left-3 flex size-7 items-center justify-center bg-paper font-mono text-xs">
+            <span className="absolute top-3 left-3 flex size-8 items-center justify-center rounded-full bg-paper font-mono text-xs">
               {side.toUpperCase()}
             </span>
           </button>
@@ -652,7 +658,7 @@ function PairScreen({
       </div>
 
       {asking ? (
-        <div role="dialog" aria-labelledby="caught-title" className="absolute inset-x-0 bottom-0 border border-ink bg-paper p-4 shadow-[0_-8px_24px_rgba(0,0,0,0.12)]">
+        <div role="dialog" aria-labelledby="caught-title" className="absolute inset-x-0 bottom-0 rounded-[28px] border border-rule-strong bg-panel p-5 shadow-[0_-12px_40px_rgba(0,0,0,0.6)]">
           <h2 id="caught-title" className="text-lg font-medium">
             What caught your eye?
           </h2>
@@ -666,7 +672,7 @@ function PairScreen({
                   type="button"
                   aria-pressed={on}
                   onClick={() => setCaught((list) => (on ? list.filter((x) => x !== c) : [...list, c]))}
-                  className={cn("h-11 border px-4 text-[16px]", on ? "border-ink bg-ink text-paper" : "border-rule-strong")}
+                  className={cn("h-11 rounded-full border px-5 text-[16px] transition-colors", on ? "border-ink bg-ink text-paper" : "border-rule-strong")}
                 >
                   {c}
                 </button>

@@ -264,13 +264,13 @@ export function Board({ boardId, initial, clientName }: { boardId: string; initi
                 {item.tag}
               </figcaption>
               <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                <button type="button" aria-label="Move earlier" onClick={() => move(i, i - 1)} className="flex size-7 items-center justify-center bg-ink text-paper">
+                <button type="button" aria-label="Move earlier" onClick={() => move(i, i - 1)} className="flex size-7 items-center justify-center rounded-full bg-ink text-paper">
                   ←
                 </button>
-                <button type="button" aria-label="Move later" onClick={() => move(i, i + 1)} className="flex size-7 items-center justify-center bg-ink text-paper">
+                <button type="button" aria-label="Move later" onClick={() => move(i, i + 1)} className="flex size-7 items-center justify-center rounded-full bg-ink text-paper">
                   →
                 </button>
-                <button type="button" aria-label="Remove from board" onClick={() => remove(item)} className="flex size-7 items-center justify-center bg-ink text-paper">
+                <button type="button" aria-label="Remove from board" onClick={() => remove(item)} className="flex size-7 items-center justify-center rounded-full bg-ink text-paper">
                   ×
                 </button>
               </div>
@@ -278,7 +278,7 @@ export function Board({ boardId, initial, clientName }: { boardId: string; initi
           );
         })}
         {!items.length ? (
-          <p className="absolute inset-0 flex items-center justify-center border border-dashed border-rule-strong text-sm text-muted">
+          <p className="absolute inset-0 flex items-center justify-center rounded-2xl border border-dashed border-rule-strong text-sm text-muted">
             The board is empty. Add from the library, or paste images here.
           </p>
         ) : null}
@@ -353,7 +353,7 @@ function LibraryPicker({ boardId, onAdd, onClose }: { boardId: string; onAdd: (i
       ref={dialog}
       onClose={onClose}
       aria-labelledby="board-picker-title"
-      className="m-auto h-[min(760px,calc(100dvh-32px))] w-[min(960px,calc(100vw-32px))] border border-ink bg-paper p-0 text-ink backdrop:bg-black/60"
+      className="m-auto h-[min(760px,calc(100dvh-32px))] w-[min(960px,calc(100vw-32px))] overflow-hidden rounded-[28px] border border-rule-strong bg-paper p-0 text-ink backdrop:bg-black/60"
     >
       <div className="flex h-full flex-col">
         <div className="flex flex-wrap items-center gap-3 border-b border-rule px-5 py-4">
@@ -369,7 +369,7 @@ function LibraryPicker({ boardId, onAdd, onClose }: { boardId: string; onAdd: (i
             placeholder="Search descriptions"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-56 max-w-full border border-rule-strong bg-transparent px-2.5 text-sm placeholder:text-muted focus:border-ink focus:outline-none"
+            className="h-9 w-56 max-w-full rounded-full border border-rule-strong bg-transparent px-2.5 text-sm placeholder:text-muted focus:border-ink focus:outline-none"
           />
           <Button
             size="sm"
@@ -399,9 +399,9 @@ function LibraryPicker({ boardId, onAdd, onClose }: { boardId: string; onAdd: (i
                   aria-pressed={on}
                   onClick={() => setSelected((list) => (on ? list.filter((x) => x !== image.id) : [...list, image.id]))}
                   title={image.description ?? ""}
-                  className={cn("block w-full outline-offset-2", on && "outline outline-2 outline-signal")}
+                  className={cn("block w-full rounded-xl outline-offset-2", on && "outline outline-2 outline-signal")}
                 >
-                  <span className="block aspect-square overflow-hidden bg-panel">
+                  <span className="block aspect-square overflow-hidden rounded-xl bg-panel">
                     {image.thumb ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={image.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />

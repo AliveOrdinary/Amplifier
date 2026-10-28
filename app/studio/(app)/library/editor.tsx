@@ -17,7 +17,7 @@ export function signed(value: number) {
 /** The image, shown whole, fading in once loaded so switching doesn't flash. */
 export function ImageStage({ image, className }: { image: LibraryImage; className?: string }) {
   return (
-    <div className={cn("relative flex min-h-0 items-center justify-center overflow-hidden bg-panel", className)}>
+    <div className={cn("relative flex min-h-0 items-center justify-center overflow-hidden rounded-2xl bg-panel", className)}>
       {image.thumbUrl ? (
         // The thumbnail fills in instantly while the full image loads.
         // eslint-disable-next-line @next/next/no-img-element

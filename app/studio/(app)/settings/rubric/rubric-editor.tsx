@@ -80,7 +80,7 @@ export function RubricEditor({
           {adding ? (
             <DimensionCard index={active.length} onDone={() => setAdding(false)} />
           ) : (
-            <div className="flex flex-wrap items-center gap-4 border-t border-ink pt-6">
+            <div className="flex flex-wrap items-center gap-4 border-t border-rule pt-6">
               <Button onClick={() => setAdding(true)} disabled={full}>
                 Add a dimension
               </Button>
@@ -159,7 +159,7 @@ function RescoreBar({ stale, rescoring, toCheck }: { stale: number; rescoring: n
   return (
     <div className="flex flex-col gap-3">
       {count || running ? (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border border-ink px-4 py-3">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-rule-strong px-5 py-3.5">
           <span aria-hidden className="size-2 shrink-0 bg-signal" />
           <p className="min-w-0 flex-1 text-[15px]" aria-live="polite">
             {running && !background
@@ -255,7 +255,7 @@ function DimensionCard({
     });
 
   return (
-    <article className="border-t border-ink py-6" aria-label={isNew ? "New dimension" : `${saved.left} to ${saved.right}`}>
+    <article className="border-t border-rule-strong py-6" aria-label={isNew ? "New dimension" : `${saved.left} to ${saved.right}`}>
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <Mono className="w-5">{index === 9 ? "0" : index + 1}</Mono>
         <h3 className="min-w-0 flex-1 text-lg font-medium">
@@ -366,7 +366,7 @@ function EndEditor({
         rows={3}
         placeholder={side === "left" ? "What you can see: few elements, generous empty space…" : "What you can see: many elements, layered, dense…"}
         onChange={(e) => onDefinition(e.target.value)}
-        className="w-full resize-y border border-rule-strong bg-transparent px-3 py-2.5 text-[15px] leading-snug text-ink placeholder:text-muted focus:border-ink focus:outline-none"
+        className="w-full resize-y rounded-xl border border-rule-strong bg-transparent px-3 py-2.5 text-[15px] leading-snug text-ink placeholder:text-muted focus:border-ink focus:outline-none"
       />
 
       <div>
@@ -387,7 +387,7 @@ function EndEditor({
                     if (r.ok) router.refresh();
                   })
                 }
-                className="absolute top-0 right-0 flex size-6 items-center justify-center bg-ink text-paper opacity-90 hover:opacity-100"
+                className="absolute top-0 right-0 flex size-6 items-center justify-center rounded-full bg-ink text-paper opacity-90 hover:opacity-100"
               >
                 ×
               </button>
@@ -398,7 +398,7 @@ function EndEditor({
               <button
                 type="button"
                 onClick={onPick}
-                className="flex size-16 items-center justify-center border border-dashed border-rule-strong text-sm text-muted hover:border-ink hover:text-ink"
+                className="flex size-16 items-center justify-center rounded-xl border border-dashed border-rule-strong text-sm text-muted hover:border-ink hover:text-ink"
               >
                 + Add
               </button>
@@ -491,7 +491,7 @@ function AnchorPicker({
       ref={dialog}
       onClose={onClose}
       aria-labelledby="picker-title"
-      className="m-auto h-[min(760px,calc(100dvh-32px))] w-[min(960px,calc(100vw-32px))] border border-ink bg-paper p-0 text-ink backdrop:bg-black/60"
+      className="m-auto h-[min(760px,calc(100dvh-32px))] w-[min(960px,calc(100vw-32px))] overflow-hidden rounded-[28px] border border-rule-strong bg-paper p-0 text-ink backdrop:bg-black/60"
     >
       <div className="flex h-full flex-col">
         <div className="flex flex-wrap items-center gap-3 border-b border-rule px-5 py-4">
@@ -507,7 +507,7 @@ function AnchorPicker({
             placeholder="Search descriptions"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-56 max-w-full border border-rule-strong bg-transparent px-2.5 text-sm placeholder:text-muted focus:border-ink focus:outline-none"
+            className="h-9 w-56 max-w-full rounded-full border border-rule-strong bg-transparent px-2.5 text-sm placeholder:text-muted focus:border-ink focus:outline-none"
           />
           <Button size="sm" variant="ghost" onClick={() => dialog.current?.close()}>
             Close
@@ -530,7 +530,7 @@ function AnchorPicker({
                   title={image.description ?? ""}
                   className={cn("block w-full text-left outline-offset-2 disabled:cursor-not-allowed", used && "opacity-35")}
                 >
-                  <span className="block aspect-square overflow-hidden bg-panel">
+                  <span className="block aspect-square overflow-hidden rounded-xl bg-panel">
                     {image.thumb ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={image.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
