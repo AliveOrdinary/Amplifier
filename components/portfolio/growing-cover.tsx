@@ -4,20 +4,18 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 /**
  * After atmos.gallery: a picture starts as a rounded frame a little narrower
- * than the screen and opens out to its full width as you scroll, while the
- * picture inside drifts a little slower than the frame (a light parallax).
- * Used for the cover and every image block of a case study. Two or three
- * pictures side by side (`split`) grow together, each with its own rounded
- * corners, without the parallax. Reduced motion: full width, still.
+ * than the screen and opens out to its full width as you scroll. The picture
+ * scales with its frame and is never cropped: the whole image or video shows
+ * at every step. Used for the cover and every image block of a case study.
+ * Two or three pictures side by side (`split`) grow together, each with its
+ * own rounded corners. Reduced motion: full width, still.
  */
 export function GrowingCover({ children, split = false }: { children: ReactNode; split?: boolean }) {
   const frame = useRef<HTMLDivElement>(null);
-  const inner = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = frame.current;
-    const pic = inner.current;
-    if (!el || !pic) return;
+    if (!el) return;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)");
     let raf = 0;
 
@@ -36,7 +34,6 @@ export function GrowingCover({ children, split = false }: { children: ReactNode;
       const start = Math.min(vw * (vw >= 1024 ? 0.8 : vw >= 640 ? 0.84 : 0.86), full * 0.82);
       const width = start + (full - start) * ease;
       el.style.width = `${width}px`;
-      if (!split) pic.style.transform = `translateY(${(0.5 - p) * 6}%) scale(1.08)`;
     };
     const queue = () => {
       if (!raf) raf = requestAnimationFrame(draw);
@@ -49,7 +46,7 @@ export function GrowingCover({ children, split = false }: { children: ReactNode;
       window.removeEventListener("scroll", queue);
       window.removeEventListener("resize", queue);
     };
-  }, [split]);
+  }, []);
 
   return (
     // Breaks out of the page column so it can reach the screen's edges.
@@ -62,9 +59,7 @@ export function GrowingCover({ children, split = false }: { children: ReactNode;
             : "w-[86vw] overflow-hidden rounded-[16px] bg-panel [clip-path:inset(0_round_16px)] sm:w-[84vw] lg:w-[80vw]"
         }
       >
-        <div ref={inner}>
-          {children}
-        </div>
+        {children}
       </div>
     </div>
   );
