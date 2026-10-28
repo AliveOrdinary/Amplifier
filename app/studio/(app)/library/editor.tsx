@@ -70,7 +70,7 @@ export function ScorePanel({
 
   return (
     <div className="flex flex-col">
-      <label htmlFor={`medium-${image.id}`} className="text-[13px] text-muted">
+      <label htmlFor={`medium-${image.id}`} className="font-mono text-label uppercase tracking-[0.08em] text-muted">
         Medium
       </label>
       <Select

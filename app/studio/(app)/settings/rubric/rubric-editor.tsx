@@ -350,7 +350,7 @@ function EndEditor({
   return (
     <div className="flex min-w-0 flex-col gap-3">
       <div className="flex items-baseline justify-between">
-        <label htmlFor={`${id}-name`} className="text-sm">
+        <label htmlFor={`${id}-name`} className="font-mono text-label uppercase tracking-[0.08em] text-muted">
           {side === "left" ? "Left end" : "Right end"}
         </label>
         <Mono>{end}</Mono>

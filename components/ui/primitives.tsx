@@ -184,7 +184,7 @@ export function Section({
   return (
     <section id={id} className={cn("flex flex-wrap gap-6 border-b border-rule py-10 scroll-mt-16", className)}>
       <div className="flex-[1_1_200px] max-w-[260px]">
-        <span className="font-mono text-label uppercase tracking-[0.08em] text-muted">{number} /</span>
+        <span className="font-mono text-label uppercase tracking-[0.08em] text-muted">{number}</span>
         <h2 className="mt-1.5 text-title font-medium tracking-[-0.01em]">{title}</h2>
         {description ? <p className="mt-2 text-sm leading-snug text-muted">{description}</p> : null}
       </div>

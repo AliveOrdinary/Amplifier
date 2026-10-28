@@ -40,7 +40,7 @@ export function SpendingPanel({ thisMonth, lastMonth, alert }: { thisMonth: Mont
           });
         }}
       >
-        <label htmlFor="alert" className="text-sm">
+        <label htmlFor="alert" className="font-mono text-label uppercase tracking-[0.08em] text-muted">
           Monthly alert
         </label>
         <div className="flex items-center gap-2">
