@@ -13,11 +13,13 @@ type MediaBlock = Extract<StoredBlock, { type: "media" }>;
 export function BlocksEditor({
   blocks,
   media,
+  coverId,
   onChange,
   areaClass,
 }: {
   blocks: StoredBlock[];
   media: StudioMedia[];
+  coverId: string | null;
   onChange: (blocks: StoredBlock[]) => void;
   areaClass: string;
 }) {
@@ -32,9 +34,9 @@ export function BlocksEditor({
   };
   const add = (block: StoredBlock) => onChange([...blocks, block]);
 
-  // Files not in any block yet: the obvious next things to place.
+  // Files not in any block yet (the cover already shows at the top): the obvious next things to place.
   const used = new Set(blocks.flatMap((b) => (b.type === "media" ? b.media : [])));
-  const unused = media.filter((m) => !used.has(m.id));
+  const unused = media.filter((m) => !used.has(m.id) && m.id !== coverId);
 
   return (
     <div className="flex flex-col gap-4">
@@ -103,7 +105,7 @@ export function BlocksEditor({
         <Button onClick={() => add({ id: blockId(), type: "text", text: "" })}>+ Text</Button>
         <Button
           disabled={!media.length}
-          onClick={() => add({ id: blockId(), type: "media", media: unused[0] ? [unused[0].id] : [media[0].id], caption: null })}
+          onClick={() => add({ id: blockId(), type: "media", media: [(unused[0] ?? media[0]).id], caption: null })}
         >
           + Image or video
         </Button>
@@ -112,7 +114,7 @@ export function BlocksEditor({
             variant="ghost"
             onClick={() => onChange([...blocks, ...unused.map((m): StoredBlock => ({ id: blockId(), type: "media", media: [m.id], caption: null }))])}
           >
-            + All {unused.length} unplaced {unused.length === 1 ? "file" : "files"}, one after another
+            {unused.length === 1 ? "+ The 1 file not placed yet" : `+ The ${unused.length} files not placed yet, one after another`}
           </Button>
         ) : null}
         {!media.length ? <span className="text-sm text-muted">Upload images or video above to place them here.</span> : null}
@@ -153,7 +155,7 @@ function MediaBlockEditor({
       <div className={cn("grid gap-3", chosen.length === 2 && "grid-cols-2", chosen.length === 3 && "grid-cols-3")}>
         {chosen.map((id, i) => (
           <div key={id} className="min-w-0">
-            <Thumb media={byId.get(id)!} className={chosen.length === 1 ? "max-h-[360px]" : "h-40"} />
+            <Thumb media={byId.get(id)!} className={chosen.length === 1 ? "h-72" : "h-40"} />
             {chosen.length > 1 ? (
               <div className="-ml-3 mt-1 flex">
                 <Button size="sm" variant="ghost" aria-label="Move left" disabled={i === 0} onClick={() => shift(i, i - 1)}>

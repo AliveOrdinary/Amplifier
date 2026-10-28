@@ -210,7 +210,7 @@ export function ProjectEditor({ project }: { project: EditorProject }) {
         title="Case study"
         description="Text and media, top to bottom, in the order the page shows them."
       >
-        <BlocksEditor blocks={form.blocks} media={project.media} onChange={(blocks) => set("blocks", blocks)} areaClass={area} />
+        <BlocksEditor blocks={form.blocks} media={project.media} coverId={project.coverId} onChange={(blocks) => set("blocks", blocks)} areaClass={area} />
       </Section>
 
       <Section
