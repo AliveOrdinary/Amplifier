@@ -11,7 +11,7 @@ export type Thumb = { id: string; url: string | null; description: string | null
 type Editable = Pick<ReportContent, "headline" | "contradictions" | "directions">;
 
 const field =
-  "w-full resize-y border border-rule-strong bg-transparent px-3 py-2 text-[16px] leading-snug text-ink focus:border-ink focus:outline-none";
+  "w-full resize-y rounded-xl border border-rule-strong bg-transparent px-3 py-2 text-[16px] leading-snug text-ink focus:border-ink focus:outline-none";
 
 /** The written parts of the prep page, editable in place. */
 export function ReportView({
@@ -182,7 +182,7 @@ export function ReportView({
         <div className="grid gap-10 sm:grid-cols-2">
           {(["chose", "rejected"] as const).map((side) => (
             <div key={side}>
-              <Mono className="block border-b border-ink pb-2.5 text-ink">{side === "chose" ? "Consistently chose" : "Consistently passed over"}</Mono>
+              <Mono className="block border-b border-rule-strong pb-2.5 text-ink">{side === "chose" ? "Consistently chose" : "Consistently passed over"}</Mono>
               {editing ? (
                 <div className="mt-3 flex flex-col gap-2">
                   {draft.directions[side].map((line, i) => (
@@ -198,7 +198,7 @@ export function ReportView({
               )}
               <div className="mt-4 grid grid-cols-4 gap-1.5">
                 {(side === "chose" ? chose : rejected).map((t) => (
-                  <span key={t.id} className={cn("block aspect-square overflow-hidden bg-panel", side === "rejected" && "opacity-55")}>
+                  <span key={t.id} className={cn("block aspect-square overflow-hidden rounded-xl bg-panel", side === "rejected" && "opacity-55")}>
                     {t.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={t.url} alt={t.description ?? ""} title={t.description ?? ""} className="h-full w-full object-cover" />

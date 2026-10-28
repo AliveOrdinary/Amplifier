@@ -59,7 +59,7 @@ export function LinkPanel({
           readOnly
           value={url}
           onFocus={(e) => e.currentTarget.select()}
-          className="h-11 min-w-0 flex-[1_1_320px] border border-rule-strong bg-transparent px-3 font-mono text-[13px] text-ink-soft focus:border-ink focus:outline-none"
+          className="h-11 min-w-0 flex-[1_1_320px] rounded-full border border-rule-strong bg-transparent px-3 font-mono text-[13px] text-ink-soft focus:border-ink focus:outline-none"
         />
         <Button variant="primary" onClick={copy}>
           {copied ? "Copied" : "Copy link"}

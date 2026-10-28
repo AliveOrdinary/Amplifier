@@ -16,8 +16,9 @@ import {
   VIDEO_TYPES,
   slugify,
 } from "@/lib/portfolio/blocks";
-import type { StoredBlock } from "@/lib/portfolio/types";
+import type { ProjectFrench, StoredBlock } from "@/lib/portfolio/types";
 import { CRUMS } from "@/lib/portfolio/legacy";
+import { hasColumn, hasFrenchColumn } from "@/lib/portfolio/read";
 
 type Fail = { ok: false; error: string };
 type Ok<T = object> = { ok: true } & T;
@@ -70,6 +71,43 @@ export async function createProject(title: string): Promise<Fail> {
   redirect(`/studio/portfolio/${id}`);
 }
 
+/** The French version: everything optional, since anything left empty shows the English. */
+const French = z
+  .object({
+    title: z.string().trim().max(120).optional(),
+    summary: z.string().trim().max(600, "Keep the French summary under 600 characters.").optional(),
+    services: z.array(z.string().trim().max(60)).max(16).optional(),
+    blocks: z
+      .record(
+        z.string().max(64),
+        z.object({ text: z.string().max(20000).optional(), caption: z.string().trim().max(400).optional(), label: z.string().trim().max(40).optional() }),
+      )
+      .optional(),
+    alt: z.record(z.string().max(64), z.string().trim().max(400)).optional(),
+  })
+  .default({});
+
+/** Keeps only French that still belongs to this project's blocks and files, without empty entries. */
+function cleanFrench(fr: z.output<typeof French>, blocks: StoredBlock[], own: Set<string>): ProjectFrench {
+  const out: ProjectFrench = {};
+  if (fr.title) out.title = fr.title;
+  if (fr.summary) out.summary = fr.summary;
+  const services = (fr.services ?? []).filter(Boolean);
+  if (services.length) out.services = services;
+  const byBlock: NonNullable<ProjectFrench["blocks"]> = {};
+  for (const b of blocks) {
+    const tr = fr.blocks?.[b.id];
+    if (b.type === "text" && (tr?.text?.trim() || tr?.label)) {
+      byBlock[b.id] = { ...(tr?.text?.trim() ? { text: tr.text } : {}), ...(tr?.label ? { label: tr.label } : {}) };
+    }
+    if (b.type === "media" && tr?.caption) byBlock[b.id] = { caption: tr.caption };
+  }
+  if (Object.keys(byBlock).length) out.blocks = byBlock;
+  const alt = Object.fromEntries(Object.entries(fr.alt ?? {}).filter(([id, text]) => own.has(id) && text));
+  if (Object.keys(alt).length) out.alt = alt;
+  return out;
+}
+
 const Details = z.object({
   title: z.string().trim().min(1, "Give the project a name.").max(120),
   slug: z
@@ -83,11 +121,12 @@ const Details = z.object({
   services: z.array(z.string().trim().min(1).max(60)).max(16, "Up to 16 services."),
   summary: z.string().trim().max(600, "Keep the summary under 600 characters."),
   blocks: StoredBlocksSchema,
+  fr: French,
 });
 
 export type ProjectDraft = z.input<typeof Details>;
 
-/** Details and the case study, saved together. */
+/** Details, the case study and its French, saved together. */
 export async function saveProject(id: string, input: ProjectDraft): Promise<Ok<{ updatedAt: string }> | Fail> {
   await getMember();
   try {
@@ -101,10 +140,17 @@ export async function saveProject(id: string, input: ProjectDraft): Promise<Ok<{
     const { data: media } = await db.from("project_media").select("id").eq("project_id", id);
     const own = new Set((media ?? []).map((m) => m.id));
     const blocks: StoredBlock[] = d.blocks.flatMap((b): StoredBlock[] => {
-      if (b.type === "text") return [{ id: b.id, type: "text", text: b.text }];
+      if (b.type === "text") return [{ id: b.id, type: "text", text: b.text, label: b.label?.trim() || null }];
       const ids = b.media.filter((m) => own.has(m));
-      return ids.length ? [{ id: b.id, type: "media", media: ids, caption: b.caption?.trim() || null }] : [];
+      return ids.length ? [{ id: b.id, type: "media", media: ids, caption: b.caption?.trim() || null, ...(b.join && ids.length > 1 ? { join: true } : {}), ...(b.scroll && ids.length === 1 ? { scroll: true } : {}) }] : [];
     });
+
+    // French needs migration 14; until then the English still saves.
+    const fr = cleanFrench(d.fr, blocks, own);
+    const canSaveFrench = await hasFrenchColumn(db);
+    if (!canSaveFrench && Object.keys(fr).length) {
+      throw new Error("French can't be saved yet: apply the database update …14_portfolio_french.sql in Supabase first.");
+    }
 
     const { data, error } = await db
       .from("projects")
@@ -116,6 +162,7 @@ export async function saveProject(id: string, input: ProjectDraft): Promise<Ok<{
         services: d.services,
         short_summary: d.summary || null,
         blocks,
+        ...(canSaveFrench ? { fr } : {}),
       })
       .eq("id", id)
       .select("updated_at")
@@ -304,6 +351,27 @@ export async function setCover(projectId: string, mediaId: string | null): Promi
       if (!data) throw new Error("That file isn't part of this project.");
     }
     const { error } = await db.from("projects").update({ cover_media_id: mediaId }).eq("id", projectId);
+    if (error) throw new Error(error.message);
+    changed();
+    return { ok: true };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** The image or video on the project's tile (Home, Works); null goes back to the cover. */
+export async function setThumbnail(projectId: string, mediaId: string | null): Promise<Ok | Fail> {
+  await getMember();
+  try {
+    const db = await createClient();
+    if (!(await hasColumn(db, "thumbnail_media_id"))) {
+      throw new Error("Thumbnails need the database update in supabase/migrations/…15_portfolio_thumbnail.sql.");
+    }
+    if (mediaId) {
+      const { data } = await db.from("project_media").select("id").eq("id", mediaId).eq("project_id", projectId).maybeSingle();
+      if (!data) throw new Error("That file isn't part of this project.");
+    }
+    const { error } = await db.from("projects").update({ thumbnail_media_id: mediaId }).eq("id", projectId);
     if (error) throw new Error(error.message);
     changed();
     return { ok: true };

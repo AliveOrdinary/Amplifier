@@ -21,7 +21,7 @@ export function SettingsTabs() {
             key={tab.href}
             href={tab.href}
             aria-current={active ? "page" : undefined}
-            className={cn("flex h-8 items-center px-3 text-sm", active ? "bg-ink text-paper" : "text-muted hover:text-ink")}
+            className={cn("flex h-8 items-center rounded-full px-3.5 text-sm", active ? "bg-ink text-paper" : "text-muted hover:text-ink")}
           >
             {tab.label}
             <PendingDot />

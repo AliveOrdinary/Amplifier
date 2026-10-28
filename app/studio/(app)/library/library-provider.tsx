@@ -422,7 +422,7 @@ export function LibraryProvider({
       {children}
       {dragging ? (
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-paper/85">
-          <div className="border-2 border-dashed border-ink px-10 py-8 text-xl">Drop to add to the library</div>
+          <div className="rounded-[28px] border-2 border-dashed border-ink px-10 py-8 text-xl">Drop to add to the library</div>
         </div>
       ) : null}
     </LibraryContext>

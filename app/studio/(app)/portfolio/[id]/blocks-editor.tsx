@@ -43,7 +43,7 @@ export function BlocksEditor({
       {blocks.length ? (
         <ol className="flex flex-col gap-4">
           {blocks.map((block, i) => (
-            <li key={block.id} className="border border-rule-strong">
+            <li key={block.id} className="overflow-hidden rounded-2xl border border-rule-strong">
               <div className="flex items-center gap-3 border-b border-rule px-4 py-2">
                 <Mono>{String(i + 1).padStart(2, "0")}</Mono>
                 <Mono className="text-ink">{block.type === "text" ? "Text" : block.media.length > 1 ? "Side by side" : "Image or video"}</Mono>
@@ -62,6 +62,17 @@ export function BlocksEditor({
               <div className="p-4">
                 {block.type === "text" ? (
                   <>
+                    <label htmlFor={`l-${block.id}`} className="mb-1.5 block font-mono text-label tracking-[0.08em] text-muted uppercase">
+                      Section label <span className="normal-case tracking-normal font-sans text-muted/70">optional, shown as “01 / The challenge” beside the text and on the side scale</span>
+                    </label>
+                    <input
+                      id={`l-${block.id}`}
+                      value={block.label ?? ""}
+                      maxLength={40}
+                      onChange={(e) => update(i, { ...block, label: e.target.value })}
+                      placeholder="The challenge"
+                      className="mb-3 h-9 w-full max-w-xs rounded-full border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
+                    />
                     <label htmlFor={`b-${block.id}`} className="sr-only">
                       Text
                     </label>
@@ -176,6 +187,27 @@ function MediaBlockEditor({
             className="h-9"
           />
         </div>
+        {chosen.length > 1 ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.join)}
+              onChange={(e) => onChange({ ...block, join: e.target.checked })}
+              className="size-4 accent-[var(--signal)]"
+            />
+            No gap (show them as one picture)
+          </label>
+        ) : chosen.length === 1 ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.scroll)}
+              onChange={(e) => onChange({ ...block, scroll: e.target.checked })}
+              className="size-4 accent-[var(--signal)]"
+            />
+            Scroll inside a 16:9 frame (for a full-length page design)
+          </label>
+        ) : null}
       </div>
 
       {choosing ? (
@@ -191,7 +223,7 @@ function MediaBlockEditor({
                   disabled={full}
                   onClick={() => toggle(m.id)}
                   className={cn(
-                    "relative block w-full outline-offset-2 disabled:opacity-40",
+                    "relative block w-full overflow-hidden rounded-xl outline-offset-2 disabled:opacity-40",
                     on && "outline outline-2 outline-signal",
                   )}
                 >

@@ -172,7 +172,7 @@ function InviteForm({ onLink }: { onLink: (who: string, url: string) => void }) 
 function LinkBox({ who, url, onClose }: { who: string; url: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="border border-ink p-4">
+    <div className="rounded-2xl border border-rule-strong bg-panel p-5">
       <p className="text-[15px]">
         Link for <span className="font-medium">{who}</span>. Send it to them yourself (WhatsApp, email, anything).
       </p>

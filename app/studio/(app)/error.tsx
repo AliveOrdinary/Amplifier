@@ -11,7 +11,7 @@ export default function StudioError({ error, retry }: { error: unknown; retry: (
 
   return (
     <PageContainer>
-      <div className="max-w-xl border border-rule-strong p-8">
+      <div className="max-w-xl rounded-[28px] border border-rule-strong p-8">
         <h1 className="text-2xl font-medium">This page couldn&apos;t load</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
           Try again in a moment. If it keeps happening after an update, check that every file in{" "}

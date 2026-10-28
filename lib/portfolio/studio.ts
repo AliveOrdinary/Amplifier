@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEDIA_COLUMNS, PROJECT_COLUMNS, toMedia, type MediaRow, type ProjectRow } from "./read";
-import type { PortfolioMedia, StoredBlock } from "./types";
+import { MEDIA_COLUMNS, projectColumns, toMedia, type MediaRow, type ProjectRow } from "./read";
+import type { PortfolioMedia, ProjectFrench, StoredBlock } from "./types";
 
 /** What Studio › Portfolio reads, as the signed-in member (drafts included). */
 
@@ -32,7 +32,11 @@ export type EditorProject = {
   publishedAt: string | null;
   featured: boolean;
   coverId: string | null;
+  /** The tile's own image or video; null shows the cover. */
+  thumbnailId: string | null;
   blocks: StoredBlock[];
+  /** The French version, keyed to the English blocks and files. */
+  fr: ProjectFrench;
   updatedAt: string;
   media: StudioMedia[];
 };
@@ -47,13 +51,14 @@ const studioMedia = (db: SupabaseClient, row: MediaRow): StudioMedia => ({
 export async function studioProjects(db: SupabaseClient): Promise<StudioProjectRow[]> {
   const { data, error } = await db
     .from("projects")
-    .select(PROJECT_COLUMNS)
+    .select(await projectColumns(db))
     .order("sort", { ascending: true })
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as ProjectRow[];
+  const rows = (data ?? []) as unknown as ProjectRow[];
 
-  const coverIds = rows.flatMap((r) => (r.cover_media_id ? [r.cover_media_id] : []));
+  // The list shows what the tiles show: the thumbnail, or the cover.
+  const coverIds = rows.flatMap((r) => (r.thumbnail_media_id ?? r.cover_media_id ? [(r.thumbnail_media_id ?? r.cover_media_id)!] : []));
   const covers = new Map<string, PortfolioMedia>();
   if (coverIds.length) {
     const { data: media } = await db.from("project_media").select(MEDIA_COLUMNS).in("id", coverIds);
@@ -69,16 +74,16 @@ export async function studioProjects(db: SupabaseClient): Promise<StudioProjectR
     published: r.published,
     featured: r.featured,
     updatedAt: r.updated_at,
-    cover: r.cover_media_id ? (covers.get(r.cover_media_id) ?? null) : null,
+    cover: (r.thumbnail_media_id ?? r.cover_media_id) ? (covers.get((r.thumbnail_media_id ?? r.cover_media_id)!) ?? null) : null,
     blocks: Array.isArray(r.blocks) ? r.blocks.length : 0,
   }));
 }
 
 export async function editorProject(db: SupabaseClient, id: string): Promise<EditorProject | null> {
-  const { data, error } = await db.from("projects").select(PROJECT_COLUMNS).eq("id", id).maybeSingle();
+  const { data, error } = await db.from("projects").select(await projectColumns(db)).eq("id", id).maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const row = data as ProjectRow;
+  const row = data as unknown as ProjectRow;
   const { data: media, error: mediaError } = await db
     .from("project_media")
     .select(MEDIA_COLUMNS)
@@ -99,7 +104,9 @@ export async function editorProject(db: SupabaseClient, id: string): Promise<Edi
     publishedAt: row.published_at,
     featured: row.featured,
     coverId: row.cover_media_id,
+    thumbnailId: row.thumbnail_media_id ?? null,
     blocks: Array.isArray(row.blocks) ? row.blocks : [],
+    fr: row.fr && typeof row.fr === "object" ? row.fr : {},
     updatedAt: row.updated_at,
     media: ((media ?? []) as MediaRow[]).map((m) => studioMedia(db, m)),
   };

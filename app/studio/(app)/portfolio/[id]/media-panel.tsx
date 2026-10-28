@@ -5,7 +5,7 @@ import type { EditorProject, StudioMedia } from "@/lib/portfolio/studio";
 import type { StoredBlock } from "@/lib/portfolio/types";
 import { IMAGE_TYPES, VIDEO_TYPES } from "@/lib/portfolio/blocks";
 import { Button, Mono, cn } from "@/components/ui/primitives";
-import { deleteMedia, setCover, updateMedia } from "../actions";
+import { deleteMedia, setCover, setThumbnail, updateMedia } from "../actions";
 import { fileSize as size, uploadFile } from "../upload";
 
 const ACCEPT = [...IMAGE_TYPES, ...VIDEO_TYPES].join(",");
@@ -18,12 +18,12 @@ export function Thumb({ media, className }: { media: StudioMedia; className?: st
       muted
       playsInline
       preload="metadata"
-      className={cn("block h-32 w-full bg-panel object-contain", className)}
+      className={cn("block h-32 w-full rounded-xl bg-panel object-contain", className)}
       aria-label={media.alt || "Video"}
     />
   ) : (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={media.url} alt={media.alt} loading="lazy" className={cn("block h-32 w-full bg-panel object-contain", className)} />
+    <img src={media.url} alt={media.alt} loading="lazy" className={cn("block h-32 w-full rounded-xl bg-panel object-contain", className)} />
   );
 }
 
@@ -69,7 +69,7 @@ export function MediaPanel({ project, blocks }: { project: EditorProject; blocks
           if (!busy) void upload([...e.dataTransfer.files]);
         }}
         className={cn(
-          "flex flex-wrap items-center gap-x-4 gap-y-2 border border-dashed px-5 py-5",
+          "flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-dashed px-5 py-5",
           dragging ? "border-ink bg-panel" : "border-rule-strong",
         )}
       >
@@ -103,7 +103,14 @@ export function MediaPanel({ project, blocks }: { project: EditorProject; blocks
       {project.media.length ? (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-x-4 gap-y-6">
           {project.media.map((m) => (
-            <MediaTile key={m.id} media={m} projectId={project.id} cover={project.coverId === m.id} placed={used.has(m.id)} />
+            <MediaTile
+              key={m.id}
+              media={m}
+              projectId={project.id}
+              cover={project.coverId === m.id}
+              thumbnail={project.thumbnailId === m.id}
+              placed={used.has(m.id)}
+            />
           ))}
         </ul>
       ) : null}
@@ -111,7 +118,20 @@ export function MediaPanel({ project, blocks }: { project: EditorProject; blocks
   );
 }
 
-function MediaTile({ media: m, projectId, cover, placed }: { media: StudioMedia; projectId: string; cover: boolean; placed: boolean }) {
+function MediaTile({
+  media: m,
+  projectId,
+  cover,
+  thumbnail,
+  placed,
+}: {
+  media: StudioMedia;
+  projectId: string;
+  cover: boolean;
+  /** Shown on the project's tile instead of the cover. */
+  thumbnail: boolean;
+  placed: boolean;
+}) {
   const [alt, setAlt] = useState(m.alt);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -139,11 +159,14 @@ function MediaTile({ media: m, projectId, cover, placed }: { media: StudioMedia;
     <li className="flex min-w-0 flex-col gap-2">
       <div className="relative">
         {m.kind === "video" ? (
-          <video ref={video} src={m.url} muted playsInline controls preload="metadata" className="block h-44 w-full bg-panel object-contain" />
+          <video ref={video} src={m.url} muted playsInline controls preload="metadata" className="block h-44 w-full rounded-xl bg-panel object-contain" />
         ) : (
           <Thumb media={m} className="h-44" />
         )}
-        {cover ? <span className="absolute top-2 left-2 bg-signal px-2 py-0.5 font-mono text-[11px] uppercase text-on-signal">Cover</span> : null}
+        <span className="absolute top-2 left-2 flex gap-1">
+          {cover ? <span className="bg-signal px-2 py-0.5 font-mono text-[11px] uppercase text-on-signal">Cover</span> : null}
+          {thumbnail ? <span className="bg-ink px-2 py-0.5 font-mono text-[11px] uppercase text-paper">Thumbnail</span> : null}
+        </span>
       </div>
 
       <Mono className="flex flex-wrap gap-x-3 normal-case tracking-normal">
@@ -179,7 +202,7 @@ function MediaTile({ media: m, projectId, cover, placed }: { media: StudioMedia;
           onChange={(e) => setAlt(e.target.value)}
           onBlur={() => alt !== m.alt && run(() => updateMedia(m.id, { alt }))}
           placeholder={m.kind === "video" ? "What happens in it (for screen readers)" : "What it shows (for screen readers)"}
-          className="h-9 w-full border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
+          className="h-9 w-full rounded-full border border-rule-strong bg-transparent px-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none"
         />
       </div>
 
@@ -189,6 +212,9 @@ function MediaTile({ media: m, projectId, cover, placed }: { media: StudioMedia;
             Make cover
           </Button>
         )}
+        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setThumbnail(projectId, thumbnail ? null : m.id))}>
+          {thumbnail ? "Remove thumbnail" : "Make thumbnail"}
+        </Button>
         {confirm ? (
           <>
             <Button size="sm" variant="ghost" className="text-danger" disabled={pending} onClick={() => run(() => deleteMedia(m.id))}>

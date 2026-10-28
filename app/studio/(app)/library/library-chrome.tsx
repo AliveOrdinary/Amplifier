@@ -32,7 +32,7 @@ export function LibraryBar() {
               aria-current={active ? "page" : undefined}
               className={cn(
                 "flex h-8 items-center px-3 text-sm",
-                active ? "bg-ink text-paper" : "text-muted hover:text-ink",
+                active ? "rounded-full bg-ink text-paper" : "rounded-full text-muted hover:text-ink",
               )}
             >
               {tab.label}
@@ -84,7 +84,7 @@ export function AddControls({ large = false }: { large?: boolean }) {
           value={link}
           onChange={(e) => setLink(e.target.value)}
           className={cn(
-            "w-full min-w-0 border border-rule-strong bg-transparent text-ink placeholder:text-muted focus:border-ink focus:outline-none",
+            "w-full min-w-0 rounded-full border border-rule-strong bg-transparent text-ink placeholder:text-muted focus:border-ink focus:outline-none",
             large ? "h-12 px-3.5 text-[15px]" : "h-9 px-2.5 text-sm",
           )}
         />
@@ -142,7 +142,7 @@ function UploadStatus() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         className={cn(
-          "flex h-9 items-center gap-2 border px-3 text-sm",
+          "flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm",
           failed && !active ? "border-danger text-danger" : "border-rule-strong",
         )}
       >
@@ -152,7 +152,7 @@ function UploadStatus() {
       {open ? (
         <section
           aria-label="Recent additions"
-          className="absolute top-[calc(100%+6px)] right-0 z-40 w-[min(400px,calc(100vw-32px))] border border-rule-strong bg-paper shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
+          className="absolute top-[calc(100%+6px)] right-0 z-40 w-[min(400px,calc(100vw-32px))] overflow-hidden rounded-2xl border border-rule-strong bg-panel shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
         >
           <div className="flex items-center justify-between border-b border-rule px-3 py-2">
             <Mono>Recent additions</Mono>
@@ -208,7 +208,7 @@ export function NoticeToast() {
           onMouseLeave={() => holdNotice(false)}
           className={cn(
             "pointer-events-auto flex items-center gap-4 px-4 py-2.5 text-sm shadow-[0_8px_24px_rgba(0,0,0,0.3)]",
-            notice.tone === "error" ? "bg-danger text-paper" : "bg-ink text-paper",
+            notice.tone === "error" ? "rounded-2xl bg-danger text-paper" : "rounded-2xl bg-ink text-paper",
           )}
         >
           <span>{notice.message}</span>

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function BriefPage({ params }: PageProps<"/b/[token]">) {
   return (
-    <div className="theme-paper flex min-h-dvh flex-1 flex-col">
+    <div className="flex min-h-dvh flex-1 flex-col">
       <Suspense
         fallback={
           <header className="mx-auto flex h-14 w-full max-w-5xl items-center px-4 sm:px-6">

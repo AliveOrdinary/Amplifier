@@ -14,7 +14,7 @@ function answerText(value: AnswerValue | null) {
 
 function Thumb({ image, chosen, dim, size = "size-14" }: { image: ResultImage; chosen?: boolean; dim?: boolean; size?: string }) {
   return (
-    <span className={cn("block shrink-0 overflow-hidden bg-panel", size, chosen && "outline outline-2 outline-offset-1 outline-signal", dim && "opacity-35")}>
+    <span className={cn("block shrink-0 overflow-hidden rounded-lg bg-panel", size, chosen && "outline outline-2 outline-offset-1 outline-signal", dim && "opacity-35")}>
       {image.thumb ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={image.thumb} alt={image.description ?? ""} title={image.description ?? ""} className="h-full w-full object-cover" />

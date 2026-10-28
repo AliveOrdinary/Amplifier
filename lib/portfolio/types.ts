@@ -21,10 +21,15 @@ export type PortfolioMedia = {
 };
 
 /** A run of text, written in Markdown (## headings, paragraphs, lists, links, **bold**). */
-export type TextBlock = { id: string; type: "text"; text: string };
+/** `label`: a short section name ("The challenge"), shown as "01 / The challenge" beside the text and on the side scale. */
+export type TextBlock = { id: string; type: "text"; text: string; label: string | null };
 
 /** One to three images or videos shown side by side, with an optional caption under them. */
-export type MediaBlock = { id: string; type: "media"; media: PortfolioMedia[]; caption: string | null };
+/**
+ * `join`: two or three side by side touch, with no gap, as one picture.
+ * `scroll`: one tall image shown in a 16:9 frame you scroll inside (a full-length web page, say).
+ */
+export type MediaBlock = { id: string; type: "media"; media: PortfolioMedia[]; caption: string | null; join: boolean; scroll: boolean };
 
 export type Block = TextBlock | MediaBlock;
 
@@ -39,8 +44,10 @@ export type ProjectCard = {
   /** A sentence or two: what it was and why it mattered. */
   summary: string | null;
   featured: boolean;
-  /** Image or video to show for the project. Null when none was chosen. */
+  /** Image or video that opens the case study. Null when none was chosen. */
   cover: PortfolioMedia | null;
+  /** Image or video for the project's tile (Home, Works). Null: the tile shows the cover. */
+  thumbnail: PortfolioMedia | null;
   publishedAt: string | null;
 };
 
@@ -59,7 +66,23 @@ export type Project = ProjectCard & {
 
 /* --------------------------------------------- as stored in the database */
 
+/** The languages the public site is written in. English is the original; others fall back to it. */
+export type Locale = "en" | "fr";
+
+/**
+ * A project's French, stored beside the English (projects.fr). Blocks and
+ * alt text are keyed by the English block and file ids, so reordering or
+ * editing the English keeps them attached. Empty means "use the English".
+ */
+export type ProjectFrench = {
+  title?: string;
+  summary?: string;
+  services?: string[];
+  blocks?: Record<string, { text?: string; caption?: string; label?: string }>;
+  alt?: Record<string, string>;
+};
+
 /** Blocks as saved: media blocks hold media ids, resolved into PortfolioMedia on read. */
 export type StoredBlock =
-  | { id: string; type: "text"; text: string }
-  | { id: string; type: "media"; media: string[]; caption?: string | null };
+  | { id: string; type: "text"; text: string; label?: string | null }
+  | { id: string; type: "media"; media: string[]; caption?: string | null; join?: boolean; scroll?: boolean };

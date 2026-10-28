@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "import:portfolio": "node --env-file=.env.local scripts/import-portfolio/index.mjs",
     "build:extension": "rm -f public/amplifier-extension.zip && cd extension && zip -qrX ../public/amplifier-extension.zip . -x '.*'"
   },
   "dependencies": {

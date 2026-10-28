@@ -6,12 +6,15 @@ export const StoredBlockSchema = z.discriminatedUnion("type", [
     id: z.string().min(1).max(64),
     type: z.literal("text"),
     text: z.string().max(20000, "A text block can hold up to 20,000 characters."),
+    label: z.string().trim().max(40, "Keep section labels short (40 characters).").nullish(),
   }),
   z.object({
     id: z.string().min(1).max(64),
     type: z.literal("media"),
     media: z.array(z.uuid()).min(1, "Pick at least one image or video.").max(3, "Up to three side by side."),
     caption: z.string().max(400).nullish(),
+    join: z.boolean().optional(),
+    scroll: z.boolean().optional(),
   }),
 ]);
 

@@ -131,7 +131,7 @@ export function LibrarySkeleton({ withBar, sections }: { withBar?: boolean; sect
         ) : (
           <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 sm:p-6 lg:grid-cols-5">
             {Array.from({ length: 10 }, (_, i) => (
-              <div key={i} className={`aspect-[4/5] ${bar}`} />
+              <div key={i} className={`aspect-[4/5] rounded-xl ${bar}`} />
             ))}
           </div>
         )}

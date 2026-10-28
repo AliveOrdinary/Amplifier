@@ -3,17 +3,23 @@
 import { useLinkStatus } from "next/link";
 import { cn } from "@/components/ui/primitives";
 
-/** A main-nav label: underlined as soon as it's clicked, before the page arrives. */
+/**
+ * A main-nav label, light and small as on the site. The section you're in
+ * gets the orange light; a clicked one lights (pulsing) before its page arrives.
+ */
 export function NavLabel({ label, active }: { label: string; active: boolean }) {
   const { pending } = useLinkStatus();
+  const lit = active || pending;
   return (
-    <span
-      className={cn(
-        "block border-b-2 pt-1 pb-3 transition-colors sm:pt-[18px] sm:pb-4",
-        active || pending ? "border-ink text-ink" : "border-transparent text-muted group-hover:text-ink",
-        pending && "border-ink/50",
-      )}
-    >
+    <span className={cn("flex items-center gap-2 pt-1 pb-3 transition-colors sm:py-0", lit ? "text-ink" : "text-muted group-hover:text-ink")}>
+      <span
+        aria-hidden
+        className={cn(
+          "size-1.5 rounded-full transition-opacity",
+          lit ? "bg-signal shadow-[0_0_8px_var(--signal)]" : "bg-transparent",
+          pending && "animate-pulse",
+        )}
+      />
       {label}
     </span>
   );
