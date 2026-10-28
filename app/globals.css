@@ -405,3 +405,9 @@ body:has([data-workspace]) .studio-header-row {
     opacity: 0.45;
   }
 }
+
+/* A full-length design shown in a 16:9 window you scroll inside: a thin, quiet scrollbar. */
+.scroll-frame {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--ink) 40%, transparent) transparent;
+}

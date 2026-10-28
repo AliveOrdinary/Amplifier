@@ -14,6 +14,7 @@ export const StoredBlockSchema = z.discriminatedUnion("type", [
     media: z.array(z.uuid()).min(1, "Pick at least one image or video.").max(3, "Up to three side by side."),
     caption: z.string().max(400).nullish(),
     join: z.boolean().optional(),
+    scroll: z.boolean().optional(),
   }),
 ]);
 

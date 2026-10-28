@@ -25,8 +25,11 @@ export type PortfolioMedia = {
 export type TextBlock = { id: string; type: "text"; text: string; label: string | null };
 
 /** One to three images or videos shown side by side, with an optional caption under them. */
-/** `join`: two or three side by side touch, with no gap, as one picture. */
-export type MediaBlock = { id: string; type: "media"; media: PortfolioMedia[]; caption: string | null; join: boolean };
+/**
+ * `join`: two or three side by side touch, with no gap, as one picture.
+ * `scroll`: one tall image shown in a 16:9 frame you scroll inside (a full-length web page, say).
+ */
+export type MediaBlock = { id: string; type: "media"; media: PortfolioMedia[]; caption: string | null; join: boolean; scroll: boolean };
 
 export type Block = TextBlock | MediaBlock;
 
@@ -82,4 +85,4 @@ export type ProjectFrench = {
 /** Blocks as saved: media blocks hold media ids, resolved into PortfolioMedia on read. */
 export type StoredBlock =
   | { id: string; type: "text"; text: string; label?: string | null }
-  | { id: string; type: "media"; media: string[]; caption?: string | null; join?: boolean };
+  | { id: string; type: "media"; media: string[]; caption?: string | null; join?: boolean; scroll?: boolean };

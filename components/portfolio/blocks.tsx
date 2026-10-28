@@ -65,7 +65,7 @@ const ROUND = "rounded-[16px] [clip-path:inset(0_round_16px)]";
  * A media block that opens out as you scroll, like the cover. As on
  * francisdes.com: one picture at its own proportions; two or three side by
  * side cropped to equal squares with a gap, or touching as one picture
- * (`join`).
+ * (`join`); a tall image in a 16:9 frame you scroll inside (`scroll`).
  */
 function GrowingFigure({ block }: { block: MediaBlock }) {
   const n = block.media.length;
@@ -73,7 +73,18 @@ function GrowingFigure({ block }: { block: MediaBlock }) {
   const sizes = `(min-width: 640px) ${Math.round(100 / n)}vw, 100vw`;
   return (
     <figure>
-      {n === 1 ? (
+      {n === 1 && block.scroll ? (
+        // A full-length design in a 16:9 window: scroll inside it to read the whole page.
+        <GrowingCover>
+          <div
+            tabIndex={0}
+            aria-label={block.media[0].alt ? `${block.media[0].alt} (scrollable)` : "Scrollable image"}
+            className="scroll-frame aspect-video overflow-y-auto focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
+          >
+            <Media media={block.media[0]} sizes="100vw" />
+          </div>
+        </GrowingCover>
+      ) : n === 1 ? (
         <GrowingCover>
           <Media media={block.media[0]} sizes="100vw" />
         </GrowingCover>

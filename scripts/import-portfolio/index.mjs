@@ -107,6 +107,7 @@ export function storedBlocks(project, ids) {
           media: b.media.map((m) => ids.get(typeof m === "string" ? m : m.url)),
           ...(b.caption ? { caption: b.caption } : {}),
           ...(b.join ? { join: true } : {}),
+          ...(b.scroll ? { scroll: true } : {}),
         },
   );
 }

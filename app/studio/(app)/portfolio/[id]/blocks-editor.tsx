@@ -195,6 +195,16 @@ function MediaBlockEditor({
             />
             No gap (show them as one picture)
           </label>
+        ) : chosen.length === 1 ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.scroll)}
+              onChange={(e) => onChange({ ...block, scroll: e.target.checked })}
+              className="size-4 accent-[var(--signal)]"
+            />
+            Scroll inside a 16:9 frame (for a full-length page design)
+          </label>
         ) : null}
       </div>
 
