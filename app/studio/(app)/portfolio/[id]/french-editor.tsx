@@ -90,7 +90,7 @@ export function FrenchEditor({
                   <>
                     {b.label?.trim() ? (
                       <div className="mb-3 flex flex-wrap items-center gap-3">
-                        <label htmlFor={`fr-l-${b.id}`} className="text-sm text-muted">
+                        <label htmlFor={`fr-l-${b.id}`} className="font-mono text-label tracking-[0.08em] text-muted uppercase">
                           Section label <span lang="en">(English: {b.label})</span>
                         </label>
                         <Input

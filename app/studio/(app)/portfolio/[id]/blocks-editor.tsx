@@ -60,8 +60,8 @@ export function BlocksEditor({
               <div className="p-4">
                 {block.type === "text" ? (
                   <>
-                    <label htmlFor={`l-${block.id}`} className="mb-1.5 block text-sm text-muted">
-                      Section label <span className="text-muted/70">(optional: shown as “01 / The challenge” beside the text and on the side scale)</span>
+                    <label htmlFor={`l-${block.id}`} className="mb-1.5 block font-mono text-label tracking-[0.08em] text-muted uppercase">
+                      Section label <span className="normal-case tracking-normal font-sans text-muted/70">optional, shown as “01 / The challenge” beside the text and on the side scale</span>
                     </label>
                     <input
                       id={`l-${block.id}`}
