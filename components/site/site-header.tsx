@@ -66,7 +66,7 @@ export function SiteHeader({
 
         <nav aria-label="Main" className="pointer-events-auto justify-self-start">
           {/* Smaller on phones, so the line stays light; 13px from tablet up. */}
-          <ul className="flex flex-wrap gap-x-3 text-[11px] font-light sm:gap-x-4 sm:text-[13px]">
+          <ul className="flex flex-wrap gap-x-3 text-[11px] font-light sm:gap-x-4 sm:text-[13px] min-[900px]:text-[15px]">
             {links.map((l) => (
               <li key={l.id}>
                 <a

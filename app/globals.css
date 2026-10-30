@@ -135,7 +135,17 @@ body:has([data-workspace]) .studio-header-row {
   --on-signal: #111111;
   background: var(--paper);
   color: var(--ink);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  /* the site's own typeface; utilities that ask for the sans (font-sans) get it too */
+  --font-geist-sans: var(--font-grotesk);
+  font-family: var(--font-grotesk), system-ui, sans-serif;
+}
+
+/* No widows on the site: headings balance their lines, running text never ends on a lone word. */
+.site :is(h1, h2, h3, h4) {
+  text-wrap: balance;
+}
+.site :is(p, li, dd, dt, blockquote, figcaption) {
+  text-wrap: pretty;
 }
 
 /* Faders: a thin slot that lights orange from the centre to the cap, and a pill-shaped cap. */

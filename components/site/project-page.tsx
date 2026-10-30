@@ -78,14 +78,14 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
         <header id="top" className={cn(COLUMNS, "scroll-mt-24 pt-20 sm:pt-28")}>
           <div className={cn(LABEL, "pt-3 text-muted")}>00 / {t.project.label}</div>
           <div className="min-w-0">
-            <h1 className="text-[clamp(48px,7vw,96px)] leading-[0.92] font-medium tracking-[-0.035em]">{project.title}</h1>
-            {project.summary ? <p className="mt-8 max-w-[620px] text-lg leading-relaxed text-ink-soft">{project.summary}</p> : null}
+            <h1 className="max-w-[900px] text-[clamp(44px,5.6vw,80px)] leading-[1.05] font-normal tracking-[-0.02em]">{project.title}</h1>
+            {project.summary ? <p className="mt-8 max-w-[740px] text-[19px] leading-[1.65] text-ink-soft">{project.summary}</p> : null}
             {facts.length ? (
               <dl className="mt-14 grid gap-x-8 gap-y-5 border-t border-rule pt-6 sm:grid-cols-2 lg:grid-cols-4">
                 {facts.map((f) => (
                   <div key={f.k} className={f.k === t.project.services ? "sm:col-span-2" : undefined}>
                     <dt className={cn(LABEL, "text-muted")}>{f.k}</dt>
-                    <dd className="mt-1.5 text-[17px]">{f.v}</dd>
+                    <dd className="mt-1.5 text-[15px] leading-[1.5]">{f.v}</dd>
                   </div>
                 ))}
               </dl>
