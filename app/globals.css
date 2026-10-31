@@ -501,7 +501,7 @@ html[data-greeted] .preloader {
   margin-left: calc(var(--size) / -2);
   border-radius: 9999px;
   background: var(--signal);
-  color: var(--on-signal);
+  color: #fff;
   transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0);
 }
 .brief-seal-ring {
