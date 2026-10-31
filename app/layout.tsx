@@ -9,6 +9,7 @@ import "./globals.css";
 const grotesk = localFont({
   src: [
     { path: "./fonts/AmplifierGrotesk-Light.woff2", weight: "300", style: "normal" },
+    { path: "./fonts/AmplifierGrotesk-Book.woff2", weight: "350", style: "normal" },
     { path: "./fonts/AmplifierGrotesk-Regular.woff2", weight: "400", style: "normal" },
     { path: "./fonts/AmplifierGrotesk-Medium.woff2", weight: "500", style: "normal" },
     { path: "./fonts/AmplifierGrotesk-Bold.woff2", weight: "700", style: "normal" },

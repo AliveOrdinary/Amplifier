@@ -148,6 +148,14 @@ body:has([data-workspace]) .studio-header-row {
   text-wrap: pretty;
 }
 
+/* Body copy in Book (350): lighter than the Regular headlines. In the base layer, so any font-weight
+   utility on an element still wins. */
+@layer base {
+  .site main :where(p, dd, li, blockquote, figcaption):not(.font-mono) {
+    font-weight: 350;
+  }
+}
+
 /* Faders: a thin slot that lights orange from the centre to the cap, and a pill-shaped cap. */
 .fader {
   --at: 50%;
