@@ -10,9 +10,6 @@ import type { HomeCopy } from "@/lib/i18n/home";
 
 const label = "font-mono text-[12px] uppercase tracking-[0.08em]";
 
-/** Every tile is the same rounded square (the second shape in Lumark's opening row). */
-const TILE_RADIUS = "16%";
-
 /**
  * Selected work as a mixing desk. Every featured project is a channel card;
  * the faders light up the cards that fit and solo the closest one.
@@ -48,8 +45,7 @@ export function Desk({ projects, copy }: { projects: ProjectCard[]; copy: HomeCo
             <li key={project.id} className={cn("tile transition-opacity duration-300", dim && "opacity-35")}>
               <Link href={`/projects/${project.slug}`} className="group block" aria-label={`${project.title}, ${project.services[0] ?? "project"}${project.year ? `, ${project.year}` : ""}`}>
                 <span
-                  className={cn("tile-shape relative block aspect-square overflow-hidden bg-panel", isSolo && "ring-2 ring-signal ring-offset-4 ring-offset-paper")}
-                  style={{ borderRadius: TILE_RADIUS }}
+                  className={cn("tile-shape relative block aspect-square overflow-hidden rounded-curve bg-panel", isSolo && "ring-2 ring-signal ring-offset-4 ring-offset-paper")}
                 >
                   <Cover project={project} />
                 </span>
