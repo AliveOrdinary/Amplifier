@@ -9,8 +9,9 @@ import { cn } from "@/components/ui/primitives";
 export type WorkItem = { key: string; href: string; title: string; meta: string; media: PortfolioMedia | null };
 
 /**
- * The Work page's grid, after brand-nw.com/work: tall 3:4 covers, three
- * across (two on tablets, one on phones), the name and services under each.
+ * The Work page's grid, after brand-nw.com/work: tall 3:4 covers edge to
+ * edge, three across (two on tablets, one on phones), with the desk tiles'
+ * rounded corners (16% of the width), the name and services under each.
  * Covers wipe up into view as they scroll in, a row's covers one after
  * another. Over the grid the pointer is a small dot that grows into an
  * arrow on a cover; the cover's top trims in and its colour comes up.
@@ -67,16 +68,16 @@ export function WorkGrid({ items, empty }: { items: WorkItem[]; empty: string })
 
   return (
     <>
-      <ul ref={grid} className="work-grid grid grid-cols-1 gap-x-[34px] gap-y-14 sm:grid-cols-2 sm:gap-y-[76px] lg:grid-cols-3">
+      <ul ref={grid} className="work-grid grid grid-cols-1 gap-x-3 gap-y-14 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-[76px] lg:grid-cols-3">
         {items.map((item, i) => (
-          <li key={item.key}>
+          <li key={item.key} className="@container">
             <Link href={item.href} data-work-card className="work-card group block" style={{ "--delay": `${(i % 3) * 120}ms` } as CSSProperties}>
               <div data-work-media className="work-media relative aspect-[3/4] overflow-hidden bg-panel">
                 {item.media ? <Cover media={item.media} eager={i < 3} /> : null}
               </div>
-              <h2 className="pt-[18px] text-[22px] leading-[1.2] font-normal tracking-[-0.015em]">{item.title}</h2>
+              <h2 className="px-4 pt-[18px] text-[22px] sm:px-5 leading-[1.2] font-normal tracking-[-0.015em]">{item.title}</h2>
               {item.meta ? (
-                <p className={cn(LABEL, "mt-2 text-[11px] tracking-[0.06em] text-muted opacity-70 transition duration-300 group-hover:text-ink-soft group-hover:opacity-100")}>
+                <p className={cn(LABEL, "mt-2 px-4 text-[11px] sm:px-5 tracking-[0.06em] text-muted opacity-70 transition duration-300 group-hover:text-ink-soft group-hover:opacity-100")}>
                   {item.meta}
                 </p>
               ) : null}

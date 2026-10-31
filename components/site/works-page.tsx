@@ -14,7 +14,7 @@ const meta = (p: ProjectCard) => [...p.services, ...(p.year ? [String(p.year)] :
 /**
  * The Work page (nav › Work), in either language, after brand-nw.com/work:
  * one big line that opens with a grey "Work.", then every project as a tall
- * cover in a grid (components/site/work-grid.tsx).
+ * cover in a grid across the full width (components/site/work-grid.tsx).
  */
 export async function WorksPage({ locale }: { locale: Locale }) {
   const t = SITE_COPY[locale];
@@ -43,8 +43,8 @@ export async function WorksPage({ locale }: { locale: Locale }) {
         current="work"
       />
 
-      <main className={cn(PAGE, "pt-12 pb-36")}>
-        <section className={cn(COLUMNS, "pt-28 pb-20 sm:pt-40 sm:pb-28")}>
+      <main className="pt-12 pb-36">
+        <section className={cn(PAGE, COLUMNS, "pt-28 pb-20 sm:pt-40 sm:pb-28")}>
           <div className={cn(LABEL, "pt-3 text-muted")}>{count}</div>
           <h1 className="max-w-[920px] text-[clamp(34px,4.4vw,64px)] leading-[1.12] font-normal tracking-[-0.025em]">
             <span className="text-muted">{t.works.title}.</span> {home.hero.title}
