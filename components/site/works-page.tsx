@@ -1,6 +1,7 @@
 import { listProjects } from "@/lib/portfolio";
 import type { PortfolioMedia, ProjectCard } from "@/lib/portfolio/types";
 import { SiteFooter } from "@/components/site/site-frame";
+import { BriefSeal } from "@/components/site/brief-seal";
 import { SiteHeader } from "@/components/site/site-header";
 import { WorkCanvas, type WorkTile, type WorkRow } from "@/components/site/work-canvas";
 import { HOME_COPY } from "@/lib/i18n/home";
@@ -82,6 +83,7 @@ export async function WorksPage({ locale }: { locale: Locale }) {
         }}
         footer={<SiteFooter />}
       />
+      <BriefSeal label={home.contact.cta} href={`${localePath(locale, "/")}#contact`} />
     </div>
   );
 }

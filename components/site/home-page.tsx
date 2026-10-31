@@ -6,6 +6,7 @@ import { Wayfinding } from "@/components/site/wayfinding";
 import { cn } from "@/components/ui/primitives";
 import { HOME_COPY } from "@/lib/i18n/home";
 import { SITE_COPY, alternates, localePath, type Locale } from "@/lib/i18n/site";
+import { BriefSeal } from "./brief-seal";
 import { ContactCall } from "./contact-call";
 import { SiteHeader } from "./site-header";
 import { COLUMNS, PAGE, SiteFooter } from "./site-frame";
@@ -85,16 +86,13 @@ export async function HomePage({ locale }: { locale: Locale }) {
           name={t.sections.contact}
           id="contact"
           wide={
-            <ContactCall
-              {...t.contact}
-              href={STUDIO_EMAIL.startsWith("[") ? "#contact" : `mailto:${STUDIO_EMAIL}`}
-              projects={projects}
-            />
+            <ContactCall lead={t.contact.lead} tail={t.contact.tail} body={t.contact.body} mixed={t.contact.mixed} projects={projects} />
           }
         />
       </main>
 
       <SiteFooter />
+      <BriefSeal label={t.contact.cta} href={STUDIO_EMAIL.startsWith("[") ? "#contact" : `mailto:${STUDIO_EMAIL}`} />
     </div>
   );
 }

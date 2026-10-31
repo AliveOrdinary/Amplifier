@@ -443,3 +443,61 @@ html[data-greeted] .preloader {
     display: grid;
   }
 }
+
+/* "Start a brief": the spinning seal at the bottom of every page (components/site/brief-seal.tsx). */
+.brief-seal {
+  --size: 124px;
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  width: var(--size);
+  height: var(--size);
+  margin-left: calc(var(--size) / -2);
+  border-radius: 9999px;
+  background: var(--signal);
+  color: var(--on-signal);
+  transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0);
+}
+.brief-seal-ring {
+  position: absolute;
+  inset: 0;
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+.brief-seal-arrow {
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.brief-seal:hover .brief-seal-arrow,
+.brief-seal:focus-visible .brief-seal-arrow {
+  transform: rotate(45deg);
+}
+.brief-seal::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--signal) 45%, transparent);
+  transition: box-shadow 0.35s;
+}
+.brief-seal:hover::after {
+  box-shadow: 0 0 0 10px color-mix(in oklab, var(--signal) 18%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .brief-seal-ring {
+    animation: brief-seal-spin 18s linear infinite;
+  }
+}
+@keyframes brief-seal-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+@media (max-width: 639px) {
+  .brief-seal {
+    --size: 96px;
+    bottom: 18px;
+  }
+}

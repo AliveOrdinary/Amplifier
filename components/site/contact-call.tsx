@@ -7,7 +7,8 @@ import type { ProjectCard } from "@/lib/portfolio/types";
 
 /**
  * The closing call. One big line in two halves with the button between
- * them; the work starts as a stack of tiles behind the button and deals out
+ * them (the spot where the "Start a brief" seal settles); the work starts
+ * as a stack of tiles behind it and deals out
  * across the section as you scroll in, while the grey second half of the
  * line comes up to full white, like a fader being pushed. Scrolling back
  * gathers the stack again.
@@ -36,24 +37,20 @@ const DEFAULT_SLOTS = [2, 0, 1, 3];
 export function ContactCall({
   lead,
   tail,
-  cta,
   body,
   mixed,
-  href,
   projects,
 }: {
   lead: string;
   tail: string;
-  cta: string;
   body: string;
   /** Shown once the visitor has moved the faders: the layout follows their mix. */
   mixed: string;
-  href: string;
   projects: ProjectCard[];
 }) {
   const track = useRef<HTMLDivElement>(null);
   const root = useRef<HTMLDivElement>(null);
-  const button = useRef<HTMLAnchorElement>(null);
+  const button = useRef<HTMLDivElement>(null);
   const tiles = useRef<(HTMLDivElement | null)[]>([]);
 
   const art = projects.flatMap((p) => {
@@ -175,13 +172,8 @@ export function ContactCall({
           {tail}
         </span>
       </h2>
-      <a
-        ref={button}
-        href={href}
-        className="order-2 my-6 inline-flex h-12 items-center rounded-full bg-ink px-7 font-mono text-[12px] tracking-[0.08em] text-paper uppercase transition-colors hover:bg-signal hover:text-on-signal sm:my-8"
-      >
-        {cta}
-      </a>
+      {/* The "Start a brief" seal (BriefSeal) settles here as the section scrolls in. */}
+      <div ref={button} data-seal-dock aria-hidden className="order-2 my-6 size-[96px] shrink-0 sm:my-8 sm:size-[124px]" />
       <p className="order-4 mt-10 max-w-[440px] text-[15px] leading-relaxed text-ink-soft">{body}</p>
       <p aria-live="polite" className="order-5 mt-6 h-4 font-mono text-[12px] tracking-[0.08em] text-signal uppercase">
         {touched ? `( ${mixed} )` : null}

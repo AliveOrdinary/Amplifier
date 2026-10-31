@@ -7,6 +7,7 @@ import { GrowingCover } from "@/components/portfolio/growing-cover";
 import { Media } from "@/components/portfolio/media";
 import { PreviewBanner } from "@/components/portfolio/preview-banner";
 import { COLUMNS, LABEL, PAGE, SiteFooter } from "@/components/site/site-frame";
+import { BriefSeal } from "@/components/site/brief-seal";
 import { SiteHeader } from "@/components/site/site-header";
 import { Wayfinding } from "@/components/site/wayfinding";
 import { cn } from "@/components/ui/primitives";
@@ -135,6 +136,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
       </main>
 
       <SiteFooter />
+      <BriefSeal label={home.contact.cta} href={`${localePath(locale, "/")}#contact`} />
     </div>
   );
 }
