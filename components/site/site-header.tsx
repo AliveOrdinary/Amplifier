@@ -24,20 +24,25 @@ export function SiteHeader({
   languages,
   power,
   linkBase = "",
+  current,
 }: {
   locale: Locale;
   homeHref: string;
   homeLabel: string;
-  links: { id: string; label: string }[];
+  /** `href`: a page of its own (Work → /projects) instead of a section of Home. */
+  links: { id: string; label: string; href?: string }[];
   languages: Record<Locale, string>;
   /** The label beside the orange light ("Power" / "Marche"). */
   power: string;
   /** On pages other than Home: where the section links go ("/" → "/#work"). */
   linkBase?: string;
+  /** The page you're on, when it isn't a section of Home (the Work page: "work"). */
+  current?: string;
 }) {
-  const [active, setActive] = useState<string | null>(null);
+  const [active, setActive] = useState<string | null>(current ?? null);
 
   useEffect(() => {
+    if (current) return;
     const update = () => {
       const line = window.innerHeight * 0.4;
       let current: string | null = null;
@@ -55,7 +60,7 @@ export function SiteHeader({
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
-  }, [links]);
+  }, [links, current]);
 
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-40 text-white mix-blend-difference">
@@ -70,7 +75,7 @@ export function SiteHeader({
             {links.map((l) => (
               <li key={l.id}>
                 <a
-                  href={`${linkBase}#${l.id}`}
+                  href={l.href ?? `${linkBase}#${l.id}`}
                   aria-current={active === l.id ? "location" : undefined}
                   className={cn("transition-colors duration-100", active === l.id ? "text-white/45" : "hover:text-white/45")}
                 >

@@ -35,13 +35,14 @@ function publicClient() {
 
 /**
  * Published projects in the studio's order. `featured: true` for the ones
- * marked for Home; `locale: "fr"` for the French, falling back to English.
+ * marked for Home; `locale: "fr"` for the French, falling back to English;
+ * `gallery: true` adds a few more images per project (the Work page's canvas).
  */
-export async function listProjects(options: { featured?: boolean; locale?: Locale } = {}): Promise<ProjectCard[]> {
+export async function listProjects(options: { featured?: boolean; locale?: Locale; gallery?: boolean } = {}): Promise<ProjectCard[]> {
   "use cache";
   cacheTag(PORTFOLIO_TAG);
   cacheLife("max");
-  return readCards(publicClient(), { featured: options.featured, locale: options.locale });
+  return readCards(publicClient(), { featured: options.featured, locale: options.locale, gallery: options.gallery });
 }
 
 /** A published project by its address (in `locale`), or a draft while a member previews it. Null when there's none. */

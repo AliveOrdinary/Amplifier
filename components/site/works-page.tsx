@@ -1,52 +1,87 @@
-import Link from "next/link";
 import { listProjects } from "@/lib/portfolio";
-import { Media } from "@/components/portfolio/media";
-import { LanguageSwitch } from "@/components/site/language-switch";
-import { Mono, Wordmark } from "@/components/ui/primitives";
+import type { PortfolioMedia, ProjectCard } from "@/lib/portfolio/types";
+import { SiteFooter } from "@/components/site/site-frame";
+import { SiteHeader } from "@/components/site/site-header";
+import { WorkCanvas, type WorkTile, type WorkRow } from "@/components/site/work-canvas";
+import { HOME_COPY } from "@/lib/i18n/home";
 import { SITE_COPY, alternates, localePath, type Locale } from "@/lib/i18n/site";
 
+/** The image a project shows first: its tile, else its cover. */
+const lead = (p: ProjectCard): PortfolioMedia | null => p.thumbnail ?? p.cover;
+
+/** "Packaging · Identity · 2022" */
+const meta = (p: ProjectCard) => [...p.services, ...(p.year ? [String(p.year)] : [])].join(" · ");
+
 /**
- * Reference Works page, built on the portfolio engine, in either language.
- * Plain on purpose: the site design replaces the look, the data calls stay.
+ * The Work page (nav › Work), in either language. Two views of the same
+ * projects: a canvas you scroll or drag in any direction, the covers
+ * floating around a big "Work" and wrapping round without end (after
+ * mobius.framer.website/work), and a plain numbered index. Phones get the
+ * index, with pictures.
  */
 export async function WorksPage({ locale }: { locale: Locale }) {
   const t = SITE_COPY[locale];
-  const projects = await listProjects({ locale });
+  const home = HOME_COPY[locale];
+  const projects = await listProjects({ locale, gallery: true });
+  const href = (slug: string) => localePath(locale, `/projects/${slug}`);
+
+  // Every project's pictures, first the lead image, then up to three more.
+  const pictures = projects.map((p) => {
+    const first = lead(p);
+    return [...(first ? [first] : []), ...(p.gallery ?? [])].map(
+      (media): WorkTile => ({ key: `${p.id}-${media.id}`, href: href(p.slug), title: p.title, meta: meta(p), media }),
+    );
+  });
+  // Dealt round-robin, so one project's images don't bunch together.
+  const tiles: WorkTile[] = [];
+  for (let round = 0; pictures.some((list) => list[round]); round++) {
+    for (const list of pictures) if (list[round]) tiles.push(list[round]);
+  }
+
+  const rows: WorkRow[] = projects.map((p, i) => ({
+    key: p.id,
+    number: String(i + 1).padStart(2, "0"),
+    href: href(p.slug),
+    title: p.title,
+    meta: meta(p),
+    media: lead(p),
+  }));
+
+  const years = projects.map((p) => p.year).filter((y): y is number => Boolean(y));
+  const [from, to] = [Math.min(...years), Math.max(...years)];
+  const span = !years.length ? null : from === to ? String(from) : `${from}–${String(to).slice(-2)}`;
 
   return (
-    <main lang={locale} className="mx-auto w-full max-w-[1360px] flex-1 px-4 pb-24 sm:px-10">
-      <header className="flex h-16 items-center justify-between gap-6">
-        <Link href={localePath(locale, "/")} aria-label={t.homeLabel}>
-          <Wordmark className="text-2xl" />
-        </Link>
-        <div className="flex items-center gap-6">
-          <Mono>{t.works.count(projects.length)}</Mono>
-          <LanguageSwitch locale={locale} paths={alternates("/projects")} />
-        </div>
-      </header>
-      <h1 className="border-b border-ink pt-10 pb-6 text-display font-medium">{t.works.title}</h1>
-      {projects.length ? (
-        <ul className="mt-10 grid gap-x-6 gap-y-12 sm:grid-cols-2">
-          {projects.map((p, i) => (
-            <li key={p.id}>
-              <Link href={localePath(locale, `/projects/${p.slug}`)} className="group block">
-                {(p.thumbnail ?? p.cover) ? (
-                  <Media media={{ ...(p.thumbnail ?? p.cover)!, hasAudio: false }} priority={i < 2} />
-                ) : (
-                  <div className="aspect-[4/3] bg-panel" />
-                )}
-                <div className="mt-3 flex items-baseline justify-between gap-4">
-                  <h2 className="text-[19px] font-medium group-hover:underline group-hover:underline-offset-4">{p.title}</h2>
-                  {p.year ? <Mono>{p.year}</Mono> : null}
-                </div>
-                {p.summary ? <p className="mt-1.5 max-w-[60ch] text-[15px] text-ink-soft">{p.summary}</p> : null}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-10 text-ink-soft">{t.works.empty}</p>
-      )}
-    </main>
+    <div className="site flex-1" lang={locale}>
+      <SiteHeader
+        locale={locale}
+        homeHref={localePath(locale, "/")}
+        homeLabel={t.homeLabel}
+        links={[
+          { id: "work", label: home.nav.work, href: localePath(locale, "/projects") },
+          { id: "studio", label: home.nav.studio },
+          { id: "contact", label: home.nav.contact },
+        ]}
+        linkBase={localePath(locale, "/")}
+        languages={alternates("/projects")}
+        power={home.power}
+        current="work"
+      />
+      <WorkCanvas
+        tiles={tiles}
+        rows={rows}
+        copy={{
+          title: t.works.title,
+          intro: home.hero.title,
+          hint: t.works.hint,
+          canvas: t.works.canvas,
+          index: t.works.index,
+          views: t.works.views,
+          empty: t.works.empty,
+          count: [t.works.count(projects.length), span].filter(Boolean).join(" · "),
+        }}
+        footer={<SiteFooter />}
+      />
+    </div>
   );
 }

@@ -30,20 +30,45 @@ export const LANGUAGE: Record<Locale, { name: string; label: string; og: string 
 
 export type SiteCopy = {
   homeLabel: string;
-  works: { title: string; count: (n: number) => string; empty: string };
+  works: {
+    title: string;
+    count: (n: number) => string;
+    empty: string;
+    /** The canvas: the hint under the big word, the switch between the two views. */
+    hint: string;
+    canvas: string;
+    index: string;
+    views: string;
+  };
   project: { label: string; works: string; more: string; client: string; year: string; services: string; previous: string; next: string };
 };
 
 export const SITE_COPY: Record<Locale, SiteCopy> = {
   en: {
     homeLabel: "Amplifier, home",
-    works: { title: "Works", count: (n) => `${n} ${n === 1 ? "project" : "projects"}`, empty: "No published projects yet." },
+    works: {
+      title: "Work",
+      count: (n) => `${n} ${n === 1 ? "project" : "projects"}`,
+      empty: "No published projects yet.",
+      hint: "scroll / drag",
+      canvas: "Canvas",
+      index: "Index",
+      views: "View",
+    },
     project: { label: "Project", works: "Works", more: "More projects", client: "Client", year: "Year", services: "Services", previous: "Previous", next: "Next" },
   },
   // Draft: to be checked by a fluent speaker.
   fr: {
     homeLabel: "Amplifier, accueil",
-    works: { title: "Projets", count: (n) => `${n} projet${n > 1 ? "s" : ""}`, empty: "Aucun projet publié pour l’instant." },
+    works: {
+      title: "Projets",
+      count: (n) => `${n} projet${n > 1 ? "s" : ""}`,
+      empty: "Aucun projet publié pour l’instant.",
+      hint: "défiler / glisser",
+      canvas: "Toile",
+      index: "Index",
+      views: "Vue",
+    },
     project: { label: "Projet", works: "Projets", more: "Autres projets", client: "Client", year: "Année", services: "Services", previous: "Précédent", next: "Suivant" },
   },
 };

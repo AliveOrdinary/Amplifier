@@ -65,7 +65,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
         homeHref={localePath(locale, "/")}
         homeLabel={t.homeLabel}
         links={[
-          { id: "work", label: home.nav.work },
+          { id: "work", label: home.nav.work, href: localePath(locale, "/projects") },
           { id: "studio", label: home.nav.studio },
           { id: "contact", label: home.nav.contact },
         ]}

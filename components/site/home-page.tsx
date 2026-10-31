@@ -42,7 +42,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
         homeHref={localePath(locale, "/")}
         homeLabel={SITE_COPY[locale].homeLabel}
         links={[
-          { id: "work", label: t.nav.work },
+          { id: "work", label: t.nav.work, href: localePath(locale, "/projects") },
           { id: "studio", label: t.nav.studio },
           { id: "contact", label: t.nav.contact },
         ]}
