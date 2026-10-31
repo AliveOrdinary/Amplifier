@@ -136,7 +136,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
       </main>
 
       <SiteFooter />
-      <BriefSeal label={home.contact.cta} href={`${localePath(locale, "/")}#contact`} />
+      <BriefSeal label={home.contact.cta} href={`${localePath(locale, "/")}#brief`} />
     </div>
   );
 }

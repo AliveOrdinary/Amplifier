@@ -19,8 +19,6 @@ const TEAM = [
   { name: "Navaneeth Krishnan", role: "technology" },
 ] as const;
 
-// TODO: the studio's email address.
-const STUDIO_EMAIL = "[studio email]";
 
 /** The homepage in one language; app/page.tsx (English) and app/fr/page.tsx render it. */
 export async function HomePage({ locale }: { locale: Locale }) {
@@ -92,7 +90,8 @@ export async function HomePage({ locale }: { locale: Locale }) {
       </main>
 
       <SiteFooter />
-      <BriefSeal label={t.contact.cta} href={STUDIO_EMAIL.startsWith("[") ? "#contact" : `mailto:${STUDIO_EMAIL}`} />
+      {/* For now the seal opens the closing call (#brief); later it starts the brief itself. */}
+      <BriefSeal label={t.contact.cta} href="#brief" />
     </div>
   );
 }

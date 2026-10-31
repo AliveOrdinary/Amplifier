@@ -139,7 +139,8 @@ export function ContactCall({
     <div ref={track}>
     <div
       ref={root}
-      className="relative isolate flex h-svh max-h-[960px] min-h-[640px] flex-col items-center justify-center overflow-hidden text-center"
+      id="brief"
+      className="relative isolate flex h-svh scroll-mt-0 max-h-[960px] min-h-[640px] flex-col items-center justify-center overflow-hidden text-center"
       style={{ "--p": 1 } as CSSProperties}
     >
       {Array.from({ length: count }, (_, i) => {

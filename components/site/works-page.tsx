@@ -64,7 +64,7 @@ export async function WorksPage({ locale }: { locale: Locale }) {
       </main>
 
       <SiteFooter />
-      <BriefSeal label={home.contact.cta} href={`${localePath(locale, "/")}#contact`} />
+      <BriefSeal label={home.contact.cta} href={`${localePath(locale, "/")}#brief`} />
     </div>
   );
 }
