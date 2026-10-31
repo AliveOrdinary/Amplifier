@@ -43,7 +43,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
         links={[
           { id: "work", label: t.nav.work, href: localePath(locale, "/projects") },
           { id: "studio", label: t.nav.studio },
-          { id: "contact", label: t.nav.contact },
+          { id: "contact", label: t.nav.contact, href: "#brief" },
         ]}
         languages={alternates("/")}
         power={t.power}

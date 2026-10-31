@@ -3,6 +3,21 @@
 import { useEffect, useRef, type MouseEvent } from "react";
 
 /**
+ * A link to a spot on this page (the closing call, #brief) glides there and
+ * centres it, instead of jumping. Links to other pages go as usual.
+ */
+export function glide(e: MouseEvent<HTMLAnchorElement>, href: string) {
+  const url = new URL(href, window.location.href);
+  if (url.pathname !== window.location.pathname || !url.hash) return;
+  const target = document.getElementById(url.hash.slice(1));
+  if (!target) return;
+  e.preventDefault();
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "center" });
+  history.replaceState(null, "", url.hash);
+}
+
+/**
  * "Start a brief": a spinning orange seal on every page of the site, held
  * at the bottom of the screen. Where a page marks a spot for it
  * (data-seal-dock, Home's closing call), the seal settles into that spot
@@ -55,20 +70,9 @@ export function BriefSeal({ label, href }: { label: string; href: string }) {
 
   const ring = `${label} · ${label} · `.toUpperCase();
 
-  // On the page it points into, glide there instead of jumping.
-  const go = (e: MouseEvent<HTMLAnchorElement>) => {
-    const url = new URL(href, window.location.href);
-    if (url.pathname !== window.location.pathname || !url.hash) return;
-    const target = document.getElementById(url.hash.slice(1));
-    if (!target) return;
-    e.preventDefault();
-    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    target.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "center" });
-    history.replaceState(null, "", url.hash);
-  };
 
   return (
-    <a ref={seal} href={href} onClick={go} className="brief-seal" aria-label={label}>
+    <a ref={seal} href={href} onClick={(e) => glide(e, href)} className="brief-seal" aria-label={label}>
       <svg aria-hidden className="brief-seal-ring" viewBox="0 0 124 124">
         <defs>
           <path id="brief-seal-path" d="M62,62 m-47,0 a47,47 0 1,1 94,0 a47,47 0 1,1 -94,0" />

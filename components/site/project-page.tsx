@@ -68,7 +68,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
         links={[
           { id: "work", label: home.nav.work, href: localePath(locale, "/projects") },
           { id: "studio", label: home.nav.studio },
-          { id: "contact", label: home.nav.contact },
+          { id: "contact", label: home.nav.contact, href: `${localePath(locale, "/")}#brief` },
         ]}
         linkBase={localePath(locale, "/")}
         languages={alternates(`/projects/${project.slug}`)}

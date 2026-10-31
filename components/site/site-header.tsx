@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Wordmark, cn } from "@/components/ui/primitives";
+import { glide } from "@/components/site/brief-seal";
 import { LanguageSwitch } from "@/components/site/language-switch";
 import { PAGE } from "@/components/site/site-frame";
 import type { Locale } from "@/lib/i18n/site";
@@ -76,6 +77,7 @@ export function SiteHeader({
               <li key={l.id}>
                 <a
                   href={l.href ?? `${linkBase}#${l.id}`}
+                  onClick={l.id === "contact" ? (e) => glide(e, l.href ?? `${linkBase}#${l.id}`) : undefined}
                   aria-current={active === l.id ? "location" : undefined}
                   className={cn("transition-colors duration-100", active === l.id ? "text-white/45" : "hover:text-white/45")}
                 >
