@@ -173,7 +173,7 @@ export function ContactCall({
         </span>
       </h2>
       {/* The "Start a brief" seal (BriefSeal) settles here as the section scrolls in. */}
-      <div ref={button} data-seal-dock aria-hidden className="order-2 my-6 size-[96px] shrink-0 sm:my-8 sm:size-[124px]" />
+      <div ref={button} data-seal-dock aria-hidden className="order-2 my-6 size-[80px] shrink-0 sm:my-8 sm:size-[96px]" />
       <p className="order-4 mt-10 max-w-[440px] text-[15px] leading-relaxed text-ink-soft">{body}</p>
       <p aria-live="polite" className="order-5 mt-6 h-4 font-mono text-[12px] tracking-[0.08em] text-signal uppercase">
         {touched ? `( ${mixed} )` : null}

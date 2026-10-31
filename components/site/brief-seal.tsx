@@ -61,13 +61,13 @@ export function BriefSeal({ label, href }: { label: string; href: string }) {
         <defs>
           <path id="brief-seal-path" d="M62,62 m-47,0 a47,47 0 1,1 94,0 a47,47 0 1,1 -94,0" />
         </defs>
-        <text fontSize="10" fill="currentColor">
+        <text fontSize="12" fill="currentColor">
           <textPath href="#brief-seal-path" textLength="293" lengthAdjust="spacing">
             {ring}
           </textPath>
         </text>
       </svg>
-      <svg aria-hidden className="brief-seal-arrow" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg aria-hidden className="brief-seal-arrow" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M7 17 17 7M9 7h8v8" />
       </svg>
     </a>

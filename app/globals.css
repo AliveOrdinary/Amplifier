@@ -489,7 +489,7 @@ html[data-greeted] .preloader {
 
 /* "Start a brief": the spinning seal at the bottom of every page (components/site/brief-seal.tsx). */
 .brief-seal {
-  --size: 124px;
+  --size: 96px;
   position: fixed;
   left: 50%;
   bottom: 28px;
@@ -501,7 +501,7 @@ html[data-greeted] .preloader {
   margin-left: calc(var(--size) / -2);
   border-radius: 9999px;
   background: var(--signal);
-  color: #fff;
+  color: var(--on-signal);
   transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0);
 }
 .brief-seal-ring {
@@ -517,17 +517,6 @@ html[data-greeted] .preloader {
 .brief-seal:focus-visible .brief-seal-arrow {
   transform: rotate(45deg);
 }
-.brief-seal::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: 0 0 0 0 color-mix(in oklab, var(--signal) 45%, transparent);
-  transition: box-shadow 0.35s;
-}
-.brief-seal:hover::after {
-  box-shadow: 0 0 0 10px color-mix(in oklab, var(--signal) 18%, transparent);
-}
 @media (prefers-reduced-motion: no-preference) {
   .brief-seal-ring {
     animation: brief-seal-spin 18s linear infinite;
@@ -540,7 +529,7 @@ html[data-greeted] .preloader {
 }
 @media (max-width: 639px) {
   .brief-seal {
-    --size: 96px;
+    --size: 80px;
     bottom: 18px;
   }
 }
