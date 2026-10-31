@@ -14,7 +14,8 @@ export type WorkItem = { key: string; href: string; title: string; meta: string;
  * (--curve), the name and services under each.
  * Covers wipe up into view as they scroll in, a row's covers one after
  * another. Over the grid the pointer is a small dot that grows into an
- * arrow on a cover; the cover's top trims in and its colour comes up.
+ * arrow on a cover, and the cover's top trims in. Covers always show in
+ * their own colours.
  */
 export function WorkGrid({ items, empty }: { items: WorkItem[]; empty: string }) {
   const grid = useRef<HTMLUListElement>(null);

@@ -407,7 +407,7 @@ html[data-greeted] .preloader {
   scrollbar-color: color-mix(in oklab, var(--ink) 40%, transparent) transparent;
 }
 
-/* The Work page (components/site/work-grid.tsx). Covers wipe up into view; on hover the top trims in and the colour comes up. */
+/* The Work page (components/site/work-grid.tsx). Covers wipe up into view, in their own colours; on hover the top trims in. */
 .work-media {
   --r: var(--curve);
   border-radius: var(--r);
@@ -419,11 +419,8 @@ html[data-greeted] .preloader {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: saturate(0.8) brightness(0.96);
   transform: translateY(14%) scale(1.06);
-  transition:
-    transform 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) var(--delay, 0ms),
-    filter 0.5s;
+  transition: transform 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) var(--delay, 0ms);
 }
 .work-card[data-in] .work-media {
   clip-path: inset(0 0 0 0 round var(--r));
@@ -437,7 +434,6 @@ html[data-greeted] .preloader {
   transition-delay: 0ms;
 }
 .work-card[data-in]:is(:hover, :focus-visible) .work-cover {
-  filter: none;
   transform: scale(1.03);
   transition-delay: 0ms;
 }
