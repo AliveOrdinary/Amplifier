@@ -147,7 +147,7 @@ const order = <T extends { order: (column: string, options: { ascending: boolean
 /** Projects in the studio's order. `published` limits to what's public (the anon client only sees those anyway). */
 export async function readCards(
   db: SupabaseClient,
-  options: { featured?: boolean; includeDrafts?: boolean; locale?: Locale; gallery?: boolean } = {},
+  options: { featured?: boolean; includeDrafts?: boolean; locale?: Locale } = {},
 ): Promise<ProjectCard[]> {
   let query = db.from("projects").select(`${await projectColumns(db)}, created_at`);
   if (!options.includeDrafts) query = query.eq("published", true);
@@ -164,29 +164,7 @@ export async function readCards(
     for (const m of (media ?? []) as MediaRow[]) files.set(m.id, toMedia(db, m));
   }
   const file = (id: string | null | undefined) => (id ? (files.get(id) ?? null) : null);
-  const cards = rows.map((r) => toCard(r, file(r.cover_media_id), options.locale, file(r.thumbnail_media_id)));
-  if (!options.gallery || !rows.length) return cards;
-
-  // Up to three more images per project, in the project's own order, skipping its cover and tile.
-  const { data: extra, error: extraError } = await db
-    .from("project_media")
-    .select(MEDIA_COLUMNS)
-    .in("project_id", rows.map((r) => r.id))
-    .eq("kind", "image")
-    .order("sort")
-    .order("created_at");
-  if (extraError) throw new Error(extraError.message);
-  const byProject = new Map<string, PortfolioMedia[]>();
-  for (const m of (extra ?? []) as MediaRow[]) {
-    const list = byProject.get(m.project_id) ?? [];
-    byProject.set(m.project_id, [...list, toMedia(db, m)]);
-  }
-  return cards.map((card, i) => {
-    const fr = french(rows[i], options.locale ?? "en");
-    const skip = new Set([card.cover?.id, card.thumbnail?.id]);
-    const gallery = (byProject.get(card.id) ?? []).filter((m) => !skip.has(m.id)).slice(0, 3).map((m) => localMedia(m, fr));
-    return { ...card, gallery };
-  });
+  return rows.map((r) => toCard(r, file(r.cover_media_id), options.locale, file(r.thumbnail_media_id)));
 }
 
 /** One project by its address, with its blocks resolved and its neighbours. */

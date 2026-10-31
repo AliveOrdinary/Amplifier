@@ -34,11 +34,6 @@ export type SiteCopy = {
     title: string;
     count: (n: number) => string;
     empty: string;
-    /** The canvas: the hint under the big word, the switch between the two views. */
-    hint: string;
-    canvas: string;
-    index: string;
-    views: string;
   };
   project: { label: string; works: string; more: string; client: string; year: string; services: string; previous: string; next: string };
 };
@@ -50,10 +45,6 @@ export const SITE_COPY: Record<Locale, SiteCopy> = {
       title: "Work",
       count: (n) => `${n} ${n === 1 ? "project" : "projects"}`,
       empty: "No published projects yet.",
-      hint: "scroll / drag",
-      canvas: "Canvas",
-      index: "Index",
-      views: "View",
     },
     project: { label: "Project", works: "Works", more: "More projects", client: "Client", year: "Year", services: "Services", previous: "Previous", next: "Next" },
   },
@@ -64,10 +55,6 @@ export const SITE_COPY: Record<Locale, SiteCopy> = {
       title: "Projets",
       count: (n) => `${n} projet${n > 1 ? "s" : ""}`,
       empty: "Aucun projet publié pour l’instant.",
-      hint: "défiler / glisser",
-      canvas: "Toile",
-      index: "Index",
-      views: "Vue",
     },
     project: { label: "Projet", works: "Projets", more: "Autres projets", client: "Client", year: "Année", services: "Services", previous: "Précédent", next: "Suivant" },
   },

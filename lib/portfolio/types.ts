@@ -48,8 +48,6 @@ export type ProjectCard = {
   cover: PortfolioMedia | null;
   /** Image or video for the project's tile (Home, Works). Null: the tile shows the cover. */
   thumbnail: PortfolioMedia | null;
-  /** A few more of the project's images, for the Work page's canvas. Only filled when asked for (listProjects({ gallery: true })). */
-  gallery?: PortfolioMedia[];
   publishedAt: string | null;
 };
 
