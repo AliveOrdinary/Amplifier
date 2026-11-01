@@ -19,23 +19,28 @@ type Row = {
   pair_count: number | null;
   warmup: string[] | null;
   reactions: { count: number }[];
+  /** "site" when a visitor started it from the site (migration 16). */
+  source?: string;
+  seen_at?: string | null;
 };
+
+const COLUMNS =
+  "id, client_name, project_name, project_type, status, meeting_at, created_at, pair_count:plan->pairCount, warmup:plan->warmup, reactions(count)";
 
 const date = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { day: "numeric", month: "short" });
 
 export default async function BriefsPage() {
   const member = await getMember();
   const db = await createClient();
-  const [{ data: briefs, error }, { data: templates }] = await Promise.all([
-    db
-      .from("briefs")
-      .select(
-        "id, client_name, project_name, project_type, status, meeting_at, created_at, pair_count:plan->pairCount, warmup:plan->warmup, reactions(count)",
-      )
-      .eq("studio_id", member.studioId)
-      .order("created_at", { ascending: false }),
+  const list = (columns: string) =>
+    db.from("briefs").select(columns).eq("studio_id", member.studioId).order("created_at", { ascending: false });
+  const [first, { data: templates }] = await Promise.all([
+    list(`${COLUMNS}, source, seen_at`),
     db.from("question_templates").select("project_type, name, questions, retired_at").order("sort"),
   ]);
+  // Before migration 16 there's no source column: list them without it.
+  let { data: briefs, error } = first;
+  if (error?.code === "42703") ({ data: briefs, error } = await list(COLUMNS));
   if (error) throw new Error(error.message);
   const rows = (briefs ?? []) as unknown as Row[];
   const typeName = new Map((templates ?? []).map((t) => [t.project_type as string, t.name as string]));
@@ -67,6 +72,13 @@ export default async function BriefsPage() {
                     <span className="min-w-0">
                       <span className="block truncate text-[16px]">{b.client_name}</span>
                       <span className="block truncate text-sm text-muted">
+                        {b.source === "site" ? (
+                          <span className="text-signal">
+                            {b.seen_at ? null : <span aria-hidden className="mr-1.5 inline-block size-1.5 -translate-y-px rounded-full bg-signal" />}
+                            {b.seen_at ? "From the site" : "From the site, new"}
+                            {" · "}
+                          </span>
+                        ) : null}
                         {[b.project_name, typeName.get(b.project_type)].filter(Boolean).join(" · ")}
                       </span>
                     </span>

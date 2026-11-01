@@ -18,8 +18,6 @@ const TEAM = [
   { name: "Navaneeth Krishnan", role: "technology" },
 ] as const;
 
-// TODO: the studio's email address.
-const STUDIO_EMAIL = "[studio email]";
 
 /** The homepage in one language; app/page.tsx (English) and app/fr/page.tsx render it. */
 export async function HomePage({ locale }: { locale: Locale }) {
@@ -87,7 +85,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
           wide={
             <ContactCall
               {...t.contact}
-              href={STUDIO_EMAIL.startsWith("[") ? "#contact" : `mailto:${STUDIO_EMAIL}`}
+              href={localePath(locale, "/start")}
               projects={projects}
             />
           }
