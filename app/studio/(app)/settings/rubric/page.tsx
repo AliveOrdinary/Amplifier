@@ -16,7 +16,7 @@ export default async function RubricPage() {
   const member = await getMember();
   const db = await createClient();
   // Read back any background rescoring that has finished.
-  after(() => processQueue(createAdminClient(), member.studioId).catch((err) => console.error("queue processing failed", err)));
+  after(() => processQueue(createAdminClient(), member.studioId, { budgetMs: 45_000 }).catch((err) => console.error("queue processing failed", err)));
 
   const all = await listDimensions(db, member.studioId, { retired: true });
 

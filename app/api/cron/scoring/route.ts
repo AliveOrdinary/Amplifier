@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     // A few rounds: each reads back up to three batches and sends up to two.
     for (let round = 0; round < 5 && Date.now() - started < BUDGET_MS; round++) {
       try {
-        const r = await processQueue(db, studio, { force: true });
+        const r = await processQueue(db, studio, { force: true, budgetMs: Math.max(30_000, BUDGET_MS - (Date.now() - started)) });
         results[studio] = r;
         if (!r.applied && !r.submitted) break;
       } catch (error) {

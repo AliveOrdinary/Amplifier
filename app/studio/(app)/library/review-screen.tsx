@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { mediumLabel } from "@/lib/library/constants";
 import type { LibraryImage } from "@/lib/library/types";
 import { Mono, buttonClass, cn } from "@/components/ui/primitives";
+import { ScoringSummary } from "./scoring-status";
 import { useLibrary } from "./library-provider";
 import { ImageStage, ScorePanel, SecondaryActions, hotkeyIndex, isTypingTarget } from "./editor";
 import { AddControls } from "./library-chrome";
@@ -95,11 +96,12 @@ export function ReviewScreen() {
           <h2 className="text-2xl font-medium">{hasLibrary ? "All caught up" : "Start your library"}</h2>
           <p className="mt-2 max-w-md text-[15px] text-ink-soft">
             {scoring
-              ? `${scoring} ${scoring === 1 ? "image is" : "images are"} being scored. Images you add appear here; board imports go straight to the library unless one needs a look.`
+              ? "Images you add appear here once they're scored; board imports go straight to the library unless one needs a look."
               : hasLibrary
                 ? "Nothing is waiting for review. Add more images below."
                 : "Add reference images: Claude scores each one, then you check the scores here."}
           </p>
+          {scoring ? <ScoringSummary scoring={scoring} className="mt-8 w-full border-t border-rule pt-6 text-left" /> : null}
           <div className="mt-8 w-full">
             <AddControls large />
           </div>
@@ -162,8 +164,7 @@ export function ReviewScreen() {
         </ul>
         {scoring ? (
           <div className="border-t border-rule px-4 py-3 max-lg:hidden">
-            <Mono>Being scored · {scoring}</Mono>
-            <p className="mt-1 text-xs text-muted">Joins the end of the queue when ready. Board imports skip it unless flagged.</p>
+            <ScoringSummary scoring={scoring} compact />
           </div>
         ) : null}
       </aside>

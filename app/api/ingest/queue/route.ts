@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   const member = await authenticateKey(request);
   if (!member) return unauthorized();
   try {
-    const result = await processQueue(createAdminClient(), member.studioId, { force: true });
+    const result = await processQueue(createAdminClient(), member.studioId, { force: true, budgetMs: 90_000 });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     console.error("queue processing failed", error);
