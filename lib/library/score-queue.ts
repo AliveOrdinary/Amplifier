@@ -362,6 +362,43 @@ async function settleImport(
     .eq("id", imageId);
 }
 
+/** An upload cut off between saving an image and queueing it leaves it unscored for good; after this long, queue it. */
+const ORPHAN_AFTER_MS = 10 * 60 * 1000;
+
+/**
+ * Images saved but never scored or queued: an import whose upload timed out
+ * after the file was stored. Put them in the queue (imported ones keep going
+ * straight to the library unless flagged).
+ */
+async function queueOrphans(db: SupabaseClient, studioId: string) {
+  const { data: stranded, error } = await db
+    .from("images")
+    .select("id, collection")
+    .eq("studio_id", studioId)
+    .eq("status", "pending")
+    .is("scored_at", null)
+    .is("score_error", null)
+    .not("display_path", "is", null)
+    .lt("created_at", new Date(Date.now() - ORPHAN_AFTER_MS).toISOString())
+    .limit(200);
+  if (error || !stranded?.length) return 0;
+  const { data: queued } = await db
+    .from("score_queue")
+    .select("image_id")
+    .in(
+      "image_id",
+      stranded.map((i) => i.id as string),
+    );
+  const inQueue = new Set((queued ?? []).map((q) => q.image_id as string));
+  const orphans = stranded.filter((i) => !inQueue.has(i.id as string));
+  if (!orphans.length) return 0;
+  await enqueue(
+    db,
+    orphans.map((i) => ({ imageId: i.id as string, studioId, autoApprove: i.collection !== null })),
+  );
+  return orphans.length;
+}
+
 let leaseMissing = false;
 
 /**
@@ -397,6 +434,7 @@ export async function processQueue(
     }
   }
   try {
+    if (leased) await queueOrphans(db, studioId).catch((err) => console.error("couldn't queue stranded images", err));
     const collected = await collectBatches(db, studioId, { force, deadline });
     const { submitted } = await submitQueued(db, studioId, { force, deadline, leased });
     return { ...collected, submitted, busy: false, ...(await queueStatus(db, studioId)) };
