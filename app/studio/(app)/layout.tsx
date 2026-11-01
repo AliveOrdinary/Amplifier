@@ -6,6 +6,7 @@ import { signOut } from "../auth/actions";
 import { NavLinks, StudioNav } from "./studio-nav";
 import { SpendingAlert } from "./spending-alert";
 import { RouteSkeleton } from "./skeletons";
+import { unseenSiteBriefs } from "@/lib/brief/site-briefs";
 
 export default function StudioLayout({ children }: LayoutProps<"/studio">) {
   return (
@@ -19,7 +20,7 @@ export default function StudioLayout({ children }: LayoutProps<"/studio">) {
           </Link>
           <div className="order-last -mx-4 w-[calc(100%+2rem)] overflow-x-auto px-4 sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0">
             <Suspense fallback={<NavLinks pathname={null} />}>
-              <StudioNav />
+              <Nav />
             </Suspense>
           </div>
           <div className="ml-auto">
@@ -41,6 +42,12 @@ export default function StudioLayout({ children }: LayoutProps<"/studio">) {
       </main>
     </div>
   );
+}
+
+/** The sections, with a count on Briefs for site briefs no one has opened. */
+async function Nav() {
+  const member = await getMember();
+  return <StudioNav unseen={await unseenSiteBriefs(member.studioId)} />;
 }
 
 async function RequireMember({ children }: { children: ReactNode }) {

@@ -15,6 +15,7 @@ import { DetailsForm } from "./details-form";
 import { QuestionsEditor } from "./questions-editor";
 import { PinsPanel } from "./pins-panel";
 import { Results } from "./results";
+import { MarkSeen } from "./mark-seen";
 
 export const metadata: Metadata = { title: "Brief" };
 
@@ -40,12 +41,15 @@ export default async function BriefPage({ params }: PageProps<"/studio/briefs/[i
   const h = await headers();
   const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
 
-  const [{ data: template }, { data: pinRows }, coverage, dimensions] = await Promise.all([
+  const [{ data: template }, { data: pinRows }, coverage, dimensions, { data: site }] = await Promise.all([
     db.from("question_templates").select("name").eq("studio_id", member.studioId).eq("project_type", brief.project_type).maybeSingle(),
     db.from("brief_pins").select("image_id, created_at").eq("brief_id", brief.id).order("created_at"),
     brief.started_at ? Promise.resolve(null) : libraryCoverage(db, member.studioId),
     listDimensions(db, member.studioId),
+    // Started by a visitor on the site? (Nothing comes back before migration 16.)
+    db.from("briefs").select("source, seen_at").eq("id", brief.id).maybeSingle(),
   ]);
+  const fromSite = site?.source === "site";
   const pinIds = (pinRows ?? []).map((r) => r.image_id as string);
   const pins = await getImages(db, pinIds);
   const results = brief.started_at ? await briefResults(db, brief) : null;
@@ -67,6 +71,8 @@ export default async function BriefPage({ params }: PageProps<"/studio/briefs/[i
           <>
             <Mono>{template?.name ?? brief.project_type}</Mono>
             <StatusLabel status={brief.status} />
+            {fromSite ? <Mono className="text-signal">From the site</Mono> : null}
+            {fromSite && !site?.seen_at ? <MarkSeen id={brief.id} /> : null}
           </>
         }
         title={brief.client_name}
