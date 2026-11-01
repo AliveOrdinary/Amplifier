@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { processQueue } from "@/lib/library/score-queue";
 import { getImages, getImagesSince, libraryCounts } from "@/lib/library/queries";
 
-export const maxDuration = 90;
+export const maxDuration = 120;
 
 /**
  * The library's refresh, every 15 seconds while it's open: new images (from

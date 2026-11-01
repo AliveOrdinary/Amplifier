@@ -36,6 +36,13 @@ const CHECK_TIMEOUT_MS = 20_000;
 const RESULTS_TIMEOUT_MS = 60_000;
 /** The default time a run may take: well inside the 120 seconds a page or route gets. */
 const DEFAULT_BUDGET_MS = 60_000;
+/**
+ * Time a run must have left to start each step. Packing and sending a batch
+ * of links takes seconds; reading one back and saving its scores, up to half
+ * a minute. If a step overruns, the lease (budget + 30 s) still covers it.
+ */
+const SEND_NEEDS_MS = 25_000;
+const COLLECT_NEEDS_MS = 30_000;
 /** How often to ask Anthropic whether a batch has finished. */
 const CHECK_EVERY_MS = 60 * 1000;
 /**
@@ -115,8 +122,8 @@ export async function submitQueued(
   await free;
 
   for (let round = 0; round < maxBatches; round++) {
-    // Leave time to finish cleanly: packing and sending a batch takes a few seconds, sending can take up to a minute.
-    if (Date.now() > deadline - SEND_TIMEOUT_MS) break;
+    // Don't start a batch without time to send it.
+    if (Date.now() > deadline - SEND_NEEDS_MS) break;
     const { data: waiting, error } = await db
       .from("score_queue")
       .select("image_id, dimensions, queued_at")
@@ -234,7 +241,7 @@ export async function collectBatches(
 
   for (const b of open ?? []) {
     // Reading a finished batch back takes a while; don't start one without time to finish it.
-    if (Date.now() > deadline - RESULTS_TIMEOUT_MS) break;
+    if (Date.now() > deadline - COLLECT_NEEDS_MS) break;
     // Taking the check is also the lock: two pages open at once won't both read a batch.
     const cutoff = new Date(Date.now() - (force ? 5_000 : CHECK_EVERY_MS)).toISOString();
     const { data: mine } = await db
