@@ -67,6 +67,7 @@ Migrations are in `supabase/migrations`, applied in filename order:
 13. `…13_portfolio_engine.sql` turns projects into a list of blocks, records each file's size and description, adds the cover and the publish date, and checks addresses.
 14. `…14_portfolio_french.sql` adds `projects.fr`: each project's French title, summary, services, text, captions and alt text, for the French site.
 15. `…15_portfolio_thumbnail.sql` adds `projects.thumbnail_media_id`: an image or video shown on the project's tile (Home, Works) instead of its cover. Pick it in Studio › Portfolio with "Make thumbnail".
+16. `…16_site_briefs.sql` marks where a brief came from (`source`: `studio`, or `site` for "Start a brief"), when a member first opened a site brief (`seen_at`), and a one-way hash of the visitor's network address (`requester_hash`) for the limits.
 
 To bring in the first four projects (Sanjo, Crums, Izanagi, Teeta) with their files, add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local` and run `npm run import:portfolio -- --dry-run`, then `npm run import:portfolio`. Projects already in Studio are skipped; save any project in Studio afterwards so the site refreshes. Projects imported before section labels existed get them with `npm run import:portfolio -- --labels` (only empty labels are filled; nothing else changes). `npm run import:portfolio -- --covers teeta` replaces a project's cover and tile thumbnail with the ones in `projects.mjs`. See `scripts/import-portfolio/`.
 
@@ -82,6 +83,19 @@ Studio › Briefs › New brief: pick the client and project type (brand identit
 4. The remaining questions, then thanks.
 
 When the client has answered "What are you making?", the brief freezes its plan (rubric, warm-up and image pool with their scores), so later library changes don't affect it. The pool is up to 300 images: about three quarters are the approved images closest to their answer (embedded with Voyage and matched with `images_near`, nudged towards the project's medium), the rest are open to anything, since taste crosses over. Pins are always in. Without embeddings, or if they skip the question, the pool leans on the medium instead. Progress is saved after every answer. Results, including an early read of where their choices lean, appear on the brief's page. The engine (`lib/brief/engine.ts`) is plain functions with no database, so it can be tested with simulated clients.
+
+### Start a brief (from the site)
+
+The seal on every page of the site opens `/start` (`/fr/start`): the visitor gives their name, email and project type and goes straight into their own brief, made from that type's question template with status Sent. In Studio › Briefs it's marked "From the site", and the Briefs tab shows how many no member has opened yet. Opening one clears it.
+
+There's no sign-in, so the server checks every request (`lib/brief/intake.ts`, `INTAKE_LIMITS`):
+
+- **Per visitor:** 2 briefs a day, counted by a one-way hash of their network address (the address itself is never stored).
+- **Per email:** one open brief at a time (not completed, archived or expired). The visitor is told to carry on from the link they started with; that link is never shown again here, since anyone can type anyone's email.
+- **Whole site:** 20 a day, after which visitors are asked to try again tomorrow.
+- **Bots:** a field people never see must stay empty, and the form must be sent between 3 seconds and 6 hours after its page loaded. A bot gets the same answer as a typo.
+
+The brief itself is in English for now; the French form says so.
 
 ## Prep page
 

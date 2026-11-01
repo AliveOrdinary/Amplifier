@@ -90,8 +90,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
       </main>
 
       <SiteFooter />
-      {/* For now the seal opens the closing call (#brief); later it starts the brief itself. */}
-      <BriefSeal label={t.contact.cta} href="#brief" />
+      <BriefSeal label={t.contact.cta} href={localePath(locale, "/start")} />
     </div>
   );
 }

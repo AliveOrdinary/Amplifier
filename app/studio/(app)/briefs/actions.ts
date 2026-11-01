@@ -271,3 +271,19 @@ export async function saveReport(briefId: string, input: z.input<typeof Content>
     return fail(error);
   }
 }
+
+/** A member opened a brief a visitor started on the site: it no longer counts on the Briefs tab. */
+export async function markSeen(id: string) {
+  const member = await getMember();
+  const db = await createClient();
+  const { data } = await db
+    .from("briefs")
+    .update({ seen_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("studio_id", member.studioId)
+    .eq("source", "site")
+    .is("seen_at", null)
+    .select("id");
+  // Only when something changed: re-render the studio so the tab's count drops.
+  if (data?.length) refresh();
+}
