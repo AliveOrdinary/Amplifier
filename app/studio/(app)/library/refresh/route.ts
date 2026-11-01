@@ -2,7 +2,7 @@ import { after, NextResponse, type NextRequest } from "next/server";
 import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { processQueue } from "@/lib/library/score-queue";
+import { processQueue, scoringProgress } from "@/lib/library/score-queue";
 import { getImages, getImagesSince, libraryCounts } from "@/lib/library/queries";
 
 export const maxDuration = 120;
@@ -27,13 +27,14 @@ export async function POST(request: NextRequest) {
   );
   try {
     const db = await createClient();
-    const [fresh, updated, counts] = await Promise.all([
+    const [fresh, updated, counts, progress] = await Promise.all([
       getImagesSince(db, member.studioId, since, 100),
       getImages(db, pending),
       libraryCounts(db, member.studioId),
+      scoringProgress(db, member.studioId),
     ]);
     const byId = new Map([...updated, ...fresh].map((image) => [image.id, image]));
-    return NextResponse.json({ ok: true, images: [...byId.values()], counts });
+    return NextResponse.json({ ok: true, images: [...byId.values()], counts, progress });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Couldn't refresh." }, { status: 500 });
   }

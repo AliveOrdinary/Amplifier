@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES, clampScore } from "@/lib/library/constants";
 import type { Dimension, ImageStatus, LibraryImage } from "@/lib/library/types";
 import type { Board, LibraryCounts } from "@/lib/library/queries";
+import type { ScoringProgress } from "@/lib/library/score-queue";
 import {
   abandonUpload,
   addFromLink,
@@ -35,6 +36,8 @@ type LibraryState = {
   images: LibraryImage[];
   /** Whole-library numbers for the tabs, refreshed as you work. */
   counts: LibraryCounts;
+  /** Where batch scoring (board imports, rubric changes) is up to. */
+  progress: ScoringProgress;
   /** Pinterest boards images were imported from. */
   boards: Board[];
   /** Add images loaded elsewhere (a Browse page) so edits reach every screen. */
@@ -64,7 +67,7 @@ export function useLibrary() {
   return value;
 }
 
-type PollResult = { ok: true; images: LibraryImage[]; counts: LibraryCounts } | { ok: false };
+type PollResult = { ok: true; images: LibraryImage[]; counts: LibraryCounts; progress: ScoringProgress } | { ok: false };
 
 /** The library's refresh (a route, so it never holds up approvals; see library/refresh/route.ts). */
 async function pollLibrary(since: string, pending: string[]): Promise<PollResult> {
@@ -102,18 +105,22 @@ const newest = (list: LibraryImage[], start: string) => list.reduce((max, i) => 
 export function LibraryProvider({
   initialImages,
   initialCounts,
+  initialProgress,
   boards,
   dimensions,
   children,
 }: {
   initialImages: LibraryImage[];
   initialCounts: LibraryCounts;
+  initialProgress: ScoringProgress;
   boards: Board[];
   dimensions: Dimension[];
   children: ReactNode;
 }) {
   const [images, setImages] = useState(initialImages);
   const [counts, setCounts] = useState(initialCounts);
+  const [progress, setProgress] = useState(initialProgress);
+  const openBatches = useRef(new Set(initialProgress.batches.map((b) => b.id)));
   const [jobs, setJobs] = useState<Job[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -320,13 +327,19 @@ export function LibraryProvider({
         since.current = newest(result.images, since.current);
         upsert(keepDecisions(result.images, askedAt));
         setCounts(result.counts);
+        setProgress(result.progress);
+        // A batch that was with Claude and has now been read back: say so.
+        const back = result.progress.finished.filter((b) => openBatches.current.has(b.id));
+        openBatches.current = new Set(result.progress.batches.map((b) => b.id));
+        const scored = back.reduce((sum, b) => sum + b.count, 0);
+        if (scored) notify(`Scores are back for ${scored} ${scored === 1 ? "image" : "images"}.`);
       } finally {
         busy = false;
       }
     };
     const timer = setInterval(tick, 15_000);
     return () => clearInterval(timer);
-  }, [upsert, keepDecisions]);
+  }, [upsert, keepDecisions, notify]);
 
   // Quietly embed images that predate embeddings, a few at a time.
   useEffect(() => {
@@ -460,6 +473,7 @@ export function LibraryProvider({
     () => ({
       images,
       counts,
+      progress,
       boards,
       remember: upsert,
       dimensions,
@@ -477,7 +491,7 @@ export function LibraryProvider({
       dismissNotice,
       holdNotice,
     }),
-    [images, counts, boards, upsert, dimensions, jobs, notice, addFiles, addLink, clearJobs, decide, setScore, setImageMedium, rescoreImage, removeImage, notify, dismissNotice, holdNotice],
+    [images, counts, progress, boards, upsert, dimensions, jobs, notice, addFiles, addLink, clearJobs, decide, setScore, setImageMedium, rescoreImage, removeImage, notify, dismissNotice, holdNotice],
   );
 
   return (

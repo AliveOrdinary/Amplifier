@@ -78,6 +78,96 @@ export async function queueStatus(db: SupabaseClient, studioId: string) {
   return { waiting: waiting.count ?? 0, scoring: scoring.count ?? 0 };
 }
 
+export type ScoringProgress = {
+  /** Images waiting to be sent to Claude, and when the first of them was added. */
+  waiting: number;
+  waitingSince: string | null;
+  /** Images being packed into a batch right now (a minute or two for a full one). */
+  packing: number;
+  packingSince: string | null;
+  /**
+   * The current run of scoring, for "Scoring 38 of 144": images already back
+   * since it began (batches read back after the oldest image still in the queue
+   * or with Claude was added). null when nothing is queued.
+   */
+  wave: { since: string; done: number } | null;
+  /** Batches with Claude now, oldest first. Anthropic reports nothing until a whole batch is done. */
+  batches: { id: string; count: number; sentAt: string }[];
+  /** How long this studio's recent batches took (median of the last ten, in minutes); null until there are three. */
+  typicalMinutes: number | null;
+  /** Batches read back in the last day, newest first. */
+  finished: { id: string; count: number; at: string }[];
+};
+
+/** Where the studio's batch scoring is up to, for the library and the studio menu. */
+export async function scoringProgress(db: SupabaseClient, studioId: string): Promise<ScoringProgress> {
+  const day = Date.now() - 24 * 60 * 60 * 1000;
+  const [waiting, packing, open, recent] = await Promise.all([
+    db
+      .from("score_queue")
+      .select("queued_at", { count: "exact" })
+      .eq("studio_id", studioId)
+      .is("batch_id", null)
+      .order("queued_at")
+      .limit(1),
+    db
+      .from("score_queue")
+      .select("submitted_at", { count: "exact" })
+      .eq("studio_id", studioId)
+      .like("batch_id", "claim:%")
+      .order("submitted_at")
+      .limit(1),
+    db.from("score_batches").select("id, request_count, created_at").eq("studio_id", studioId).is("ended_at", null).order("created_at"),
+    db
+      .from("score_batches")
+      .select("id, request_count, created_at, ended_at")
+      .eq("studio_id", studioId)
+      .not("ended_at", "is", null)
+      .order("ended_at", { ascending: false })
+      .limit(10),
+  ]);
+  const done = recent.data ?? [];
+  const openBatches = open.data ?? [];
+
+  // Where the current run began: the oldest image still waiting, being packed or with Claude.
+  const { data: oldest } = await db
+    .from("score_queue")
+    .select("queued_at")
+    .eq("studio_id", studioId)
+    .order("queued_at")
+    .limit(1);
+  const starts = [oldest?.[0]?.queued_at as string | undefined, ...openBatches.map((b) => b.created_at as string)]
+    .filter((t): t is string => Boolean(t))
+    .map((t) => Date.parse(t));
+  let wave: ScoringProgress["wave"] = null;
+  if (starts.length) {
+    const since = new Date(Math.min(...starts)).toISOString();
+    const { data: back } = await db
+      .from("score_batches")
+      .select("request_count")
+      .eq("studio_id", studioId)
+      .gte("ended_at", since);
+    wave = { since, done: (back ?? []).reduce((sum, b) => sum + (b.request_count as number), 0) };
+  }
+  const minutes = done
+    .map((b) => (Date.parse(b.ended_at as string) - Date.parse(b.created_at as string)) / 60_000)
+    .filter((m) => Number.isFinite(m) && m >= 0)
+    .sort((a, b) => a - b);
+  const typical = minutes.length >= 3 ? Math.max(1, Math.round(minutes[Math.floor(minutes.length / 2)])) : null;
+  return {
+    waiting: waiting.count ?? 0,
+    waitingSince: (waiting.data?.[0]?.queued_at as string | undefined) ?? null,
+    packing: packing.count ?? 0,
+    packingSince: (packing.data?.[0]?.submitted_at as string | undefined) ?? null,
+    wave,
+    batches: openBatches.map((b) => ({ id: b.id as string, count: b.request_count as number, sentAt: b.created_at as string })),
+    typicalMinutes: typical,
+    finished: done
+      .filter((b) => Date.parse(b.ended_at as string) >= day)
+      .map((b) => ({ id: b.id as string, count: b.request_count as number, at: b.ended_at as string })),
+  };
+}
+
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<PromiseSettledResult<R>[]> {
   const results: PromiseSettledResult<R>[] = new Array(items.length);
   let next = 0;
@@ -303,7 +393,8 @@ export async function collectBatches(
     failed += results.length - ok;
     await db
       .from("score_batches")
-      .update({ ended_at: new Date().toISOString(), succeeded: ok, failed: results.length - ok })
+      // When Anthropic finished it (not when we read it back), so "how long batches take" is true.
+      .update({ ended_at: batch.ended_at ?? new Date().toISOString(), succeeded: ok, failed: results.length - ok })
       .eq("id", b.id);
   }
   return { applied, failed };
