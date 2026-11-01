@@ -7,6 +7,7 @@ import {
   buildScoreRequest,
   readAnswer,
   scoringContext,
+  signedLinks,
   type ScoreOutcome,
   type ScoreRequest,
 } from "./score";
@@ -23,6 +24,18 @@ import { recordClaude, sumUsage, type ClaudeUsage } from "@/lib/usage";
 const BATCH_SIZE = 100;
 /** Send a part-full batch once its oldest image has waited this long. */
 const SUBMIT_AFTER_MS = 2 * 60 * 1000;
+/**
+ * Without the lease (before migration 17): images picked up by a run that was
+ * cut off are freed after this. With it, a run frees them at once, since only
+ * one run can be going.
+ */
+const CLAIM_EXPIRES_MS = 3 * 60 * 1000;
+/** Time limits on Anthropic calls, so a slow one fails (and is retried next run) instead of hanging. */
+const SEND_TIMEOUT_MS = 60_000;
+const CHECK_TIMEOUT_MS = 20_000;
+const RESULTS_TIMEOUT_MS = 60_000;
+/** The default time a run may take: well inside the 120 seconds a page or route gets. */
+const DEFAULT_BUDGET_MS = 60_000;
 /** How often to ask Anthropic whether a batch has finished. */
 const CHECK_EVERY_MS = 60 * 1000;
 /**
@@ -85,20 +98,25 @@ const message = (err: unknown) => (err instanceof Error ? err.message : "Scoring
 export async function submitQueued(
   db: SupabaseClient,
   studioId: string,
-  { force = false, maxBatches = 2 }: { force?: boolean; maxBatches?: number } = {},
+  {
+    force = false,
+    maxBatches = 2,
+    deadline = Date.now() + DEFAULT_BUDGET_MS,
+    leased = false,
+  }: { force?: boolean; maxBatches?: number; deadline?: number; leased?: boolean } = {},
 ) {
   let submitted = 0;
   let context: Awaited<ReturnType<typeof scoringContext>> | null = null;
 
-  // A request that died mid-send leaves its claim behind; free it after a while.
-  await db
-    .from("score_queue")
-    .update({ batch_id: null, submitted_at: null })
-    .eq("studio_id", studioId)
-    .like("batch_id", "claim:%")
-    .lt("submitted_at", new Date(Date.now() - 10 * 60 * 1000).toISOString());
+  // A run that was cut off leaves its images picked up but never sent. Holding
+  // the lease means no other run is going, so they can all go back now.
+  let free = db.from("score_queue").update({ batch_id: null, submitted_at: null }).eq("studio_id", studioId).like("batch_id", "claim:%");
+  if (!leased) free = free.lt("submitted_at", new Date(Date.now() - CLAIM_EXPIRES_MS).toISOString());
+  await free;
 
   for (let round = 0; round < maxBatches; round++) {
+    // Leave time to finish cleanly: packing and sending a batch takes a few seconds, sending can take up to a minute.
+    if (Date.now() > deadline - SEND_TIMEOUT_MS) break;
     const { data: waiting, error } = await db
       .from("score_queue")
       .select("image_id, dimensions, queued_at")
@@ -125,11 +143,24 @@ export async function submitQueued(
     if (!claimed?.length) break;
 
     try {
-      context ??= await scoringContext(db, studioId);
+      context ??= await scoringContext(db, studioId, { links: true });
       const ctx = context;
-      const built = await mapLimit(claimed, 8, (row) =>
-        buildScoreRequest(db, row.image_id as string, ctx, (row.dimensions as string[] | null) ?? null),
-      );
+      // Links Claude fetches itself, signed in one go: nothing to download here.
+      const { data: files, error: filesError } = await db
+        .from("images")
+        .select("id, display_path")
+        .in(
+          "id",
+          claimed.map((c) => c.image_id as string),
+        );
+      if (filesError) throw new Error(filesError.message);
+      const pathOf = new Map((files ?? []).map((f) => [f.id as string, f.display_path as string | null]));
+      const links = await signedLinks(db, [...pathOf.values()].filter((p): p is string => Boolean(p)));
+      const built = await mapLimit(claimed, 8, async (row) => {
+        const link = links.get(pathOf.get(row.image_id as string) ?? "");
+        if (!link) throw new Error("The image hasn't been processed yet.");
+        return buildScoreRequest(db, row.image_id as string, ctx, (row.dimensions as string[] | null) ?? null, link);
+      });
 
       const requests: ScoreRequest[] = [];
       const broken: { id: string; error: string }[] = [];
@@ -145,15 +176,33 @@ export async function submitQueued(
       );
       if (!requests.length) continue;
 
-      const batch = await anthropic().messages.batches.create({
-        requests: requests.map((r) => ({ custom_id: r.imageId, params: r.params })),
-      });
-      await db.from("score_batches").insert({ id: batch.id, studio_id: studioId, request_count: requests.length });
-      await Promise.all(
-        requests.map((r) =>
-          db.from("score_queue").update({ batch_id: batch.id, asked: r.keys }).eq("image_id", r.imageId),
-        ),
+      const batch = await anthropic().messages.batches.create(
+        { requests: requests.map((r) => ({ custom_id: r.imageId, params: r.params })) },
+        { timeout: SEND_TIMEOUT_MS, maxRetries: 0 },
       );
+      // Record it before anything else. If that fails, cancel it: a batch we can't
+      // read back would be paid for and then sent again.
+      const { error: recordError } = await db
+        .from("score_batches")
+        .insert({ id: batch.id, studio_id: studioId, request_count: requests.length });
+      if (recordError) {
+        await anthropic()
+          .messages.batches.cancel(batch.id, {}, { timeout: CHECK_TIMEOUT_MS })
+          .catch((err) => console.error("couldn't cancel an unrecorded batch", batch.id, err));
+        throw new Error(`Couldn't record the batch: ${recordError.message}`);
+      }
+      // Mark the images as sent, a few updates instead of one per image (most ask for the same dimensions).
+      const byKeys = new Map<string, { keys: string[]; ids: string[] }>();
+      for (const r of requests) {
+        const k = r.keys.join(",");
+        const group = byKeys.get(k) ?? { keys: r.keys, ids: [] };
+        group.ids.push(r.imageId);
+        byKeys.set(k, group);
+      }
+      for (const group of byKeys.values()) {
+        const { error: markError } = await db.from("score_queue").update({ batch_id: batch.id, asked: group.keys }).in("image_id", group.ids);
+        if (markError) console.error("couldn't mark images as sent", batch.id, markError.message);
+      }
       submitted += requests.length;
     } catch (err) {
       // Put them back for the next try.
@@ -165,7 +214,11 @@ export async function submitQueued(
 }
 
 /** Read back finished batches: save scores, and decide where imported images go. */
-export async function collectBatches(db: SupabaseClient, studioId: string, { force = false } = {}) {
+export async function collectBatches(
+  db: SupabaseClient,
+  studioId: string,
+  { force = false, deadline = Date.now() + DEFAULT_BUDGET_MS }: { force?: boolean; deadline?: number } = {},
+) {
   const { data: open, error } = await db
     .from("score_batches")
     .select("id, checked_at")
@@ -180,6 +233,8 @@ export async function collectBatches(db: SupabaseClient, studioId: string, { for
   const labels = await dimensionLabels(db, studioId);
 
   for (const b of open ?? []) {
+    // Reading a finished batch back takes a while; don't start one without time to finish it.
+    if (Date.now() > deadline - RESULTS_TIMEOUT_MS) break;
     // Taking the check is also the lock: two pages open at once won't both read a batch.
     const cutoff = new Date(Date.now() - (force ? 5_000 : CHECK_EVERY_MS)).toISOString();
     const { data: mine } = await db
@@ -189,7 +244,7 @@ export async function collectBatches(db: SupabaseClient, studioId: string, { for
       .or(`checked_at.is.null,checked_at.lt.${cutoff}`)
       .select("id");
     if (!mine?.length) continue;
-    const batch = await anthropic().messages.batches.retrieve(b.id as string);
+    const batch = await anthropic().messages.batches.retrieve(b.id as string, {}, { timeout: CHECK_TIMEOUT_MS, maxRetries: 0 });
     if (batch.processing_status !== "ended") continue;
     // Hold the lock while results are saved.
     await db
@@ -206,7 +261,7 @@ export async function collectBatches(db: SupabaseClient, studioId: string, { for
     const results: { id: string; outcome?: ScoreOutcome; error?: string; retry?: boolean }[] = [];
     const usage: ClaudeUsage[] = [];
     let model = "";
-    for await (const item of await anthropic().messages.batches.results(b.id as string)) {
+    for await (const item of await anthropic().messages.batches.results(b.id as string, {}, { timeout: RESULTS_TIMEOUT_MS, maxRetries: 0 })) {
       if (item.result.type === "succeeded") {
         usage.push(item.result.message.usage);
         model ||= item.result.message.model;
@@ -300,9 +355,45 @@ async function settleImport(
     .eq("id", imageId);
 }
 
-/** Collect finished batches, then send what's waiting. Safe to call often. */
-export async function processQueue(db: SupabaseClient, studioId: string, { force = false } = {}) {
-  const collected = await collectBatches(db, studioId, { force });
-  const { submitted } = await submitQueued(db, studioId, { force });
-  return { ...collected, submitted, ...(await queueStatus(db, studioId)) };
+let leaseMissing = false;
+
+/**
+ * Collect finished batches, then send what's waiting. Safe to call often:
+ * only one run per studio goes at a time (the lease, migration 17); anyone
+ * else who calls meanwhile just gets the queue's status. `budgetMs` is how
+ * long this run may take; keep it well inside the caller's time limit.
+ */
+export async function processQueue(
+  db: SupabaseClient,
+  studioId: string,
+  { force = false, budgetMs = DEFAULT_BUDGET_MS }: { force?: boolean; budgetMs?: number } = {},
+) {
+  const deadline = Date.now() + budgetMs;
+  const holder = randomUUID();
+  let leased = false;
+  if (!leaseMissing) {
+    const { data, error } = await db.rpc("take_score_run", {
+      p_studio: studioId,
+      p_holder: holder,
+      // The lease outlasts the run's own budget, so a run that's cut off still lets go soon after.
+      p_seconds: Math.ceil(budgetMs / 1000) + 30,
+    });
+    if (error && /take_score_run|PGRST202|42883/.test(`${error.code} ${error.message}`)) {
+      leaseMissing = true;
+      console.warn("Scoring runs aren't locked yet: apply supabase/migrations/…17_score_runs.sql.");
+    } else if (error) {
+      throw new Error(error.message);
+    } else if (!data) {
+      return { applied: 0, failed: 0, submitted: 0, busy: true, ...(await queueStatus(db, studioId)) };
+    } else {
+      leased = true;
+    }
+  }
+  try {
+    const collected = await collectBatches(db, studioId, { force, deadline });
+    const { submitted } = await submitQueued(db, studioId, { force, deadline, leased });
+    return { ...collected, submitted, busy: false, ...(await queueStatus(db, studioId)) };
+  } finally {
+    if (leased) await db.rpc("end_score_run", { p_studio: studioId, p_holder: holder });
+  }
 }

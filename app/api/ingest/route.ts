@@ -1,9 +1,8 @@
-import { after, NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { authenticateKey, unauthorized } from "@/lib/library/member-key";
 import { ingestBytes, IngestError } from "@/lib/library/pipeline";
 import { fetchRemoteImage, RemoteFetchError } from "@/lib/library/fetch-remote";
-import { submitQueued } from "@/lib/library/score-queue";
 
 // Images are resized and scored before the response is sent.
 export const maxDuration = 120;
@@ -72,8 +71,9 @@ export async function POST(request: NextRequest) {
     } else {
       return NextResponse.json({ ok: false, error: "No image was sent." }, { status: 400 });
     }
-    // Full batches go out as soon as there are enough; the rest when the import ends.
-    if (queue) after(() => submitQueued(admin, member.studioId).catch((err) => console.error("batch submit failed", err)));
+    // Queued images go out when the import ends (the extension says so), or with the
+    // next run from an open studio page or the daily job. Not from here: one run per
+    // pin piled up and slowed the studio during big imports.
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     const known = error instanceof IngestError || error instanceof RemoteFetchError;
