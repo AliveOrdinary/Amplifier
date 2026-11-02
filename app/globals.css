@@ -437,14 +437,19 @@ html[data-greeted] .preloader {
   transform: scale(1.03);
   transition-delay: 0ms;
 }
-/* Two columns that step past each other: the right one sits 40% of a tile lower. */
+/* Two columns that run on their own and step past each other: the right one starts lower. */
 @media (min-width: 640px) {
-  .work-grid > li:nth-child(even) {
-    translate: 0 40%;
+  .work-grid {
+    columns: 2;
+    column-gap: 16px;
   }
-  /* When the last tile is on the right, leave room for its drop. */
-  .work-grid:has(> li:nth-child(even):last-child) {
-    padding-bottom: calc(25% + 32px);
+  .work-grid > li {
+    break-inside: avoid;
+    padding-bottom: 76px;
+  }
+  .work-grid > li[data-first-right] {
+    break-before: column;
+    padding-top: 18vw;
   }
 }
 @media (prefers-reduced-motion: reduce) {

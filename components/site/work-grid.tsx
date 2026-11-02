@@ -6,12 +6,16 @@ import type { PortfolioMedia } from "@/lib/portfolio/types";
 import { LABEL } from "@/components/site/site-frame";
 import { cn } from "@/components/ui/primitives";
 
+/** Tall and wide covers in turn, so the two columns don't line up row by row. */
+const SHAPES = ["aspect-[4/5]", "aspect-[5/4]", "aspect-[4/5]", "aspect-[4/5]", "aspect-[5/4]", "aspect-[4/5]"];
+
 export type WorkItem = { key: string; href: string; title: string; meta: string; media: PortfolioMedia | null };
 
 /**
- * The Work page's grid: tall 4:5 covers edge to edge in two columns, the
- * right one dropped part of a tile so the two step past each other (after
- * readymag.com/designs/6411032); one column on phones. The studio's curve
+ * The Work page's grid: tall (4:5) and wide (5:4) covers edge to edge in
+ * two columns that run on their own, the right one dropped part of a tile so
+ * the two step past each other (after readymag.com/designs/6411032); one
+ * column on phones. The studio's curve
  * (--curve), the name and services under each.
  * Covers wipe up into view as they scroll in, a row's covers one after
  * another. Over the grid the pointer is a small dot that grows into an
@@ -70,22 +74,27 @@ export function WorkGrid({ items, empty }: { items: WorkItem[]; empty: string })
 
   return (
     <>
-      <ul ref={grid} className="work-grid grid grid-cols-1 gap-x-3 gap-y-14 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-[76px]">
-        {items.map((item, i) => (
-          <li key={item.key}>
-            <Link href={item.href} data-work-card className="work-card group block" style={{ "--delay": `${(i % 2) * 160}ms` } as CSSProperties}>
-              <div data-work-media className="work-media relative aspect-[4/5] overflow-hidden bg-panel">
-                {item.media ? <Cover media={item.media} eager={i < 2} /> : null}
-              </div>
-              <h2 className="px-4 pt-[18px] text-[22px] sm:px-5 leading-[1.2] font-normal tracking-[-0.015em]">{item.title}</h2>
-              {item.meta ? (
-                <p className={cn(LABEL, "mt-2 px-4 text-[11px] sm:px-5 tracking-[0.06em] text-muted opacity-70 transition duration-300 group-hover:text-ink-soft group-hover:opacity-100")}>
-                  {item.meta}
-                </p>
-              ) : null}
-            </Link>
-          </li>
-        ))}
+      {/* Left column: 1st, 3rd, 5th… then the right: 2nd, 4th… (CSS splits them at the first right tile).
+          Phones show one column back in the projects' order (flex order). */}
+      <ul ref={grid} className="work-grid flex flex-col gap-14 sm:block">
+        {[...items.keys()].sort((a, b) => (a % 2) - (b % 2) || a - b).map((i, n) => {
+          const item = items[i];
+          return (
+            <li key={item.key} style={{ order: i }} data-right={i % 2 === 1 || undefined} data-first-right={(i === 1) || undefined}>
+              <Link href={item.href} data-work-card className="work-card group block" style={{ "--delay": `${(i % 2) * 160}ms` } as CSSProperties}>
+                <div data-work-media className={cn("work-media relative overflow-hidden bg-panel", SHAPES[i % SHAPES.length])}>
+                  {item.media ? <Cover media={item.media} eager={n < 1 || i === 1} /> : null}
+                </div>
+                <h2 className="px-4 pt-[18px] text-[22px] sm:px-5 leading-[1.2] font-normal tracking-[-0.015em]">{item.title}</h2>
+                {item.meta ? (
+                  <p className={cn(LABEL, "mt-2 px-4 text-[11px] sm:px-5 tracking-[0.06em] text-muted opacity-70 transition duration-300 group-hover:text-ink-soft group-hover:opacity-100")}>
+                    {item.meta}
+                  </p>
+                ) : null}
+              </Link>
+            </li>
+          );
+        })}
       </ul>
       <div ref={cursor} aria-hidden data-state="" className="work-cursor">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
