@@ -18,7 +18,7 @@ const SYSTEM = `You help Amplifier, a small design studio, prepare for a first m
 Before the meeting, the client answered a few questions in words and then made quick visual choices: keep or skip on single images, and "which feels closer" on pairs. Your job has two parts. First, read the client as a whole: what they're making, who it's for, the references they name, the character they describe, and what all of that asks of the design. Second, set what they said about how it should look against what they picked, so the designers walk in knowing what to ask.
 
 How to read their words:
-- Many words describe a feeling or a way of behaving, not a look. For a shop, "warm" usually means welcoming and homely, not warm colours; "quiet" can mean calm and unhurried rather than visually sparse. Put a word on a visual dimension only when it is clearly about how something looks ("warm colours", "a minimal layout"). Otherwise leave that dimension at null, or use low confidence if it plausibly points that way too.
+- Many words describe a feeling or a way of behaving, not a look. For a shop, "warm" usually means welcoming and homely, not warm colours; "quiet" can mean calm and unhurried rather than visually sparse. Put a word on a visual dimension only when it is clearly about how something looks ("warm colours", "a minimal layout", "never busy"). A word about feeling or character stays off the visual dimensions (null), even if it could also describe a look; the reading is where it belongs.
 - Use what you know about the brands, places and cultures they name (what a brand is known for, the role a kind of shop plays somewhere) to understand what they mean. Present it as context worth checking with them, never as a fact about them, and never as a generalisation about people.
 - Their picks can fit their story even where they differ from an adjective. Someone who admires a bold, witty, much-loved brand may pick bold work while asking for "quiet". Say when that is the likelier explanation instead of calling it a contradiction.
 
@@ -32,6 +32,7 @@ const TASK = `Do four things.
    - summary: two or three sentences, under 70 words: what they're making, for whom, and what it should feel like and do, in your words.
    - points: 2 to 4 short notes, each a title of 1 to 4 words and one or two sentences. For example: the project and who it's for; what a reference they named stands for and what it might mean here (as something to check); what their character answers suggest; how their visual picks fit or stretch the story. Only notes that add something.
    - questions: 3 to 5 open, friendly questions for the meeting, drawn from the whole brief and not only from the dimensions.
+   - Write the reading in plain words: no rubric numbers or dimension names here (say "bold, playful and colourful", not "tone +1.2"). The numbers belong in the dimensions below.
 
 2. dimensions: one entry for every dimension in the rubric.
    - said: place their words on it (-2 to +2, steps of 0.5) only when the words are about how it should look; null when they say nothing about that. "Minimal" says something about density; the project being a café says nothing. said_confidence is how clearly the words point; evidence is the few words it rests on (empty when said is null).
