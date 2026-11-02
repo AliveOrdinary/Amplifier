@@ -297,6 +297,13 @@ export function LibraryProvider({
     imagesRef.current = images;
   }, [images]);
 
+  const jobsRef = useRef(jobs);
+  const progressRef = useRef(progress);
+  useEffect(() => {
+    jobsRef.current = jobs;
+    progressRef.current = progress;
+  }, [jobs, progress]);
+
   const decisions = useRef(new Map<string, Decision>());
   /** A refresh's copy of an image, with any decision made since it set out kept. */
   const keepDecisions = useCallback((incoming: LibraryImage[], askedAt: number) => {
@@ -313,9 +320,22 @@ export function LibraryProvider({
   const since = useRef(initialCounts.newest ?? "1970-01-01T00:00:00Z");
   useEffect(() => {
     let busy = false;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Every 30 seconds while something is on its way (uploads, scoring); every
+    // 2 minutes otherwise, which is enough to pick up the extension's additions.
+    // The database is small: a library left open shouldn't keep it busy all day.
+    const next = () => {
+      if (stopped) return;
+      const working =
+        jobsRef.current.some((j) => j.state === "uploading" || j.state === "scoring") ||
+        imagesRef.current.some((i) => !i.ready && !i.collection) ||
+        progressRef.current.waiting + progressRef.current.packing + progressRef.current.batches.length > 0;
+      timer = setTimeout(tick, working ? 30_000 : 120_000);
+    };
     const tick = async () => {
       // One refresh at a time: when the studio is slow they'd otherwise stack up.
-      if (busy || document.visibilityState !== "visible") return;
+      if (busy || document.visibilityState !== "visible") return next();
       busy = true;
       try {
         const current = imagesRef.current;
@@ -335,10 +355,22 @@ export function LibraryProvider({
         if (scored) notify(`Scores are back for ${scored} ${scored === 1 ? "image" : "images"}.`);
       } finally {
         busy = false;
+        next();
       }
     };
-    const timer = setInterval(tick, 15_000);
-    return () => clearInterval(timer);
+    // Coming back to the tab: look straight away.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      clearTimeout(timer);
+      void tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    next();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [upsert, keepDecisions, notify]);
 
   // Quietly embed images that predate embeddings, a few at a time.
