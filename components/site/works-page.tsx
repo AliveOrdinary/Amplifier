@@ -39,7 +39,7 @@ export async function WorksPage({ locale }: { locale: Locale }) {
         ]}
         linkBase={localePath(locale, "/")}
         languages={alternates("/projects")}
-        power={home.power}
+        city={home.city}
         current="work"
       />
 

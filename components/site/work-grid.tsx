@@ -9,8 +9,9 @@ import { cn } from "@/components/ui/primitives";
 export type WorkItem = { key: string; href: string; title: string; meta: string; media: PortfolioMedia | null };
 
 /**
- * The Work page's grid, after brand-nw.com/work: tall 3:4 covers edge to
- * edge, three across (two on tablets, one on phones), in the studio's curve
+ * The Work page's grid: tall 4:5 covers edge to edge in two columns, the
+ * right one dropped part of a tile so the two step past each other (after
+ * readymag.com/designs/6411032); one column on phones. The studio's curve
  * (--curve), the name and services under each.
  * Covers wipe up into view as they scroll in, a row's covers one after
  * another. Over the grid the pointer is a small dot that grows into an
@@ -69,12 +70,12 @@ export function WorkGrid({ items, empty }: { items: WorkItem[]; empty: string })
 
   return (
     <>
-      <ul ref={grid} className="work-grid grid grid-cols-1 gap-x-3 gap-y-14 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-[76px] lg:grid-cols-3">
+      <ul ref={grid} className="work-grid grid grid-cols-1 gap-x-3 gap-y-14 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-[76px]">
         {items.map((item, i) => (
           <li key={item.key}>
-            <Link href={item.href} data-work-card className="work-card group block" style={{ "--delay": `${(i % 3) * 120}ms` } as CSSProperties}>
-              <div data-work-media className="work-media relative aspect-[3/4] overflow-hidden bg-panel">
-                {item.media ? <Cover media={item.media} eager={i < 3} /> : null}
+            <Link href={item.href} data-work-card className="work-card group block" style={{ "--delay": `${(i % 2) * 160}ms` } as CSSProperties}>
+              <div data-work-media className="work-media relative aspect-[4/5] overflow-hidden bg-panel">
+                {item.media ? <Cover media={item.media} eager={i < 2} /> : null}
               </div>
               <h2 className="px-4 pt-[18px] text-[22px] sm:px-5 leading-[1.2] font-normal tracking-[-0.015em]">{item.title}</h2>
               {item.meta ? (

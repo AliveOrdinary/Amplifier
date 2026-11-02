@@ -437,6 +437,16 @@ html[data-greeted] .preloader {
   transform: scale(1.03);
   transition-delay: 0ms;
 }
+/* Two columns that step past each other: the right one sits 40% of a tile lower. */
+@media (min-width: 640px) {
+  .work-grid > li:nth-child(even) {
+    translate: 0 40%;
+  }
+  /* When the last tile is on the right, leave room for its drop. */
+  .work-grid:has(> li:nth-child(even):last-child) {
+    padding-bottom: calc(25% + 32px);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .work-media,
   .work-cover {

@@ -72,7 +72,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
         ]}
         linkBase={localePath(locale, "/")}
         languages={alternates(`/projects/${project.slug}`)}
-        power={home.power}
+        city={home.city}
       />
 
       <main className={cn(PAGE, "pt-12")}>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Wordmark, cn } from "@/components/ui/primitives";
 import { glide } from "@/components/site/brief-seal";
 import { LanguageSwitch } from "@/components/site/language-switch";
@@ -11,7 +11,7 @@ import type { Locale } from "@/lib/i18n/site";
 /**
  * The header, after julienpianetti.com: one thin line of small type fixed to
  * the top, no bar behind it. Logo left; the menu (Work Studio Contact) lined
- * up with the page's text column; language and the Power light right. It
+ * up with the page's text column; language and the studio's time right. It
  * blends with what scrolls under it (difference), so it stays readable over
  * dark pages, the orange tile and images alike. The section you're in, and
  * the link under the pointer, go grey. The menu is set light, against the
@@ -23,7 +23,7 @@ export function SiteHeader({
   homeLabel,
   links,
   languages,
-  power,
+  city,
   linkBase = "",
   current,
 }: {
@@ -33,8 +33,8 @@ export function SiteHeader({
   /** `href`: a page of its own (Work → /projects) instead of a section of Home. */
   links: { id: string; label: string; href?: string }[];
   languages: Record<Locale, string>;
-  /** The label beside the orange light ("Power" / "Marche"). */
-  power: string;
+  /** The studio's city; its time there shows at the right. */
+  city: string;
   /** On pages other than Home: where the section links go ("/" → "/#work"). */
   linkBase?: string;
   /** The page you're on, when it isn't a section of Home (the Work page: "work"). */
@@ -77,7 +77,7 @@ export function SiteHeader({
               <li key={l.id}>
                 <a
                   href={l.href ?? `${linkBase}#${l.id}`}
-                  onClick={l.id === "contact" ? (e) => glide(e, l.href ?? `${linkBase}#${l.id}`) : undefined}
+                  onClick={(e) => glide(e, l.href ?? `${linkBase}#${l.id}`, l.id === "contact" ? "center" : "start")}
                   aria-current={active === l.id ? "location" : undefined}
                   className={cn("transition-colors duration-100", active === l.id ? "text-white/45" : "hover:text-white/45")}
                 >
@@ -91,11 +91,30 @@ export function SiteHeader({
         <div className="pointer-events-auto flex items-center gap-6 justify-self-end">
           <LanguageSwitch locale={locale} paths={languages} className="text-[11px] text-white/45 [&_[aria-current]]:text-white [&_a:hover]:text-white" />
           <span className="hidden items-center gap-2 font-mono text-[11px] tracking-[0.08em] uppercase sm:flex">
-            <span aria-hidden className="power-led size-2 rounded-full bg-signal shadow-[0_0_10px_var(--signal)]" />
-            {power}
+            <span className="text-white/45">{city}</span>
+            <StudioTime locale={locale} />
           </span>
         </div>
       </div>
     </header>
   );
+}
+
+/** The studio's time (Toronto), to the minute; blank until the page is running, so it never mismatches the server. */
+function StudioTime({ locale }: { locale: Locale }) {
+  const time = useSyncExternalStore(subscribeClock, () => studioTime(locale), () => "");
+  return <time suppressHydrationWarning className="min-w-[7ch] tabular-nums">{time}</time>;
+}
+
+const subscribeClock = (tick: () => void) => {
+  const timer = window.setInterval(tick, 10_000);
+  return () => window.clearInterval(timer);
+};
+
+function studioTime(locale: Locale) {
+  return new Intl.DateTimeFormat(locale === "fr" ? "fr-CA" : "en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Toronto",
+  }).format(new Date());
 }

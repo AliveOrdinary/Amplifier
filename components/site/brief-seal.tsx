@@ -4,17 +4,18 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, type MouseEvent } from "react";
 
 /**
- * A link to a spot on this page (the closing call, #brief) glides there and
- * centres it, instead of jumping. Links to other pages go as usual.
+ * A link to a spot on this page glides there instead of jumping: the
+ * closing call (#brief) centred, a section ("start") to the top of the
+ * screen. Links to other pages go as usual.
  */
-export function glide(e: MouseEvent<HTMLAnchorElement>, href: string) {
+export function glide(e: MouseEvent<HTMLAnchorElement>, href: string, block: ScrollLogicalPosition = "center") {
   const url = new URL(href, window.location.href);
   if (url.pathname !== window.location.pathname || !url.hash) return;
   const target = document.getElementById(url.hash.slice(1));
   if (!target) return;
   e.preventDefault();
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  target.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "center" });
+  target.scrollIntoView({ behavior: still ? "auto" : "smooth", block });
   history.replaceState(null, "", url.hash);
 }
 

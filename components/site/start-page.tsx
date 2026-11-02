@@ -30,7 +30,7 @@ export async function StartPage({ locale }: { locale: Locale }) {
         ]}
         linkBase={localePath(locale, "/")}
         languages={alternates("/start")}
-        power={home.power}
+        city={home.city}
       />
 
       <main className={cn(PAGE, "pt-12 pb-24")}>

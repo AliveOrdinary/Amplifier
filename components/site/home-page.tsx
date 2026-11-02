@@ -46,7 +46,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
           { id: "contact", label: t.nav.contact, href: "#brief" },
         ]}
         languages={alternates("/")}
-        power={t.power}
+        city={t.city}
       />
 
       <main className={cn(PAGE, "pt-12")}>
@@ -115,7 +115,7 @@ function Section({
   children?: ReactNode;
 }) {
   return (
-    <section id={id} className={cn(COLUMNS, "scroll-mt-24", first ? "pt-20 sm:pt-28" : "pt-32 sm:pt-40")}>
+    <section id={id} className={cn(COLUMNS, "scroll-mt-0", first ? "pt-20 sm:pt-28" : "pt-32 sm:pt-40")}>
       <div className={cn(label, "pt-3 text-muted")}>
         {n} / {name}
       </div>
