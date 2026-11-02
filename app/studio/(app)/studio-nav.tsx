@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ScoringProgress } from "@/lib/library/score-queue";
-import { NavLabel } from "./link-pending";
+import { NavLabel, type NavCount } from "./link-pending";
 
 /** Where batch scoring is up to (see scoring-progress/route.ts). */
 async function scoringPulse(): Promise<ScoringProgress | null> {
@@ -60,6 +60,15 @@ function useScoringPulse(pathname: string | null): LibraryPulse {
   const last = useRef(0);
   const inLibrary = pathname?.startsWith("/studio/library") ?? false;
   const inLibraryRef = useRef(inLibrary);
+  /** When you were last in the library (entering or leaving it). */
+  const libraryVisit = useRef(0);
+  useEffect(() => {
+    if (!inLibrary) return;
+    libraryVisit.current = Date.now();
+    return () => {
+      libraryVisit.current = Date.now();
+    };
+  }, [inLibrary]);
   useEffect(() => {
     inLibraryRef.current = inLibrary;
   }, [inLibrary]);
@@ -70,36 +79,49 @@ function useScoringPulse(pathname: string | null): LibraryPulse {
     if (!p) return;
     setProgress(p);
     const stored = readSeen();
-    const next = inLibraryRef.current || stored === null ? [...new Set([...p.finished.map((b) => b.id), ...(stored ?? [])])] : stored;
+    // Seen: anything back before you were last in the library (you got the notice there).
+    const seenThere = p.finished.filter((b) => Date.parse(b.at) <= libraryVisit.current).map((b) => b.id);
+    const next =
+      inLibraryRef.current || stored === null
+        ? [...new Set([...p.finished.map((b) => b.id), ...(stored ?? [])])]
+        : [...new Set([...seenThere, ...stored])];
     if (next !== stored) writeSeen(next);
     setSeen(next);
   }, []);
 
+  // Once a minute while something is being scored, every 5 minutes otherwise; not at
+  // all in the library, which keeps its own watch. The database is small.
+  const scoringRef = useRef(false);
   useEffect(() => {
-    const check = async (force = false) => {
-      if (document.visibilityState !== "visible") return;
-      if (!force && Date.now() - last.current < 20_000) return;
-      last.current = Date.now();
-      take(await scoringPulse());
+    if (inLibrary) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = async () => {
+      if (stopped) return;
+      if (document.visibilityState === "visible" && Date.now() - last.current >= 20_000) {
+        last.current = Date.now();
+        const p = await scoringPulse();
+        take(p);
+        scoringRef.current = Boolean(p && (p.waiting || p.packing || p.batches.length));
+      }
+      if (!stopped) timer = setTimeout(check, scoringRef.current ? 60_000 : 5 * 60_000);
     };
-    void check(true);
-    const timer = setInterval(() => void check(true), 60_000);
-    const onVisible = () => void check();
+    void check();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      clearTimeout(timer);
+      void check();
+    };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
-      clearInterval(timer);
+      stopped = true;
+      clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [take]);
+  }, [take, inLibrary]);
 
-  // A quick look on every page change too (at most every 20 seconds).
-  useEffect(() => {
-    if (!last.current || Date.now() - last.current < 20_000) return;
-    last.current = Date.now();
-    void scoringPulse().then(take);
-  }, [pathname, take]);
-
-  if (!progress) return { scoring: 0, scored: 0 };
+  // In the library its own bar shows scoring; the menu count is for elsewhere.
+  if (!progress || inLibrary) return { scoring: 0, scored: 0 };
   const scoring = progress.waiting + (progress.packing ?? 0) + progress.batches.reduce((sum, b) => sum + b.count, 0);
   // In the library itself the notice and the tabs say it; the count is for elsewhere.
   const scored = inLibrary ? 0 : progress.finished.filter((b) => !seen.includes(b.id)).reduce((sum, b) => sum + b.count, 0);
@@ -118,6 +140,14 @@ export function NavLinks({
   /** Images with Claude now, and images scored since you last opened the library. */
   library?: LibraryPulse;
 }) {
+  const countFor = (href: string): NavCount | null => {
+    if (href === "/studio/briefs" && unseen) return { value: unseen, tone: "new", label: `${unseen} new from the site` };
+    if (href !== "/studio/library" || !library) return null;
+    if (library.scoring) return { value: library.scoring, tone: "busy", label: `Scoring ${library.scoring} ${library.scoring === 1 ? "image" : "images"}` };
+    if (library.scored) return { value: library.scored, tone: "new", label: `${library.scored} scored since you last looked` };
+    return null;
+  };
+
   return (
     <nav aria-label="Studio" className="flex gap-5 text-[13px] font-light sm:h-14 sm:items-center">
       {items.map((item) => {
@@ -129,30 +159,7 @@ export function NavLinks({
             aria-current={active ? "page" : undefined}
             className="group inline-flex items-center"
           >
-            <NavLabel label={item.label} active={active} />
-            {item.href === "/studio/briefs" && unseen > 0 ? (
-              <span
-                aria-label={`${unseen} new from the site`}
-                className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-signal px-1 font-mono text-[10px] text-on-signal"
-              >
-                {unseen}
-              </span>
-            ) : null}
-            {item.href === "/studio/library" && library?.scoring ? (
-              <span
-                title={`Scoring ${library.scoring} ${library.scoring === 1 ? "image" : "images"}`}
-                aria-label="scoring"
-                className="ml-1.5 inline-flex size-1.5 animate-pulse rounded-full bg-signal"
-              />
-            ) : item.href === "/studio/library" && library?.scored ? (
-              <span
-                title={`${library.scored} ${library.scored === 1 ? "image" : "images"} scored since you last looked`}
-                aria-label={`${library.scored} scored`}
-                className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-signal px-1 font-mono text-[10px] text-signal"
-              >
-                {library.scored}
-              </span>
-            ) : null}
+            <NavLabel label={item.label} active={active} count={countFor(item.href)} />
           </Link>
         );
       })}

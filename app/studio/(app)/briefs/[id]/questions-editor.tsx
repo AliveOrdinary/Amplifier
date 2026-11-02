@@ -89,7 +89,7 @@ export function QuestionsEditor({ briefId, initial, locked }: { briefId: string;
                   <Button size="sm" variant="ghost" aria-label="Move down" disabled={i === list.length - 1} onClick={() => move(i, 1)}>
                     ↓
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setList((l) => l.filter((_, j) => j !== i))}>
+                  <Button size="sm" variant="text" className="ml-3" onClick={() => setList((l) => l.filter((_, j) => j !== i))}>
                     Remove
                   </Button>
                 </span>

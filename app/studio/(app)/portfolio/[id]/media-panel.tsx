@@ -164,8 +164,8 @@ function MediaTile({
           <Thumb media={m} className="h-44" />
         )}
         <span className="absolute top-2 left-2 flex gap-1">
-          {cover ? <span className="bg-signal px-2 py-0.5 font-mono text-[11px] uppercase text-on-signal">Cover</span> : null}
-          {thumbnail ? <span className="bg-ink px-2 py-0.5 font-mono text-[11px] uppercase text-paper">Thumbnail</span> : null}
+          {cover ? <span className="rounded-full bg-signal px-2.5 py-0.5 font-mono text-[11px] uppercase text-on-signal">Cover</span> : null}
+          {thumbnail ? <span className="rounded-full bg-ink px-2.5 py-0.5 font-mono text-[11px] uppercase text-paper">Thumbnail</span> : null}
         </span>
       </div>
 
@@ -206,26 +206,26 @@ function MediaTile({
         />
       </div>
 
-      <div className="-ml-3 flex flex-wrap">
+      <div className="flex flex-wrap gap-x-5">
         {cover ? null : (
-          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setCover(projectId, m.id))}>
+          <Button size="sm" variant="text" disabled={pending} onClick={() => run(() => setCover(projectId, m.id))}>
             Make cover
           </Button>
         )}
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setThumbnail(projectId, thumbnail ? null : m.id))}>
+        <Button size="sm" variant="text" disabled={pending} onClick={() => run(() => setThumbnail(projectId, thumbnail ? null : m.id))}>
           {thumbnail ? "Remove thumbnail" : "Make thumbnail"}
         </Button>
         {confirm ? (
           <>
-            <Button size="sm" variant="ghost" className="text-danger" disabled={pending} onClick={() => run(() => deleteMedia(m.id))}>
+            <Button size="sm" variant="text" className="text-danger" disabled={pending} onClick={() => run(() => deleteMedia(m.id))}>
               Delete for good
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>
+            <Button size="sm" variant="text" onClick={() => setConfirm(false)}>
               Keep
             </Button>
           </>
         ) : (
-          <Button size="sm" variant="ghost" onClick={() => setConfirm(true)}>
+          <Button size="sm" variant="text" onClick={() => setConfirm(true)}>
             Delete…
           </Button>
         )}

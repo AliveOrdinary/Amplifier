@@ -122,11 +122,11 @@ export function ReviewScreen() {
     <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[264px_minmax(0,1fr)_420px]">
       {/* Queue */}
       <aside className="flex min-h-0 flex-col border-rule max-lg:border-b lg:border-r">
-        <div className="flex justify-between px-4 pt-3.5 pb-2.5">
+        <div className="flex justify-between px-4 pt-4 pb-3">
           <Mono>To review</Mono>
           <Mono>{pending.length ? `${position >= 0 ? position + 1 : "–"} / ${pending.length}` : "Done"}</Mono>
         </div>
-        <ul ref={listRef} className="flex min-h-0 flex-1 gap-1 overflow-auto max-lg:px-4 max-lg:pb-3 lg:flex-col lg:gap-0">
+        <ul ref={listRef} className="flex min-h-0 flex-1 gap-2 overflow-auto max-lg:px-4 max-lg:pt-1 max-lg:pb-4 lg:flex-col lg:gap-0">
           {queue.map((image) => {
             const active = image.id === current.id;
             const done = image.status !== "pending";
@@ -144,7 +144,7 @@ export function ReviewScreen() {
                   <span
                     className={cn(
                       "relative block size-14 shrink-0 overflow-hidden rounded-lg bg-panel lg:size-[52px]",
-                      active && "max-lg:outline max-lg:outline-2 max-lg:outline-signal",
+                      active && "max-lg:ring-2 max-lg:ring-signal max-lg:ring-offset-2 max-lg:ring-offset-paper",
                       done && "opacity-40",
                     )}
                   >
@@ -172,8 +172,9 @@ export function ReviewScreen() {
       {/* Image */}
       <section aria-label="Image" className="flex min-h-0 flex-col p-4 lg:p-6">
         <ImageStage image={current} className="min-h-[320px] flex-1" />
-        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 pt-3">
-          <p className="min-w-0 flex-1 text-[15px] text-ink-soft">{current.description ?? current.name}</p>
+        {/* On a phone the description gets the full width, with the labels on their own line. */}
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 pt-4">
+          <p className="w-full min-w-0 text-[15px] leading-relaxed text-ink-soft lg:w-auto lg:flex-1">{current.description ?? current.name}</p>
           <Mono>{mediumLabel(current.medium)}</Mono>
           {current.width && current.height ? (
             <Mono>
@@ -181,9 +182,9 @@ export function ReviewScreen() {
             </Mono>
           ) : null}
         </div>
-        {current.scoreError ? <p className="mt-1 text-sm text-danger">Scoring failed: {current.scoreError}</p> : null}
+        {current.scoreError ? <p className="mt-2 text-sm text-danger">Scoring failed: {current.scoreError}</p> : null}
         {current.reviewReason && !current.scoreError ? (
-          <p className="mt-1 text-sm text-ink-soft">Flagged on import: {current.reviewReason}.</p>
+          <p className="mt-2 text-sm text-ink-soft">Flagged on import: {current.reviewReason}.</p>
         ) : null}
       </section>
 

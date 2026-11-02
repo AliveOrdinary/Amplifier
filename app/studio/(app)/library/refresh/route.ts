@@ -20,11 +20,6 @@ export async function POST(request: NextRequest) {
   const since = typeof body.since === "string" ? body.since : "1970-01-01T00:00:00Z";
   const pending = Array.isArray(body.pending) ? body.pending.filter((id): id is string => typeof id === "string").slice(0, 50) : [];
 
-  // While someone has the library open, read back finished batches and send waiting
-  // images. One run at a time per studio; if one is going, this does nothing.
-  after(() =>
-    processQueue(createAdminClient(), member.studioId, { budgetMs: 60_000 }).catch((err) => console.error("queue processing failed", err)),
-  );
   try {
     const db = await createClient();
     const [fresh, updated, counts, progress] = await Promise.all([
@@ -33,6 +28,13 @@ export async function POST(request: NextRequest) {
       libraryCounts(db, member.studioId),
       scoringProgress(db, member.studioId),
     ]);
+    // Only while there's scoring to do: read back finished batches and send waiting
+    // images (one run at a time per studio). With nothing queued this costs nothing.
+    if (progress.waiting || progress.packing || progress.batches.length) {
+      after(() =>
+        processQueue(createAdminClient(), member.studioId, { budgetMs: 60_000 }).catch((err) => console.error("queue processing failed", err)),
+      );
+    }
     const byId = new Map([...updated, ...fresh].map((image) => [image.id, image]));
     return NextResponse.json({ ok: true, images: [...byId.values()], counts, progress });
   } catch (error) {
