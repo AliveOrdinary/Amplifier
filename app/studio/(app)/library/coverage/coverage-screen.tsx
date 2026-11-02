@@ -37,7 +37,7 @@ export function CoverageScreen({ coverage }: { coverage: Coverage }) {
                   ? `Under ${THIN_BIN} images: ${[...new Set(thin)].slice(0, 8).join(", ")}${thin.length > 8 ? ", and more" : ""}.`
                   : "Every bin has enough images."}
               </p>
-              <div className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-x-8 gap-y-8">
+              <div className="mt-6 grid grid-cols-2 gap-x-8 gap-y-8 md:grid-cols-4">
                 {dimensions.map((d) => (
                   <figure key={d.key} className="m-0">
                     <div
