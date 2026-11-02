@@ -13,28 +13,36 @@ import type { AnswerValue, Question } from "./types";
 
 type OutputSchema = Parameters<typeof jsonSchemaOutputFormat>[0];
 
-const SYSTEM = `You help Amplifier, a small graphic design studio, prepare for a first meeting with a client. Their clients are mostly musicians, filmmakers, galleries and other artists.
+const SYSTEM = `You help Amplifier, a small design studio, prepare for a first meeting with a client. The studio works for all kinds of clients: shops, cafés and restaurants, brands and products, clinics, events, musicians and artists.
 
-Before the meeting, the client answered a few questions in words and then made quick visual choices: keep or skip on single images, and "which feels closer" on pairs. What people say they want often differs from what they pick. Your job is to set the two side by side, honestly, so the designers walk in knowing what to ask.
+Before the meeting, the client answered a few questions in words and then made quick visual choices: keep or skip on single images, and "which feels closer" on pairs. Your job has two parts. First, read the client as a whole: what they're making, who it's for, the references they name, the character they describe, and what all of that asks of the design. Second, set what they said about how it should look against what they picked, so the designers walk in knowing what to ask.
 
-You get:
-- The studio's rubric: dimensions running from -2 (left end) to +2 (right end), each end described by what you can see.
-- The client's written answers.
-- What their choices showed on each dimension, already calculated. Trust these numbers; don't recalculate them.
-- Short descriptions of the images they leaned towards and away from.
+How to read their words:
+- Many words describe a feeling or a way of behaving, not a look. For a shop, "warm" usually means welcoming and homely, not warm colours; "quiet" can mean calm and unhurried rather than visually sparse. Put a word on a visual dimension only when it is clearly about how something looks ("warm colours", "a minimal layout", "never busy"). A word about feeling or character stays off the visual dimensions (null), even if it could also describe a look; the reading is where it belongs.
+- Use what you know about the brands, places and cultures they name (what a brand is known for, the role a kind of shop plays somewhere) to understand what they mean. Present it as context worth checking with them, never as a fact about them, and never as a generalisation about people.
+- Their picks can fit their story even where they differ from an adjective. Someone who admires a bold, witty, much-loved brand may pick bold work while asking for "quiet". Say when that is the likelier explanation instead of calling it a contradiction.
+
+You also get the studio's rubric (dimensions from -2, the left end, to +2, the right end, each end described by what you can see), what their choices showed on each dimension (already calculated: trust these numbers and don't recalculate them), and short descriptions of the images they leaned towards and away from. A dimension tested by fewer than 3 pairs gives a hint, not a finding.
 
 Write in plain, warm, direct English for designers. No jargon, no hedging filler, no flattery. Quote the client's own words where you can. Never invent facts about the client or their project.`;
 
-const TASK = `Do three things.
+const TASK = `Do four things.
 
-1. dimensions: one entry for every dimension in the rubric.
-   - said: place the client's words on it (-2 to +2, steps of 0.5), or null when their words say nothing about it. Only use what they wrote: "minimal" says something about density; the project being an album says nothing. said_confidence is how clearly the words point; evidence is the few words it rests on (empty when said is null).
-   - line: when said isn't null, one sentence setting their words against what their choices showed, with the numbers that matter, e.g. "Said 'minimal, clean'. Picked the richer image in 3 of 3 density pairs and kept mostly layered work." Plain and factual, even when the two agree. Empty when said is null.
-   - ask: one open, friendly question for the meeting that explores any difference without telling them they're wrong. Empty when said is null.
+1. reading: what they're asking for, from everything they wrote and chose.
+   - summary: two or three sentences, under 70 words: what they're making, for whom, and what it should feel like and do, in your words.
+   - points: 2 to 4 short notes, each a title of 1 to 4 words and one or two sentences. For example: the project and who it's for; what a reference they named stands for and what it might mean here (as something to check); what their character answers suggest; how their visual picks fit or stretch the story. Only notes that add something.
+   - questions: 3 to 5 open, friendly questions for the meeting, drawn from the whole brief and not only from the dimensions.
+   - Write the reading in plain words: no rubric numbers or dimension names here (say "bold, playful and colourful", not "tone +1.2"). The numbers belong in the dimensions below.
 
-2. directions: 2 to 4 short lines each on what they consistently chose and rejected, in visual terms (colour, type, layout, texture, imagery), drawn from the image descriptions and the showed positions. Each line under 12 words, no full stops.
+2. dimensions: one entry for every dimension in the rubric.
+   - said: place their words on it (-2 to +2, steps of 0.5) only when the words are about how it should look; null when they say nothing about that. "Minimal" says something about density; the project being a café says nothing. said_confidence is how clearly the words point; evidence is the few words it rests on (empty when said is null).
+   - tension: "agrees" when their words and choices point the same way; "differs" when they genuinely pull apart; "explained" when the difference is better explained by their story (a reference, their character, where people will see it); "unclear" when said is null or there are too few choices to tell.
+   - line: when said isn't null, one sentence setting their words against what their choices showed, with the numbers that matter, e.g. "Said 'minimal, clean'. Picked the richer image in 3 of 3 density pairs and kept mostly layered work." When tension is "explained", add briefly what explains it. Empty when said is null.
+   - ask: one open, friendly question for the meeting that explores the difference without telling them they're wrong. Empty when said is null.
 
-3. headline: one or two sentences, under 40 words, that a designer could read on the way into the meeting. Lead with the biggest gap between words and choices if there is one.`;
+3. directions: 2 to 4 short lines each on what they consistently chose and rejected, in visual terms (colour, type, layout, texture, imagery), drawn from the image descriptions and the showed positions. Each line under 12 words, no full stops.
+
+4. headline: one or two sentences, under 45 words, that a designer could read on the way into the meeting: what they're asking for, and the one thing most worth exploring with them.`;
 
 const fmt = (n: number) => (n > 0 ? `+${n.toFixed(1)}` : n.toFixed(1));
 
@@ -46,7 +54,14 @@ function answerText(value: AnswerValue | undefined) {
   return value.why ? `${value.text} (why: ${value.why})` : value.text;
 }
 
-function describe(plan: Plan, ev: Evidence, questions: Question[], answers: Map<string, AnswerValue>, descriptions: Map<string, string>) {
+function describe(
+  plan: Plan,
+  ev: Evidence,
+  questions: Question[],
+  answers: Map<string, AnswerValue>,
+  descriptions: Map<string, string>,
+  project: string,
+) {
   const rubric = plan.rubric
     .map((d) => `- ${d.key}: -2 ${d.left} (${d.leftDefinition || "no definition"}) … +2 ${d.right} (${d.rightDefinition || "no definition"})`)
     .join("\n");
@@ -68,7 +83,7 @@ function describe(plan: Plan, ev: Evidence, questions: Question[], answers: Map<
       .map((d) => `- ${d}`)
       .join("\n") || "- (none)";
 
-  return `<rubric>\n${rubric}\n</rubric>\n\n<their_words>\n${words}\n</their_words>\n\n<their_choices>\n${ev.swipeCount} warm-up images and ${ev.pairCount} pairs.\n${showed}\n</their_choices>\n\n<leaned_towards>\n${list(ev.chosen)}\n</leaned_towards>\n\n<leaned_away_from>\n${list(ev.rejected)}\n</leaned_away_from>\n\n${TASK}`;
+  return `<project_type>${project}</project_type>\n\n<rubric>\n${rubric}\n</rubric>\n\n<their_words>\n${words}\n</their_words>\n\n<their_choices>\n${ev.swipeCount} warm-up images and ${ev.pairCount} pairs.\n${showed}\n</their_choices>\n\n<leaned_towards>\n${list(ev.chosen)}\n</leaned_towards>\n\n<leaned_away_from>\n${list(ev.rejected)}\n</leaned_away_from>\n\n${TASK}`;
 }
 
 function outputSchema(keys: string[]) {
@@ -84,12 +99,31 @@ function outputSchema(keys: string[]) {
             said: { anyOf: [{ type: "number" }, { type: "null" }] },
             said_confidence: { type: "string", enum: ["low", "medium", "high"] },
             evidence: { type: "string" },
+            tension: { type: "string", enum: ["agrees", "differs", "explained", "unclear"] },
             line: { type: "string" },
             ask: { type: "string" },
           },
-          required: ["key", "said", "said_confidence", "evidence", "line", "ask"],
+          required: ["key", "said", "said_confidence", "evidence", "tension", "line", "ask"],
           additionalProperties: false,
         },
+      },
+      reading: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          points: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { title: { type: "string" }, text: { type: "string" } },
+              required: ["title", "text"],
+              additionalProperties: false,
+            },
+          },
+          questions: { type: "array", items: { type: "string" } },
+        },
+        required: ["summary", "points", "questions"],
+        additionalProperties: false,
       },
       directions: {
         type: "object",
@@ -99,7 +133,7 @@ function outputSchema(keys: string[]) {
       },
       headline: { type: "string" },
     },
-    required: ["dimensions", "directions", "headline"],
+    required: ["reading", "dimensions", "directions", "headline"],
     additionalProperties: false,
   };
 }
@@ -111,10 +145,16 @@ const Result = z.object({
       said: z.number().nullable(),
       said_confidence: z.enum(["low", "medium", "high"]),
       evidence: z.string(),
+      tension: z.enum(["agrees", "differs", "explained", "unclear"]),
       line: z.string(),
       ask: z.string(),
     }),
   ),
+  reading: z.object({
+    summary: z.string(),
+    points: z.array(z.object({ title: z.string(), text: z.string() })),
+    questions: z.array(z.string()),
+  }),
   directions: z.object({ chose: z.array(z.string()), rejected: z.array(z.string()) }),
   headline: z.string(),
 });
@@ -135,13 +175,14 @@ export async function loadReport(db: SupabaseClient, briefId: string): Promise<R
 }
 
 /**
- * Write the prep page's report for a brief: place their words on the rubric,
- * set them against their choices, and write it up. One Claude call, saved.
+ * Write the prep page's report for a brief: read what the client is asking for
+ * as a whole, place their words about the look on the rubric, set those against
+ * their choices, and write it up. One Claude call, saved.
  */
 export async function generateReport(db: SupabaseClient, briefId: string): Promise<Report> {
   const { data: brief, error } = await db
     .from("briefs")
-    .select("id, studio_id, questions, plan, completed_at")
+    .select("id, studio_id, questions, plan, completed_at, project_type, medium")
     .eq("id", briefId)
     .single();
   if (error || !brief?.plan) throw new Error("This brief hasn't been started yet.");
@@ -164,7 +205,12 @@ export async function generateReport(db: SupabaseClient, briefId: string): Promi
     model: SCORING_MODEL,
     max_tokens: 6000,
     system: SYSTEM,
-    messages: [{ role: "user", content: describe(plan, ev, questions, answers, descriptions) }],
+    messages: [
+      {
+        role: "user",
+        content: describe(plan, ev, questions, answers, descriptions, `${String(brief.project_type).replace(/_/g, " ")}${brief.medium ? ` (images favour ${String(brief.medium).replace(/_/g, " ")})` : ""}`),
+      },
+    ],
     output_config: { effort: "medium", format: jsonSchemaOutputFormat(outputSchema(keys) as OutputSchema, { transform: false }) },
   });
   await recordClaude(db, { studioId: brief.studio_id as string, kind: "report", model: response.model, usage: response.usage });
@@ -174,27 +220,47 @@ export async function generateReport(db: SupabaseClient, briefId: string): Promi
   const result = parsed.data;
 
   const clamp = (v: number) => Math.max(-2, Math.min(2, Math.round(v * 2) / 2));
+  // A placement Claude isn't at least fairly sure of isn't used: low confidence usually
+  // means a feeling-word ("warm", "quiet") read as a look, and it would show up as a
+  // dot on the profile and a contradiction that was never there.
   const said: SaidPosition[] = keys.map((key) => {
     const s = result.dimensions.find((x) => x.key === key);
-    return s
-      ? { key, position: s.said === null ? null : clamp(s.said), confidence: s.said_confidence, evidence: s.evidence.trim() }
+    return s && s.said !== null && s.said_confidence !== "low"
+      ? { key, position: clamp(s.said), confidence: s.said_confidence, evidence: s.evidence.trim() }
       : { key, position: null, confidence: "low", evidence: "" };
   });
 
-  // Contradictions follow the numbers, by the same rule the taste profile highlights.
+  // Contradictions follow the numbers, by the same rule the taste profile highlights,
+  // unless their story explains the difference. Few pairs make it a hint, not a finding.
   const contradictions = ev.dimensions
     .map((d) => {
       const s = said.find((x) => x.key === d.key);
       const written = result.dimensions.find((x) => x.key === d.key);
       const gap = s?.position === null || s?.position === undefined ? 0 : Math.abs(s.position - d.mean);
-      return { key: d.key, gap, line: written?.line.trim() ?? "", ask: written?.ask.trim() ?? "", confidence: d.confidence };
+      return {
+        key: d.key,
+        gap,
+        line: written?.line.trim() ?? "",
+        ask: written?.ask.trim() ?? "",
+        confidence: d.confidence,
+        tension: written?.tension ?? "unclear",
+        tentative: d.pairs < 3 || d.confidence !== "high",
+      };
     })
-    .filter((c) => c.gap >= GAP && c.confidence !== "low" && c.line)
+    .filter((c) => c.gap >= GAP && c.confidence !== "low" && c.line && c.tension === "differs")
     .sort((a, b) => b.gap - a.gap)
-    .map(({ key, line, ask }) => ({ key, line, ask }));
+    .map(({ key, line, ask, tentative }) => ({ key, line, ask, tentative }));
 
   const content: ReportContent = {
     headline: result.headline.trim(),
+    reading: {
+      summary: result.reading.summary.trim(),
+      points: result.reading.points
+        .map((p) => ({ title: p.title.trim(), text: p.text.trim() }))
+        .filter((p) => p.title && p.text)
+        .slice(0, 4),
+      questions: result.reading.questions.map((q) => q.trim()).filter(Boolean).slice(0, 5),
+    },
     contradictions,
     directions: { chose: result.directions.chose.slice(0, 4), rejected: result.directions.rejected.slice(0, 4) },
     partial: !brief.completed_at,

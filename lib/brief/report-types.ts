@@ -9,9 +9,22 @@ export type SaidPosition = {
   evidence: string;
 };
 
+/** The reading of the client as a whole: what they're asking for, before any numbers. */
+export type ReportReading = {
+  /** Two or three sentences: what they're making, for whom, and what it should feel like and do. */
+  summary: string;
+  /** A few short notes: the project, a reference they named, their character, how their picks fit. */
+  points: { title: string; text: string }[];
+  /** Questions for the meeting, from the whole brief. */
+  questions: string[];
+};
+
 export type ReportContent = {
   headline: string;
-  contradictions: { key: string; line: string; ask: string }[];
+  /** Missing on reports made before the reading was added. */
+  reading?: ReportReading;
+  /** `tentative`: few pairs tested it, so it's a hint to check rather than a finding. */
+  contradictions: { key: string; line: string; ask: string; tentative?: boolean }[];
   directions: { chose: string[]; rejected: string[] };
   /** Made before the client finished. */
   partial: boolean;

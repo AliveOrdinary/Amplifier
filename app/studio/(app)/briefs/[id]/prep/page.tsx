@@ -184,7 +184,7 @@ export default async function PrepPage({ params }: PageProps<"/studio/briefs/[id
         }
       />
 
-      <Section number="06" title="In their words" className="border-b-0">
+      <Section number={report?.content.reading ? "07" : "06"} title="In their words" className="border-b-0">
         <ul className="border-t border-rule">
           {questions.map((q) => (
             <li key={q.id} className="grid gap-x-6 gap-y-1 border-b border-rule py-3.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
