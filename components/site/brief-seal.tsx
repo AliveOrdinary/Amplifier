@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, type MouseEvent } from "react";
 
 /**
@@ -27,49 +28,61 @@ export function glide(e: MouseEvent<HTMLAnchorElement>, href: string) {
 export function BriefSeal({ label, href }: { label: string; href: string }) {
   const seal = useRef<HTMLAnchorElement>(null);
 
+  // Re-place it on every page change too (client-side navigation keeps this component).
+  const path = usePathname();
+
   useEffect(() => {
     const el = seal.current;
     if (!el) return;
     let frame = 0;
+    let dx = 0;
+    let dy = 0;
+
+    const place = (x: number, y: number) => {
+      dx = x;
+      dy = y;
+      el.style.setProperty("--dx", `${x}px`);
+      el.style.setProperty("--dy", `${y}px`);
+      el.toggleAttribute("data-docked", x !== 0 || y !== 0);
+    };
 
     const draw = () => {
       frame = 0;
       const dock = document.querySelector<HTMLElement>("[data-seal-dock]");
-      if (!dock) {
-        el.style.setProperty("--dx", "0px");
-        el.style.setProperty("--dy", "0px");
-        el.removeAttribute("data-docked");
-        return;
-      }
-      // Where the seal rests (its centre, with no offset) and where the dock is.
-      const size = el.offsetWidth;
-      const gap = parseFloat(getComputedStyle(el).bottom) || 0;
-      const restY = window.innerHeight - gap - size / 2;
-      const restX = window.innerWidth / 2;
-      const d = dock.getBoundingClientRect();
-      const dockY = d.top + d.height / 2;
+      const d = dock?.getBoundingClientRect();
+      // No spot on this page, or one that isn't laid out (hidden, still loading): stay at rest.
+      if (!d || !d.width || !d.height) return place(0, 0);
+      // Where the seal sits at rest, measured from where it is now, less its offset.
+      const box = el.getBoundingClientRect();
+      const restX = box.left + box.width / 2 - dx;
+      const restY = box.top + box.height / 2 - dy;
       const dockX = d.left + d.width / 2;
+      const dockY = d.top + d.height / 2;
       // Below the resting place: wait for it. At or above: ride along with it.
-      const docked = dockY <= restY;
-      el.style.setProperty("--dx", docked ? `${dockX - restX}px` : "0px");
-      el.style.setProperty("--dy", docked ? `${dockY - restY}px` : "0px");
-      el.toggleAttribute("data-docked", docked);
+      if (dockY <= restY) place(dockX - restX, dockY - restY);
+      else place(0, 0);
     };
     const queue = () => {
       if (!frame) frame = requestAnimationFrame(draw);
     };
-    draw();
+    place(0, 0);
+    queue();
+    // Images, fonts and tiles loading move the spot without any scrolling.
+    const resized = new ResizeObserver(queue);
+    resized.observe(document.body);
     window.addEventListener("scroll", queue, { passive: true });
     window.addEventListener("resize", queue);
+    window.addEventListener("load", queue);
     return () => {
       cancelAnimationFrame(frame);
+      resized.disconnect();
       window.removeEventListener("scroll", queue);
       window.removeEventListener("resize", queue);
+      window.removeEventListener("load", queue);
     };
-  }, []);
+  }, [path]);
 
   const ring = `${label} · ${label} · `.toUpperCase();
-
 
   return (
     <a ref={seal} href={href} onClick={(e) => glide(e, href)} className="brief-seal" aria-label={label}>
