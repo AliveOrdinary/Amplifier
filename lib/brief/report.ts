@@ -220,10 +220,13 @@ export async function generateReport(db: SupabaseClient, briefId: string): Promi
   const result = parsed.data;
 
   const clamp = (v: number) => Math.max(-2, Math.min(2, Math.round(v * 2) / 2));
+  // A placement Claude isn't at least fairly sure of isn't used: low confidence usually
+  // means a feeling-word ("warm", "quiet") read as a look, and it would show up as a
+  // dot on the profile and a contradiction that was never there.
   const said: SaidPosition[] = keys.map((key) => {
     const s = result.dimensions.find((x) => x.key === key);
-    return s
-      ? { key, position: s.said === null ? null : clamp(s.said), confidence: s.said_confidence, evidence: s.evidence.trim() }
+    return s && s.said !== null && s.said_confidence !== "low"
+      ? { key, position: clamp(s.said), confidence: s.said_confidence, evidence: s.evidence.trim() }
       : { key, position: null, confidence: "low", evidence: "" };
   });
 
