@@ -189,7 +189,7 @@ export function Board({ boardId, initial, clientName }: { boardId: string; initi
         void addFiles(files);
       }}
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <Button size="sm" variant="primary" onClick={copyLayers} disabled={Boolean(busy) || !items.length} title="Separate images in a Figma design file">
           Copy as layers
         </Button>
@@ -197,7 +197,7 @@ export function Board({ boardId, initial, clientName }: { boardId: string; initi
           Download images
         </Button>
         <span className="mx-1 hidden h-5 w-px bg-rule-strong sm:block" />
-        <Button size="sm" variant="ghost" onClick={() => setPicking(true)} disabled={Boolean(busy)}>
+        <Button size="sm" variant="text" onClick={() => setPicking(true)} disabled={Boolean(busy)}>
           Add from library
         </Button>
         {confirmReset ? (
@@ -206,12 +206,12 @@ export function Board({ boardId, initial, clientName }: { boardId: string; initi
             <Button size="sm" onClick={startOver}>
               Start over
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirmReset(false)}>
+            <Button size="sm" variant="text" onClick={() => setConfirmReset(false)}>
               Cancel
             </Button>
           </>
         ) : (
-          <Button size="sm" variant="ghost" onClick={() => setConfirmReset(true)} disabled={Boolean(busy)}>
+          <Button size="sm" variant="text" onClick={() => setConfirmReset(true)} disabled={Boolean(busy)}>
             Start over
           </Button>
         )}

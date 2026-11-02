@@ -7,7 +7,15 @@ import { cn } from "@/components/ui/primitives";
  * A main-nav label, light and small as on the site. The section you're in
  * gets the orange light; a clicked one lights (pulsing) before its page arrives.
  */
-export function NavLabel({ label, active }: { label: string; active: boolean }) {
+export type NavCount = {
+  value: number;
+  /** "new": something to look at (orange). "busy": work under way (grey, pulsing). */
+  tone: "new" | "busy";
+  /** Read out instead of the bare number. */
+  label: string;
+};
+
+export function NavLabel({ label, active, count }: { label: string; active: boolean; count?: NavCount | null }) {
   const { pending } = useLinkStatus();
   const lit = active || pending;
   return (
@@ -21,6 +29,16 @@ export function NavLabel({ label, active }: { label: string; active: boolean }) 
         )}
       />
       {label}
+      {count && count.value > 0 ? (
+        // Like the counts on the library's tabs: a small number beside the label.
+        <span
+          title={count.label}
+          aria-label={count.label}
+          className={cn("-ml-0.5 font-mono text-[11px]", count.tone === "new" ? "text-signal" : "animate-pulse text-muted")}
+        >
+          {count.value}
+        </span>
+      ) : null}
     </span>
   );
 }

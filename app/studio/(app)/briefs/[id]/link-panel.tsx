@@ -74,7 +74,7 @@ export function LinkPanel({
 
       {readiness && (readiness.approved < 60 || readiness.untestable.length) ? (
         <div className="flex items-start gap-2 text-sm text-ink-soft">
-          <span aria-hidden className="mt-1.5 size-2 shrink-0 bg-signal" />
+          <span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full bg-signal" />
           <p>
             The library has {readiness.approved} approved images
             {readiness.inMedium !== null ? `, ${readiness.inMedium} in this project's medium` : ""}.
@@ -103,11 +103,11 @@ export function LinkPanel({
         </div>
       </dl>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-rule pt-4">
-        <Button size="sm" variant="ghost" className="-ml-3" disabled={pending} onClick={() => run(() => extendLink(briefId))}>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-rule pt-4">
+        <Button size="sm" variant="text" disabled={pending} onClick={() => run(() => extendLink(briefId))}>
           Extend 30 days
         </Button>
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => archiveBrief(briefId, status !== "archived"))}>
+        <Button size="sm" variant="text" disabled={pending} onClick={() => run(() => archiveBrief(briefId, status !== "archived"))}>
           {status === "archived" ? "Reopen" : "Archive"}
         </Button>
         {confirmDelete ? (
@@ -116,12 +116,12 @@ export function LinkPanel({
             <Button size="sm" className="border-danger text-danger" disabled={pending} onClick={() => run(() => deleteBrief(briefId))}>
               Delete
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
+            <Button size="sm" variant="text" onClick={() => setConfirmDelete(false)}>
               Cancel
             </Button>
           </>
         ) : (
-          <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(true)}>
+          <Button size="sm" variant="text" onClick={() => setConfirmDelete(true)}>
             Delete…
           </Button>
         )}

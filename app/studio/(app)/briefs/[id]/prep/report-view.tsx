@@ -88,7 +88,7 @@ export function ReportView({
             <p className="mt-3 text-sm text-muted">Prepared before the client finished. Regenerate once they have.</p>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           {editing ? (
             <>
               <Button variant="primary" onClick={save} disabled={pending}>
@@ -104,7 +104,7 @@ export function ReportView({
               <Button size="sm" onClick={regenerate} disabled={pending}>
                 Rewrite
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setConfirmRedo(false)}>
+              <Button size="sm" variant="text" onClick={() => setConfirmRedo(false)}>
                 Cancel
               </Button>
             </>
@@ -115,7 +115,7 @@ export function ReportView({
               </Button>
               <Button
                 size="sm"
-                variant="ghost"
+                variant="text"
                 disabled={pending}
                 onClick={() => (report.content.editedAt ? setConfirmRedo(true) : regenerate())}
               >
@@ -155,7 +155,7 @@ export function ReportView({
                       <p className="text-[20px] leading-snug">{c.line}</p>
                       {c.ask ? (
                         <p className="mt-3 flex items-baseline gap-2.5 text-[16px]">
-                          <span aria-hidden className="size-2 shrink-0 translate-y-[-1px] bg-signal" />
+                          <span aria-hidden className="size-2 shrink-0 translate-y-[-1px] rounded-full bg-signal" />
                           <span>
                             <span className="font-medium">Ask:</span> {c.ask}
                           </span>

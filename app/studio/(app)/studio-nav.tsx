@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ScoringProgress } from "@/lib/library/score-queue";
-import { NavLabel } from "./link-pending";
+import { NavLabel, type NavCount } from "./link-pending";
 
 /** Where batch scoring is up to (see scoring-progress/route.ts). */
 async function scoringPulse(): Promise<ScoringProgress | null> {
@@ -118,6 +118,14 @@ export function NavLinks({
   /** Images with Claude now, and images scored since you last opened the library. */
   library?: LibraryPulse;
 }) {
+  const countFor = (href: string): NavCount | null => {
+    if (href === "/studio/briefs" && unseen) return { value: unseen, tone: "new", label: `${unseen} new from the site` };
+    if (href !== "/studio/library" || !library) return null;
+    if (library.scoring) return { value: library.scoring, tone: "busy", label: `Scoring ${library.scoring} ${library.scoring === 1 ? "image" : "images"}` };
+    if (library.scored) return { value: library.scored, tone: "new", label: `${library.scored} scored since you last looked` };
+    return null;
+  };
+
   return (
     <nav aria-label="Studio" className="flex gap-5 text-[13px] font-light sm:h-14 sm:items-center">
       {items.map((item) => {
@@ -129,30 +137,7 @@ export function NavLinks({
             aria-current={active ? "page" : undefined}
             className="group inline-flex items-center"
           >
-            <NavLabel label={item.label} active={active} />
-            {item.href === "/studio/briefs" && unseen > 0 ? (
-              <span
-                aria-label={`${unseen} new from the site`}
-                className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-signal px-1 font-mono text-[10px] text-on-signal"
-              >
-                {unseen}
-              </span>
-            ) : null}
-            {item.href === "/studio/library" && library?.scoring ? (
-              <span
-                title={`Scoring ${library.scoring} ${library.scoring === 1 ? "image" : "images"}`}
-                aria-label="scoring"
-                className="ml-1.5 inline-flex size-1.5 animate-pulse rounded-full bg-signal"
-              />
-            ) : item.href === "/studio/library" && library?.scored ? (
-              <span
-                title={`${library.scored} ${library.scored === 1 ? "image" : "images"} scored since you last looked`}
-                aria-label={`${library.scored} scored`}
-                className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-signal px-1 font-mono text-[10px] text-signal"
-              >
-                {library.scored}
-              </span>
-            ) : null}
+            <NavLabel label={item.label} active={active} count={countFor(item.href)} />
           </Link>
         );
       })}

@@ -80,7 +80,7 @@ function Month({ month, highlight, muted }: { month: MonthSpending; highlight?: 
     <div className={muted ? "text-ink-soft" : undefined}>
       <Mono>{month.name}</Mono>
       <p className="mt-1 flex items-center gap-2 text-[32px] font-medium leading-none tracking-[-0.02em]">
-        {highlight ? <span aria-hidden className="size-2 bg-signal" /> : null}≈ {usd(month.total)}
+        {highlight ? <span aria-hidden className="size-2 rounded-full bg-signal" /> : null}≈ {usd(month.total)}
       </p>
       <ul className="mt-3 border-t border-rule">
         {month.lines.length ? (

@@ -54,7 +54,7 @@ export function BlocksEditor({
                   <Button size="sm" variant="ghost" aria-label="Move down" disabled={i === blocks.length - 1} onClick={() => move(i, i + 1)}>
                     ↓
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove(i)}>
+                  <Button size="sm" variant="text" className="ml-3" onClick={() => remove(i)}>
                     Remove
                   </Button>
                 </div>
