@@ -437,21 +437,6 @@ html[data-greeted] .preloader {
   transform: scale(1.03);
   transition-delay: 0ms;
 }
-/* Two columns that run on their own and step past each other: the right one starts lower. */
-@media (min-width: 640px) {
-  .work-grid {
-    columns: 2;
-    column-gap: 16px;
-  }
-  .work-grid > li {
-    break-inside: avoid;
-    padding-bottom: 76px;
-  }
-  .work-grid > li[data-first-right] {
-    break-before: column;
-    padding-top: 18vw;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .work-media,
   .work-cover {
