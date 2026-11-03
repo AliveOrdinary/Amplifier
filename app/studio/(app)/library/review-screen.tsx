@@ -6,6 +6,7 @@ import { mediumLabel } from "@/lib/library/constants";
 import type { LibraryImage } from "@/lib/library/types";
 import { Mono, buttonClass, cn } from "@/components/ui/primitives";
 import { ScoringSummary } from "./scoring-status";
+import { StuckImages } from "./stuck-images";
 import { useLibrary } from "./library-provider";
 import { ImageStage, ScorePanel, SecondaryActions, hotkeyIndex, isTypingTarget } from "./editor";
 import { AddControls } from "./library-chrome";
@@ -16,7 +17,7 @@ import { AddControls } from "./library-chrome";
  * dimmed, so you can step back to them.
  */
 export function ReviewScreen() {
-  const { images, counts, dimensions, jobs, decide, setScore } = useLibrary();
+  const { images, counts, dimensions, jobs, stuck, decide, setScore } = useLibrary();
 
   const [reviewed, setReviewed] = useState<Set<string>>(() => new Set());
   const queue = useMemo(
@@ -26,9 +27,9 @@ export function ReviewScreen() {
         .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)),
     [images, reviewed],
   );
-  const scoring = Math.max(counts.scoring, images.filter((i) => !i.ready).length) + jobs.filter((j) => j.state === "uploading").length;
+  const scoring = Math.max(counts.scoring, images.filter((i) => !i.ready && !i.stuck).length) + jobs.filter((j) => j.state === "uploading").length;
   const pending = queue.filter((i) => i.status === "pending");
-  const hasLibrary = images.length > 0 || counts.approved > 0 || counts.scoring > 0;
+  const hasLibrary = images.length > 0 || counts.approved > 0 || counts.scoring > 0 || stuck.length > 0;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Once nothing is pending, show the caught-up screen; Undo brings the image back.
@@ -101,6 +102,7 @@ export function ReviewScreen() {
                 ? "Nothing is waiting for review. Add more images below."
                 : "Add reference images: Claude scores each one, then you check the scores here."}
           </p>
+          {stuck.length ? <StuckImages className="mt-8 w-full border-t border-rule pt-6 text-left" /> : null}
           {scoring ? <ScoringSummary scoring={scoring} className="mt-8 w-full border-t border-rule pt-6 text-left" /> : null}
           <div className="mt-8 w-full">
             <AddControls large />
@@ -162,6 +164,11 @@ export function ReviewScreen() {
             );
           })}
         </ul>
+        {stuck.length ? (
+          <div className="max-h-[40%] overflow-y-auto border-t border-rule px-4 py-3 max-lg:hidden">
+            <StuckImages compact />
+          </div>
+        ) : null}
         {scoring ? (
           <div className="border-t border-rule px-4 py-3 max-lg:hidden">
             <ScoringSummary scoring={scoring} compact />
