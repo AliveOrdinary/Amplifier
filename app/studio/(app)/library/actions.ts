@@ -14,6 +14,7 @@ import {
   type IngestResult,
 } from "@/lib/library/pipeline";
 import { fetchRemoteImage, RemoteFetchError } from "@/lib/library/fetch-remote";
+import { resetUnfinished } from "@/lib/library/unfinished";
 import { scoreImage } from "@/lib/library/score";
 import { embeddingsEnabled, similarImages } from "@/lib/library/embed";
 import {
@@ -94,6 +95,27 @@ export async function finishUpload(imageId: string): Promise<AddResult> {
   try {
     const db = await createClient();
     return await withImage(db, await finishImage(db, imageId));
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Try again to add an image that gave up part-way (lib/library/unfinished.ts). */
+export async function retryAdd(imageId: string): Promise<AddResult> {
+  const member = await getMember();
+  try {
+    const db = await createClient();
+    const { data: image } = await db
+      .from("images")
+      .select("collection")
+      .eq("id", imageId)
+      .eq("studio_id", member.studioId)
+      .maybeSingle();
+    if (!image) throw new IngestError("That image no longer exists.");
+    await resetUnfinished(db, imageId);
+    // Board imports go back to batch scoring; anything added by hand is scored now.
+    const board = image.collection !== null;
+    return await withImage(db, await finishImage(db, imageId, undefined, { queue: board, autoApprove: board }));
   } catch (error) {
     return fail(error);
   }

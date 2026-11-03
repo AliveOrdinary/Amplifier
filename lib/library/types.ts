@@ -37,6 +37,8 @@ export type LibraryImage = {
   scored: boolean;
   /** Resized and scored (or scoring failed): ready to review. */
   ready: boolean;
+  /** Couldn't be added after a few tries (no display version): retry or remove it on Review. */
+  stuck: boolean;
   createdAt: string;
   scores: Partial<Record<string, ImageScore>>;
 };

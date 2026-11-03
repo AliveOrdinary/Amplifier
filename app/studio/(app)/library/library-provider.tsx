@@ -4,7 +4,7 @@ import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, 
 import { createClient } from "@/lib/supabase/client";
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES, clampScore } from "@/lib/library/constants";
 import type { Dimension, ImageStatus, LibraryImage } from "@/lib/library/types";
-import type { Board, LibraryCounts } from "@/lib/library/queries";
+import type { Board, LibraryCounts, StuckImage } from "@/lib/library/queries";
 import type { ScoringProgress } from "@/lib/library/score-queue";
 import {
   abandonUpload,
@@ -13,6 +13,7 @@ import {
   finishUpload,
   prepareUpload,
   rescore,
+  retryAdd,
   saveScore,
   setMedium,
   setStatus,
@@ -40,6 +41,10 @@ type LibraryState = {
   progress: ScoringProgress;
   /** Pinterest boards images were imported from. */
   boards: Board[];
+  /** Images that couldn't be added after a few tries. */
+  stuck: StuckImage[];
+  retryStuck: (image: StuckImage) => Promise<void>;
+  removeStuck: (image: StuckImage) => Promise<void>;
   /** Add images loaded elsewhere (a Browse page) so edits reach every screen. */
   remember: (images: LibraryImage[]) => void;
   /** The studio's active rubric, in order. */
@@ -67,7 +72,9 @@ export function useLibrary() {
   return value;
 }
 
-type PollResult = { ok: true; images: LibraryImage[]; counts: LibraryCounts; progress: ScoringProgress } | { ok: false };
+type PollResult =
+  | { ok: true; images: LibraryImage[]; counts: LibraryCounts; progress: ScoringProgress; stuck?: StuckImage[] }
+  | { ok: false };
 
 /** The library's refresh (a route, so it never holds up approvals; see library/refresh/route.ts). */
 async function pollLibrary(since: string, pending: string[]): Promise<PollResult> {
@@ -106,6 +113,7 @@ export function LibraryProvider({
   initialImages,
   initialCounts,
   initialProgress,
+  initialStuck,
   boards,
   dimensions,
   children,
@@ -113,6 +121,7 @@ export function LibraryProvider({
   initialImages: LibraryImage[];
   initialCounts: LibraryCounts;
   initialProgress: ScoringProgress;
+  initialStuck: StuckImage[];
   boards: Board[];
   dimensions: Dimension[];
   children: ReactNode;
@@ -120,6 +129,7 @@ export function LibraryProvider({
   const [images, setImages] = useState(initialImages);
   const [counts, setCounts] = useState(initialCounts);
   const [progress, setProgress] = useState(initialProgress);
+  const [stuck, setStuck] = useState(initialStuck);
   const openBatches = useRef(new Set(initialProgress.batches.map((b) => b.id)));
   const [jobs, setJobs] = useState<Job[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -329,7 +339,7 @@ export function LibraryProvider({
       if (stopped) return;
       const working =
         jobsRef.current.some((j) => j.state === "uploading" || j.state === "scoring") ||
-        imagesRef.current.some((i) => !i.ready && !i.collection) ||
+        imagesRef.current.some((i) => !i.ready && !i.stuck && !i.collection) ||
         progressRef.current.waiting + progressRef.current.packing + progressRef.current.batches.length > 0;
       timer = setTimeout(tick, working ? 30_000 : 120_000);
     };
@@ -340,7 +350,7 @@ export function LibraryProvider({
       try {
         const current = imagesRef.current;
         // Board imports are scored in batches and go straight to the library; no need to watch each one.
-        const pendingIds = current.filter((i) => !i.ready && !i.collection).map((i) => i.id);
+        const pendingIds = current.filter((i) => !i.ready && !i.stuck && !i.collection).map((i) => i.id);
         const askedAt = Date.now();
         const result = await pollLibrary(since.current, pendingIds);
         if (!result.ok) return;
@@ -348,6 +358,7 @@ export function LibraryProvider({
         upsert(keepDecisions(result.images, askedAt));
         setCounts(result.counts);
         setProgress(result.progress);
+        setStuck(result.stuck ?? []);
         // A batch that was with Claude and has now been read back: say so.
         const back = result.progress.finished.filter((b) => openBatches.current.has(b.id));
         openBatches.current = new Set(result.progress.batches.map((b) => b.id));
@@ -501,12 +512,44 @@ export function LibraryProvider({
     [notify],
   );
 
+  /* ------------------------------------------------- couldn't be added */
+
+  const retryStuck = useCallback(
+    async (image: StuckImage) => {
+      const r = await retryAdd(image.id);
+      if (!r.ok) {
+        setStuck((list) => list.map((s) => (s.id === image.id ? { ...s, error: r.error } : s)));
+        return notify(`Still couldn't add it: ${r.error}`, { tone: "error" });
+      }
+      setStuck((list) => list.filter((s) => s.id !== image.id));
+      setCounts((c) => ({ ...c, stuck: Math.max(0, c.stuck - 1) }));
+      if (r.image) upsert([r.image]);
+      notify(r.status === "duplicate" ? "Already in the library" : image.collection ? "Added. It'll be scored with the next batch." : "Added");
+    },
+    [upsert, notify],
+  );
+
+  const removeStuck = useCallback(
+    async (image: StuckImage) => {
+      const r = await deleteImage(image.id);
+      if (!r.ok) return notify(r.error, { tone: "error" });
+      setStuck((list) => list.filter((s) => s.id !== image.id));
+      setCounts((c) => ({ ...c, stuck: Math.max(0, c.stuck - 1) }));
+      setImages((list) => list.filter((i) => i.id !== image.id));
+      notify("Removed");
+    },
+    [notify],
+  );
+
   const value = useMemo<LibraryState>(
     () => ({
       images,
       counts,
       progress,
       boards,
+      stuck,
+      retryStuck,
+      removeStuck,
       remember: upsert,
       dimensions,
       jobs,
@@ -523,7 +566,7 @@ export function LibraryProvider({
       dismissNotice,
       holdNotice,
     }),
-    [images, counts, progress, boards, upsert, dimensions, jobs, notice, addFiles, addLink, clearJobs, decide, setScore, setImageMedium, rescoreImage, removeImage, notify, dismissNotice, holdNotice],
+    [images, counts, progress, boards, stuck, retryStuck, removeStuck, upsert, dimensions, jobs, notice, addFiles, addLink, clearJobs, decide, setScore, setImageMedium, rescoreImage, removeImage, notify, dismissNotice, holdNotice],
   );
 
   return (

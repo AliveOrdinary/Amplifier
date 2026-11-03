@@ -3,13 +3,15 @@ import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { processQueue, scoringProgress } from "@/lib/library/score-queue";
-import { getImages, getImagesSince, libraryCounts } from "@/lib/library/queries";
+import { getImages, getImagesSince, libraryCounts, stuckImages } from "@/lib/library/queries";
+import { finishUnfinished } from "@/lib/library/unfinished";
 
 export const maxDuration = 120;
 
 /**
  * The library's refresh, every 15 seconds while it's open: new images (from
- * the extension or a phone), images still being scored, and the tab counts.
+ * the extension or a phone), images still being scored, the tab counts and
+ * any images that couldn't be added.
  *
  * A route, not a server action: the browser runs a page's server actions one
  * at a time, so a slow refresh used to hold up approvals queued behind it.
@@ -35,8 +37,17 @@ export async function POST(request: NextRequest) {
         processQueue(createAdminClient(), member.studioId, { budgetMs: 60_000 }).catch((err) => console.error("queue processing failed", err)),
       );
     }
+    // Images whose adding was cut off part-way: try again (lib/library/unfinished.ts).
+    if (counts.unfinished) {
+      after(() =>
+        finishUnfinished(createAdminClient(), member.studioId, { deadline: Date.now() + 60_000 }).catch((err) =>
+          console.error("couldn't finish stranded images", err),
+        ),
+      );
+    }
+    const stuck = counts.stuck ? await stuckImages(db, member.studioId) : [];
     const byId = new Map([...updated, ...fresh].map((image) => [image.id, image]));
-    return NextResponse.json({ ok: true, images: [...byId.values()], counts, progress });
+    return NextResponse.json({ ok: true, images: [...byId.values()], counts, progress, stuck });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Couldn't refresh." }, { status: 500 });
   }
