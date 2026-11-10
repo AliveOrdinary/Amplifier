@@ -34,7 +34,7 @@ export async function projectMetadata(slug: string, locale: Locale): Promise<Met
 /** A picture's proportions (width over height); 4:3 until the file's size is known. */
 const ratioOf = (m: PortfolioMedia) => (m.width && m.height ? m.width / m.height : 4 / 3);
 
-type Row = { id: string; media: PortfolioMedia[]; scroll: boolean; marker: string | null };
+type Row = { id: string; media: PortfolioMedia[]; scroll: boolean; join: boolean; marker: string | null };
 
 /**
  * Splits the blocks the way the page shows them: labelled text opens a
@@ -56,12 +56,18 @@ function arrange(blocks: Block[], opening: string) {
         sections[sections.length - 1].text += `\n\n${b.text}`;
       }
     } else if (b.media.length) {
-      rows.push({ id: b.id, media: b.media, scroll: b.scroll, marker: pending });
+      rows.push({ id: b.id, media: b.media, scroll: b.scroll, join: b.join, marker: pending });
       pending = null;
     }
   }
+  // A single picture marked `join` sticks to the row above it; joined rows are drawn as one piece.
+  const stacks: Row[][] = [];
+  for (const row of rows) {
+    if (row.join && row.media.length === 1 && stacks.length) stacks[stacks.length - 1].push(row);
+    else stacks.push([row]);
+  }
   // A section with no pictures after it still needs a place to start.
-  return { sections, rows, trailing: pending };
+  return { sections, stacks, trailing: pending };
 }
 
 /**
@@ -79,7 +85,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
   if (!project) notFound();
   const href = (s: string) => localePath(locale, `/projects/${s}`);
 
-  const { sections, rows, trailing } = arrange(project.blocks, t.project.about);
+  const { sections, stacks, trailing } = arrange(project.blocks, t.project.about);
   const credits = [
     project.client ? { k: t.project.client, v: project.client } : null,
     project.services.length ? { k: t.project.services, v: project.services.join(", ") } : null,
@@ -147,25 +153,37 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
               </div>
             ) : null}
 
-            {rows.map((row) => (
-              <div key={row.id} id={row.marker ?? undefined} className="flex flex-col gap-2 lg:flex-row lg:items-start">
-                {row.media.map((m) => (
-                  <div
-                    key={m.id}
-                    data-scroll-inside={row.scroll ? "" : undefined}
-                    // Side by side, each takes width by its proportions so the row lines up top and bottom.
-                    className={cn("case-tile min-w-0 overflow-hidden rounded-[8px] bg-panel lg:[flex:var(--r)_1_0]", row.scroll && "overflow-y-auto")}
-                    style={{ aspectRatio: row.scroll ? "16 / 9" : ratioOf(m), "--r": row.scroll ? 16 / 9 : ratioOf(m) } as CSSProperties}
-                  >
-                    <Media
-                      media={m}
-                      sizes={`(min-width: 1024px) ${Math.round(80 / row.media.length)}vw, 100vw`}
-                      className={row.scroll ? undefined : "size-full! object-cover"}
-                    />
-                  </div>
-                ))}
-              </div>
-            ))}
+            {stacks.map((stack) => {
+              // Joined: no gap and no curve where pictures meet; the piece keeps its outer corners.
+              const joined = stack.length > 1 || stack[0].join;
+              return (
+                <div key={stack[0].id} className={cn("grid", joined ? "overflow-hidden rounded-[8px]" : "gap-2")}>
+                  {stack.map((row) => (
+                    <div key={row.id} id={row.marker ?? undefined} className={cn("flex flex-col lg:flex-row lg:items-start", !joined && "gap-2")}>
+                      {row.media.map((m) => (
+                        <div
+                          key={m.id}
+                          data-scroll-inside={row.scroll ? "" : undefined}
+                          // Side by side, each takes width by its proportions so the row lines up top and bottom.
+                          className={cn(
+                            "case-tile min-w-0 overflow-hidden bg-panel lg:[flex:var(--r)_1_0]",
+                            !joined && "rounded-[8px]",
+                            row.scroll && "overflow-y-auto",
+                          )}
+                          style={{ aspectRatio: row.scroll ? "16 / 9" : ratioOf(m), "--r": row.scroll ? 16 / 9 : ratioOf(m) } as CSSProperties}
+                        >
+                          <Media
+                            media={m}
+                            sizes={`(min-width: 1024px) ${Math.round(80 / row.media.length)}vw, 100vw`}
+                            className={row.scroll ? undefined : "size-full! object-cover"}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
             {trailing ? <div id={trailing} className="-mt-2" /> : null}
 
             {credits.length ? (

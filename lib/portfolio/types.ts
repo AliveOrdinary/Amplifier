@@ -26,7 +26,8 @@ export type TextBlock = { id: string; type: "text"; text: string; label: string 
 
 /** One to three images or videos shown side by side, with an optional caption under them. */
 /**
- * `join`: two or three side by side touch, with no gap, as one picture.
+ * `join`: two or three side by side touch, with no gap, as one picture; a single picture
+ * joins the picture block above it the same way (no gap, no curve where they meet).
  * `scroll`: one tall image shown in a 16:9 frame you scroll inside (a full-length web page, say).
  */
 export type MediaBlock = { id: string; type: "media"; media: PortfolioMedia[]; caption: string | null; join: boolean; scroll: boolean };
