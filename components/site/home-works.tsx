@@ -13,8 +13,8 @@ const STEP_MS = 420;
  * picture to the next on its own (no fade). Scrolling moves the whole
  * slideshow up with the page, pixel for pixel, uncovering what sits
  * still underneath (`children`: the closing call).
- * One screen of scroll and it's gone; that's the end of the page. Stopping
- * partway settles on the nearer end. The seal (BriefSeal) reads
+ * One screen of scroll and it's gone; that's the end of the page. It stops
+ * wherever the scroll stops. The seal (BriefSeal) reads
  * [data-seal-lift] to ride from the bottom of the screen into its spot.
  */
 export function HomeWorks({ pictures, hint, children }: { pictures: PortfolioMedia[]; hint: string; children: ReactNode }) {
@@ -28,12 +28,11 @@ export function HomeWorks({ pictures, hint, children }: { pictures: PortfolioMed
     return () => window.clearInterval(timer);
   }, [pictures.length]);
 
-  // The lift follows the scroll; a scroll that stops partway settles.
+  // The lift follows the scroll, and stays wherever the scroll stops (no auto scroll).
   useEffect(() => {
     const el = stage.current;
     if (!el) return;
     let frame = 0;
-    let settle = 0;
     const draw = () => {
       frame = 0;
       const y = Math.min(Math.max(window.scrollY, 0), window.innerHeight);
@@ -41,19 +40,12 @@ export function HomeWorks({ pictures, hint, children }: { pictures: PortfolioMed
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(draw);
-      window.clearTimeout(settle);
-      settle = window.setTimeout(() => {
-        const vh = window.innerHeight;
-        const y = window.scrollY;
-        if (y > 0 && y < vh - 1) window.scrollTo({ top: y > vh * 0.25 ? vh : 0, behavior: "smooth" });
-      }, 140);
     };
     draw();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", draw);
     return () => {
       cancelAnimationFrame(frame);
-      window.clearTimeout(settle);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", draw);
     };
