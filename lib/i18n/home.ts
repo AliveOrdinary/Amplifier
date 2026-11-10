@@ -15,6 +15,8 @@ export type HomeCopy = {
   nav: { work: string; studio: string; contact: string };
   /** Where the studio is; the header shows its time there. */
   city: string;
+  /** Under the slideshow on Home. */
+  scroll: string;
   sections: { intro: string; selected: string; studio: string; contact: string };
   hero: { title: string; intro: string; facts: { k: string; v: string }[] };
   work: { title: string };
@@ -39,6 +41,7 @@ export const HOME_COPY: Record<Locale, HomeCopy> = {
     meta: { description: "Amplifier is a design studio: branding, type and motion." },
     nav: { work: "Work", studio: "Studio", contact: "Contact" },
     city: "Toronto",
+    scroll: "Scroll down",
     sections: { intro: "Intro", selected: "Selected", studio: "Studio", contact: "Contact" },
     hero: {
       title: "Branding, type and motion for people who make things.",
@@ -84,6 +87,7 @@ export const HOME_COPY: Record<Locale, HomeCopy> = {
     meta: { description: "Amplifier est un studio de design : identité visuelle, typographie et animation." },
     nav: { work: "Projets", studio: "Studio", contact: "Contact" },
     city: "Toronto",
+    scroll: "Défiler",
     sections: { intro: "Intro", selected: "Sélection", studio: "Studio", contact: "Contact" },
     hero: {
       title: "Identité visuelle, typographie et animation pour celles et ceux qui créent.",

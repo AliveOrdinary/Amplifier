@@ -14,10 +14,11 @@ export const COLUMNS = "grid grid-cols-[minmax(0,1fr)] gap-x-10 gap-y-6 lg:grid-
 /** Small mono labels: "01 / Selected", "Client". */
 export const LABEL = "font-mono text-[12px] uppercase tracking-[0.08em]";
 
-export function SiteFooter({ className }: { className?: string }) {
+/** `tight`: less space under the line (Home, where the footer sits at the bottom of the last screen). */
+export function SiteFooter({ className, tight }: { className?: string; tight?: boolean }) {
   return (
     <footer className={cn(PAGE, "mt-24", className)}>
-      <div className={cn(LABEL, "flex flex-wrap justify-between gap-4 border-t border-rule pt-6 pb-10 normal-case text-muted")}>
+      <div className={cn(LABEL, "flex flex-wrap justify-between gap-4 border-t border-rule pt-6 normal-case text-muted", tight ? "pb-[18px]" : "pb-10")}>
         <span className="flex flex-wrap gap-x-3">
           {GREETINGS.map((g) => (
             <span key={g}>{g}</span>

@@ -59,6 +59,11 @@ export function BriefSeal({ label, href }: { label: string; href: string }) {
       const restY = box.top + box.height / 2 - dy;
       const dockX = d.left + d.width / 2;
       const dockY = d.top + d.height / 2;
+      // Home's lifting slideshow: travel from rest into the spot as the work lifts away.
+      if (document.querySelector("[data-seal-lift]")) {
+        const k = Math.min(Math.max(window.scrollY / window.innerHeight, 0), 1);
+        return place((dockX - restX) * k, (dockY - restY) * k);
+      }
       // Below the resting place: wait for it. At or above: ride along with it.
       if (dockY <= restY) place(dockX - restX, dockY - restY);
       else place(0, 0);
