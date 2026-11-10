@@ -169,7 +169,6 @@ export function ContactCall({
         );
       })}
 
-      <span aria-hidden className="power-led order-first mb-8 size-2.5 rounded-full bg-signal shadow-[0_0_14px_var(--signal)]" />
       {/* The heading reads as one sentence; the button sits between its halves on screen. */}
       <h2 className="contents">
         <span className={`${big} order-1 block`}>{lead}</span>
