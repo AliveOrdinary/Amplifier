@@ -73,7 +73,7 @@ function arrange(blocks: Block[], opening: string) {
 /**
  * A case study, in either language (French where it's been written in
  * Studio, English elsewhere), after mubien.com: the services as tags, the
- * summary as one big line, then the story held in a left column while the
+ * summary as one big line with the services as tags under it, then the story held in a left column while the
  * work runs down the right as touching tiles, each at its own proportions,
  * with the credits at the end and two more projects across the page.
  * The header, footer and Start a brief seal are the site's own.
@@ -121,16 +121,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
 
       <main>
         <header className="px-2 pt-[72px]">
-          {project.services.length ? (
-            <ul className="flex flex-wrap gap-1.5" aria-label={t.project.services}>
-              {project.services.map((s) => (
-                <li key={s} className="rounded-[4px] bg-panel px-2 py-1.5 text-[13px] leading-none text-ink-soft">
-                  {s}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <h1 className="mt-16 text-[34px] leading-[1.14] font-normal tracking-[-0.01em] text-balance lg:mt-[110px] lg:max-w-[60%] lg:text-[3.97vw]">
+          <h1 className="mt-24 text-[34px] leading-[1.14] font-normal tracking-[-0.01em] text-balance lg:mt-[150px] lg:max-w-[60%] lg:text-[3.97vw]">
             {project.summary ? (
               <>
                 <span className="sr-only">{project.title}: </span>
@@ -140,6 +131,16 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
               project.title
             )}
           </h1>
+          {/* What we did (Naming, Branding, Packaging…), under the line. */}
+          {project.services.length ? (
+            <ul className="mt-8 flex flex-wrap gap-1.5 lg:mt-10" aria-label={t.project.services}>
+              {project.services.map((s) => (
+                <li key={s} className="rounded-[4px] bg-panel px-2 py-1.5 text-[13px] leading-none text-ink-soft">
+                  {s}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </header>
 
         <section className="grid gap-2 px-2 pt-10 lg:grid-cols-[300px_minmax(0,1fr)] lg:pt-14">
