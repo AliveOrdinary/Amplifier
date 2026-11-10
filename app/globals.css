@@ -144,8 +144,11 @@ body:has([data-workspace]) .studio-header-row {
   --on-signal: #111111;
   background: var(--paper);
   color: var(--ink);
-  /* the site's own typeface; utilities that ask for the sans (font-sans) get it too */
+  /* One typeface across the site: utilities that ask for the sans (font-sans) or the mono
+     (font-mono: labels, the seal's ring, counts) all get Amplifier Grotesk. */
   --font-geist-sans: var(--font-grotesk);
+  --font-geist-mono: var(--font-grotesk);
+  --font-mono: var(--font-grotesk), system-ui, sans-serif;
   font-family: var(--font-grotesk), system-ui, sans-serif;
 }
 
