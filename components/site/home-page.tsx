@@ -30,7 +30,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
         links={[
           { id: "work", label: t.nav.work, href: localePath(locale, "/projects") },
           { id: "studio", label: t.nav.studio },
-          { id: "contact", label: t.nav.contact, href: "#brief" },
+          { id: "contact", label: t.nav.contact, href: localePath(locale, "/start") },
         ]}
         languages={alternates("/")}
         city={t.city}

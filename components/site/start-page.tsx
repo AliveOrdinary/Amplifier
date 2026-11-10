@@ -26,11 +26,12 @@ export async function StartPage({ locale }: { locale: Locale }) {
         links={[
           { id: "work", label: home.nav.work, href: localePath(locale, "/projects") },
           { id: "studio", label: home.nav.studio },
-          { id: "contact", label: home.nav.contact, href: `${localePath(locale, "/")}#brief` },
+          { id: "contact", label: home.nav.contact, href: localePath(locale, "/start") },
         ]}
         linkBase={localePath(locale, "/")}
         languages={alternates("/start")}
         city={home.city}
+        current="contact"
       />
 
       <main className={cn(PAGE, "pt-12 pb-24")}>
