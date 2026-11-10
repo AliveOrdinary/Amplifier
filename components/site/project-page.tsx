@@ -13,7 +13,7 @@ import { CaseStory, type StorySection } from "@/components/site/case-story";
 import { SiteHeader } from "@/components/site/site-header";
 import { cn } from "@/components/ui/primitives";
 import { HOME_COPY } from "@/lib/i18n/home";
-import { LANGUAGE, SITE_COPY, alternates, localePath, type Locale } from "@/lib/i18n/site";
+import { LANGUAGE, SITE_COPY, alternates, localePath, type Locale, STUDIO_EMAIL } from "@/lib/i18n/site";
 
 /** Title, summary and the language versions of a case study, for <head>. */
 export async function projectMetadata(slug: string, locale: Locale): Promise<Metadata> {
@@ -110,7 +110,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
         homeLabel={t.homeLabel}
         links={[
           { id: "work", label: home.nav.work, href: localePath(locale, "/projects") },
-          { id: "studio", label: home.nav.studio },
+          { id: "email", label: home.nav.email, href: `mailto:${STUDIO_EMAIL}` },
           { id: "contact", label: home.nav.contact, href: localePath(locale, "/start") },
         ]}
         linkBase={localePath(locale, "/")}

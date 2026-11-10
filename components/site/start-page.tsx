@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/site/site-header";
 import { cn } from "@/components/ui/primitives";
 import { HOME_COPY } from "@/lib/i18n/home";
 import { START_COPY } from "@/lib/i18n/start";
-import { SITE_COPY, alternates, localePath, type Locale } from "@/lib/i18n/site";
+import { SITE_COPY, alternates, localePath, type Locale, STUDIO_EMAIL } from "@/lib/i18n/site";
 import { StartForm } from "./start-form";
 
 /**
@@ -25,7 +25,7 @@ export async function StartPage({ locale }: { locale: Locale }) {
         homeLabel={SITE_COPY[locale].homeLabel}
         links={[
           { id: "work", label: home.nav.work, href: localePath(locale, "/projects") },
-          { id: "studio", label: home.nav.studio },
+          { id: "email", label: home.nav.email, href: `mailto:${STUDIO_EMAIL}` },
           { id: "contact", label: home.nav.contact, href: localePath(locale, "/start") },
         ]}
         linkBase={localePath(locale, "/")}

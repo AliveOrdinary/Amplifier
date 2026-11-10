@@ -6,7 +6,7 @@ import { WorkBoard, type BoardPicture } from "@/components/site/work-board";
 import { WorkGrid } from "@/components/site/work-grid";
 import { cn } from "@/components/ui/primitives";
 import { HOME_COPY } from "@/lib/i18n/home";
-import { SITE_COPY, alternates, localePath, type Locale } from "@/lib/i18n/site";
+import { SITE_COPY, alternates, localePath, type Locale, STUDIO_EMAIL } from "@/lib/i18n/site";
 
 /** "Packaging · Identity · 2022" */
 const meta = (p: ProjectCard) => [...p.services, ...(p.year ? [String(p.year)] : [])].join(" · ");
@@ -45,7 +45,7 @@ export async function WorksPage({ locale }: { locale: Locale }) {
         homeLabel={t.homeLabel}
         links={[
           { id: "work", label: home.nav.work, href: localePath(locale, "/projects") },
-          { id: "studio", label: home.nav.studio },
+          { id: "email", label: home.nav.email, href: `mailto:${STUDIO_EMAIL}` },
           { id: "contact", label: home.nav.contact, href: localePath(locale, "/start") },
         ]}
         linkBase={localePath(locale, "/")}

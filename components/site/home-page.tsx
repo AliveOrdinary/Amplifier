@@ -1,7 +1,7 @@
 import { listProjects, type ProjectCard } from "@/lib/portfolio";
 import { Preloader } from "@/components/site/preloader";
 import { HOME_COPY } from "@/lib/i18n/home";
-import { SITE_COPY, alternates, localePath, type Locale } from "@/lib/i18n/site";
+import { SITE_COPY, alternates, localePath, type Locale, STUDIO_EMAIL } from "@/lib/i18n/site";
 import { BriefSeal } from "./brief-seal";
 import { ContactCall } from "./contact-call";
 import { SiteHeader } from "./site-header";
@@ -29,7 +29,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
         homeLabel={SITE_COPY[locale].homeLabel}
         links={[
           { id: "work", label: t.nav.work, href: localePath(locale, "/projects") },
-          { id: "studio", label: t.nav.studio },
+          { id: "email", label: t.nav.email, href: `mailto:${STUDIO_EMAIL}` },
           { id: "contact", label: t.nav.contact, href: localePath(locale, "/start") },
         ]}
         languages={alternates("/")}

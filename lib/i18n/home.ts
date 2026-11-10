@@ -12,7 +12,7 @@ import type { Locale } from "./site";
 
 export type HomeCopy = {
   meta: { description: string };
-  nav: { work: string; studio: string; contact: string };
+  nav: { work: string; studio: string; contact: string; email: string };
   /** Where the studio is; the header shows its time there. */
   city: string;
   /** Under the slideshow on Home. */
@@ -39,7 +39,7 @@ export type HomeCopy = {
 export const HOME_COPY: Record<Locale, HomeCopy> = {
   en: {
     meta: { description: "Amplifier is a design studio: branding, type and motion." },
-    nav: { work: "Work", studio: "Studio", contact: "Contact" },
+    nav: { work: "Work", studio: "Studio", contact: "Contact", email: "Get in touch" },
     city: "Toronto",
     scroll: "Scroll down",
     sections: { intro: "Intro", selected: "Selected", studio: "Studio", contact: "Contact" },
@@ -85,7 +85,7 @@ export const HOME_COPY: Record<Locale, HomeCopy> = {
   // Draft: to be checked by a fluent speaker.
   fr: {
     meta: { description: "Amplifier est un studio de design : identité visuelle, typographie et animation." },
-    nav: { work: "Projets", studio: "Studio", contact: "Contact" },
+    nav: { work: "Projets", studio: "Studio", contact: "Contact", email: "Écrivez-nous" },
     city: "Toronto",
     scroll: "Défiler",
     sections: { intro: "Intro", selected: "Sélection", studio: "Studio", contact: "Contact" },

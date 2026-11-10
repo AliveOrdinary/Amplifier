@@ -8,6 +8,9 @@
 
 import type { Locale } from "@/lib/portfolio/types";
 
+/** The studio's email: the nav's "Get in touch" opens it. */
+export const STUDIO_EMAIL = "hey@amplifier.studio";
+
 export type { Locale };
 
 export const LOCALES: readonly Locale[] = ["en", "fr"];
