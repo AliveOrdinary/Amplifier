@@ -10,8 +10,8 @@ export type WorkItem = { key: string; href: string; title: string; meta: string;
 
 /**
  * The Work page's grid, after brand-nw.com/work: tall 3:4 covers edge to
- * edge, three across (two on tablets, one on phones), in the studio's curve
- * (--curve), the name and services under each.
+ * edge, three across (two on tablets, one on phones), with 8px corners like
+ * the case study tiles, the name and services under each.
  * Covers wipe up into view as they scroll in, a row's covers one after
  * another. Over the grid the pointer is a small dot that grows into an
  * arrow on a cover, and the cover's top trims in. Covers always show in
