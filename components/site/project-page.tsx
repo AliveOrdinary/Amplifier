@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProject } from "@/lib/portfolio";
-import { ProjectBlocks, sectionsOf } from "@/components/portfolio/blocks";
-import { GrowingCover } from "@/components/portfolio/growing-cover";
+import { getProject, listProjects } from "@/lib/portfolio";
+import type { Block, PortfolioMedia } from "@/lib/portfolio/types";
 import { Media } from "@/components/portfolio/media";
 import { PreviewBanner } from "@/components/portfolio/preview-banner";
-import { COLUMNS, LABEL, PAGE, SiteFooter } from "@/components/site/site-frame";
+import { SiteFooter } from "@/components/site/site-frame";
 import { BriefSeal } from "@/components/site/brief-seal";
+import { CaseMotion } from "@/components/site/case-motion";
+import { CaseStory, type StorySection } from "@/components/site/case-story";
 import { SiteHeader } from "@/components/site/site-header";
-import { Wayfinding } from "@/components/site/wayfinding";
 import { cn } from "@/components/ui/primitives";
 import { HOME_COPY } from "@/lib/i18n/home";
 import { LANGUAGE, SITE_COPY, alternates, localePath, type Locale } from "@/lib/i18n/site";
@@ -30,11 +31,46 @@ export async function projectMetadata(slug: string, locale: Locale): Promise<Met
   };
 }
 
+/** A picture's proportions (width over height); 4:3 until the file's size is known. */
+const ratioOf = (m: PortfolioMedia) => (m.width && m.height ? m.width / m.height : 4 / 3);
+
+type Row = { id: string; media: PortfolioMedia[]; scroll: boolean; marker: string | null };
+
+/**
+ * Splits the blocks the way the page shows them: labelled text opens a
+ * section in the left column (unlabelled text joins the section it
+ * follows), and every picture block becomes a row of tiles on the right.
+ * The first row after a section's text carries that section's marker.
+ */
+function arrange(blocks: Block[], opening: string) {
+  const sections: StorySection[] = [];
+  const rows: Row[] = [];
+  let pending: string | null = null;
+  for (const b of blocks) {
+    if (b.type === "text") {
+      if (b.label || !sections.length) {
+        const id = `s-${b.id}`;
+        sections.push({ id, label: b.label ?? opening, text: b.text });
+        pending = id;
+      } else {
+        sections[sections.length - 1].text += `\n\n${b.text}`;
+      }
+    } else if (b.media.length) {
+      rows.push({ id: b.id, media: b.media, scroll: b.scroll, marker: pending });
+      pending = null;
+    }
+  }
+  // A section with no pictures after it still needs a place to start.
+  return { sections, rows, trailing: pending };
+}
+
 /**
  * A case study, in either language (French where it's been written in
- * Studio, English elsewhere), on the homepage's grid: the same header, the
- * same width, labels in the 200px column and everything else starting on
- * the menu's line. Images and video run the full width.
+ * Studio, English elsewhere), after mubien.com: the services as tags, the
+ * summary as one big line, then the story held in a left column while the
+ * work runs down the right as touching tiles, each at its own proportions,
+ * with the credits at the end and two more projects across the page.
+ * The header, footer and Start a brief seal are the site's own.
  */
 export async function ProjectPage({ slug, locale }: { slug: string; locale: Locale }) {
   const t = SITE_COPY[locale];
@@ -42,24 +78,25 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
   const project = await getProject(slug, locale);
   if (!project) notFound();
   const href = (s: string) => localePath(locale, `/projects/${s}`);
-  const facts = [
+
+  const { sections, rows, trailing } = arrange(project.blocks, t.project.about);
+  const credits = [
     project.client ? { k: t.project.client, v: project.client } : null,
-    project.year ? { k: t.project.year, v: String(project.year) } : null,
     project.services.length ? { k: t.project.services, v: project.services.join(", ") } : null,
+    project.year ? { k: t.project.year, v: String(project.year) } : null,
   ].filter((f): f is { k: string; v: string } => f !== null);
 
-  // The side scale: the opening, each labelled section, then "More projects".
-  const more = project.previous || project.next;
-  const sections = sectionsOf(project.blocks);
-  const scale = [
-    { id: "top", label: t.project.label },
-    ...sections.map((s) => ({ id: s.id, label: s.label })),
-    ...(more ? [{ id: "more", label: t.project.more }] : []),
-  ];
+  // More work: the previous and next projects, shown by their covers.
+  const neighbours = [project.previous, project.next].filter((n): n is { slug: string; title: string } => n !== null);
+  const cards = neighbours.length ? await listProjects({ locale }) : [];
+  const more = neighbours.map((n) => {
+    const card = cards.find((c) => c.slug === n.slug);
+    return { ...n, media: card ? (card.thumbnail ?? card.cover) : null, meta: card?.services.join(", ") ?? "" };
+  });
 
   return (
     <div className="site flex-1 overflow-x-clip" lang={locale}>
-      <Wayfinding sections={scale} />
+      <CaseMotion />
       {project.preview ? <PreviewBanner project={project} french={locale === "fr"} /> : null}
       <SiteHeader
         locale={locale}
@@ -73,64 +110,90 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
         linkBase={localePath(locale, "/")}
         languages={alternates(`/projects/${project.slug}`)}
         city={home.city}
+        current="work"
       />
 
-      <main className={cn(PAGE, "pt-12")}>
-        <header id="top" className={cn(COLUMNS, "scroll-mt-24 pt-20 sm:pt-28")}>
-          <div className={cn(LABEL, "pt-3 text-muted")}>00 / {t.project.label}</div>
+      <main>
+        <header className="px-2 pt-[72px]">
+          {project.services.length ? (
+            <ul className="flex flex-wrap gap-1.5" aria-label={t.project.services}>
+              {project.services.map((s) => (
+                <li key={s} className="rounded-[4px] bg-panel px-2 py-1.5 text-[13px] leading-none text-ink-soft">
+                  {s}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <h1 className="mt-16 text-[34px] leading-[1.14] font-normal tracking-[-0.01em] text-balance lg:mt-[110px] lg:max-w-[60%] lg:text-[3.97vw]">
+            {project.summary ? (
+              <>
+                <span className="sr-only">{project.title}: </span>
+                {project.summary}
+              </>
+            ) : (
+              project.title
+            )}
+          </h1>
+        </header>
+
+        <section className="grid gap-2 px-2 pt-10 lg:grid-cols-[300px_minmax(0,1fr)] lg:pt-14">
+          <CaseStory sections={sections} />
+
           <div className="min-w-0">
-            <h1 className="max-w-[900px] text-[clamp(44px,5.6vw,80px)] leading-[1.05] font-normal tracking-[-0.02em]">{project.title}</h1>
-            {project.summary ? <p className="mt-8 max-w-[740px] text-[19px] leading-[1.65] text-ink-soft">{project.summary}</p> : null}
-            {facts.length ? (
-              <dl className="mt-14 grid gap-x-8 gap-y-5 border-t border-rule pt-6 sm:grid-cols-2 lg:grid-cols-4">
-                {facts.map((f) => (
-                  <div key={f.k} className={f.k === t.project.services ? "sm:col-span-2" : undefined}>
-                    <dt className={cn(LABEL, "text-muted")}>{f.k}</dt>
-                    <dd className="mt-1.5 text-[15px] leading-[1.5]">{f.v}</dd>
+            {project.cover ? (
+              <div className="case-tile overflow-hidden rounded-[8px] bg-panel" style={{ aspectRatio: ratioOf(project.cover) }}>
+                <Media media={project.cover} priority sizes="(min-width: 1024px) 80vw, 100vw" className="size-full! object-cover" />
+              </div>
+            ) : null}
+
+            {rows.map((row) => (
+              <div key={row.id} id={row.marker ?? undefined} className="flex flex-col lg:flex-row lg:items-start">
+                {row.media.map((m) => (
+                  <div
+                    key={m.id}
+                    data-scroll-inside={row.scroll ? "" : undefined}
+                    // Side by side, each takes width by its proportions so the row lines up top and bottom.
+                    className={cn("case-tile min-w-0 overflow-hidden rounded-[8px] bg-panel lg:[flex:var(--r)_1_0]", row.scroll && "overflow-y-auto")}
+                    style={{ aspectRatio: row.scroll ? "16 / 9" : ratioOf(m), "--r": row.scroll ? 16 / 9 : ratioOf(m) } as CSSProperties}
+                  >
+                    <Media
+                      media={m}
+                      sizes={`(min-width: 1024px) ${Math.round(80 / row.media.length)}vw, 100vw`}
+                      className={row.scroll ? undefined : "size-full! object-cover"}
+                    />
+                  </div>
+                ))}
+              </div>
+            ))}
+            {trailing ? <div id={trailing} /> : null}
+
+            {credits.length ? (
+              <dl className="case-tile mt-2 grid gap-7 rounded-[8px] bg-panel px-6 py-8 sm:grid-cols-3 sm:gap-x-10 sm:px-10 sm:py-12">
+                {credits.map((c) => (
+                  <div key={c.k}>
+                    <dt className="text-[17px] leading-[1.4]">{c.k}</dt>
+                    <dd className="text-[17px] leading-[1.5] font-[350] text-muted">{c.v}</dd>
                   </div>
                 ))}
               </dl>
             ) : null}
           </div>
-        </header>
+        </section>
 
-        {project.cover ? (
-          <div className="mt-16 sm:mt-24">
-            <GrowingCover>
-              <Media media={project.cover} priority sizes="100vw" />
-            </GrowingCover>
-          </div>
-        ) : null}
-
-        <div className="mt-16 sm:mt-24">
-          <ProjectBlocks blocks={project.blocks} />
-        </div>
-
-        {more ? (
-          <nav id="more" aria-label={t.project.more} className={cn(COLUMNS, "mt-32 scroll-mt-24 border-t border-rule pt-5 sm:mt-40")}>
-            <div className={cn(LABEL, "mt-8 text-muted lg:mt-10 lg:pt-1")}>
-              {String(sections.length + 1).padStart(2, "0")} / {t.project.more}
-            </div>
-            <div className="mt-4 grid gap-8 sm:grid-cols-2 lg:mt-10">
-              {project.previous ? (
-                <Link href={href(project.previous.slug)} className="group block">
-                  <span className={cn(LABEL, "text-muted")}>← {t.project.previous}</span>
-                  <span className="mt-2 block text-[clamp(28px,3.2vw,44px)] leading-none font-medium tracking-[-0.02em] group-hover:text-muted">
-                    {project.previous.title}
-                  </span>
-                </Link>
-              ) : (
-                <span />
-              )}
-              {project.next ? (
-                <Link href={href(project.next.slug)} className="group block sm:text-right">
-                  <span className={cn(LABEL, "text-muted")}>{t.project.next} →</span>
-                  <span className="mt-2 block text-[clamp(28px,3.2vw,44px)] leading-none font-medium tracking-[-0.02em] group-hover:text-muted">
-                    {project.next.title}
-                  </span>
-                </Link>
-              ) : null}
-            </div>
+        {more.length ? (
+          <nav aria-label={t.project.more} className="mt-28 grid gap-2 px-2 sm:grid-cols-2 lg:mt-32">
+            <div className="px-1 pb-2 font-mono text-[11px] tracking-[0.08em] text-muted uppercase sm:col-span-2">{t.project.more}</div>
+            {more.map((n) => (
+              <Link key={n.slug} href={href(n.slug)} className="group block">
+                <div className="case-tile aspect-[3/2] overflow-hidden rounded-[8px] bg-panel">
+                  {n.media ? <Media media={n.media} sizes="(min-width: 640px) 50vw, 100vw" aspect="3 / 2" className="size-full! object-cover" /> : null}
+                </div>
+                <div className="flex justify-between gap-4 px-1 pt-3.5 text-[17px]">
+                  <span className="group-hover:text-muted">{n.title}</span>
+                  <span className="text-muted">{n.meta}</span>
+                </div>
+              </Link>
+            ))}
           </nav>
         ) : null}
       </main>

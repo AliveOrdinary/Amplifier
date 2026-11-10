@@ -35,7 +35,7 @@ export type SiteCopy = {
     count: (n: number) => string;
     empty: string;
   };
-  project: { label: string; works: string; more: string; client: string; year: string; services: string; previous: string; next: string };
+  project: { label: string; about: string; works: string; more: string; client: string; year: string; services: string; previous: string; next: string };
 };
 
 export const SITE_COPY: Record<Locale, SiteCopy> = {
@@ -46,7 +46,7 @@ export const SITE_COPY: Record<Locale, SiteCopy> = {
       count: (n) => `${n} ${n === 1 ? "project" : "projects"}`,
       empty: "No published projects yet.",
     },
-    project: { label: "Project", works: "Works", more: "More projects", client: "Client", year: "Year", services: "Services", previous: "Previous", next: "Next" },
+    project: { label: "Project", about: "About the project", works: "Works", more: "More projects", client: "Client", year: "Year", services: "Services", previous: "Previous", next: "Next" },
   },
   // Draft: to be checked by a fluent speaker.
   fr: {
@@ -56,6 +56,6 @@ export const SITE_COPY: Record<Locale, SiteCopy> = {
       count: (n) => `${n} projet${n > 1 ? "s" : ""}`,
       empty: "Aucun projet publié pour l’instant.",
     },
-    project: { label: "Projet", works: "Projets", more: "Autres projets", client: "Client", year: "Année", services: "Services", previous: "Précédent", next: "Suivant" },
+    project: { label: "Projet", about: "Le projet", works: "Projets", more: "Autres projets", client: "Client", year: "Année", services: "Services", previous: "Précédent", next: "Suivant" },
   },
 };
