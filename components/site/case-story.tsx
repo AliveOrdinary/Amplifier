@@ -13,8 +13,8 @@ export type StorySection = { id: string; label: string; text: string };
  * then the words fade in); the others close. A section starts where its
  * marker (`#{id}`) sits in the work column, once that passes the middle
  * of the screen. On phones every section stays open above the work.
- * Set in the nav menu's type: 15px, Light, every line on the same 1.5 leading
- * (name, headings and text alike, with no extra space between paragraphs).
+ * Set in the nav menu's type: 15px, Light, every line within a paragraph on the
+ * same 1.5 leading; paragraphs keep a small space between them.
  */
 export function CaseStory({ sections, link }: { sections: StorySection[]; link?: { href: string; label: string } | null }) {
   const [open, setOpen] = useState(0);
@@ -54,7 +54,7 @@ export function CaseStory({ sections, link }: { sections: StorySection[]; link?:
           </div>
           <div className="case-story-text">
             <div className="overflow-hidden">
-              <div className="pl-[18px] text-[15px] leading-[1.5] font-light text-ink-soft [&_*]:m-0 [&_*]:text-[15px] [&_*]:leading-[1.5] [&_*]:font-light [&_:is(h1,h2,h3,h4)]:text-ink [&_a]:underline">
+              <div className="pl-[18px] text-[15px] leading-[1.5] font-light text-ink-soft [&_*]:m-0 [&_*]:text-[15px] [&_*]:leading-[1.5] [&_*]:font-light [&_:is(h1,h2,h3,h4)]:text-ink [&_a]:underline [&_p+p]:mt-3!">
                 <Markdown>{s.text}</Markdown>
               </div>
               {link && i === sections.length - 1 ? (
