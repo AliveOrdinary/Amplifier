@@ -1,3 +1,4 @@
+import { CaseMotion } from "@/components/site/case-motion";
 import { listProjects, type ProjectCard } from "@/lib/portfolio";
 import { Preloader } from "@/components/site/preloader";
 import { HOME_COPY } from "@/lib/i18n/home";
@@ -21,6 +22,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
 
   return (
     <div className="site flex-1" lang={locale}>
+      <CaseMotion />
       <Preloader />
 
       <SiteHeader

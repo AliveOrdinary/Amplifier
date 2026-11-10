@@ -1,3 +1,4 @@
+import { CaseMotion } from "@/components/site/case-motion";
 import { getProject, listProjects } from "@/lib/portfolio";
 import type { ProjectCard } from "@/lib/portfolio/types";
 import { COLUMNS, LABEL, PAGE, SiteFooter } from "@/components/site/site-frame";
@@ -39,6 +40,7 @@ export async function WorksPage({ locale }: { locale: Locale }) {
 
   return (
     <div className="site flex-1" lang={locale}>
+      <CaseMotion />
       <SiteHeader
         locale={locale}
         homeHref={localePath(locale, "/")}

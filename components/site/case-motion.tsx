@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 
 /**
- * How a case study moves, after mubien.com (which uses Lenis):
+ * How the site scrolls, after the case studies (mubien.com, which uses Lenis);
+ * on every page: Home, Work, the case studies and Start a brief.
  * - The wheel scrolls smoothly: each turn moves a target and the page eases
  *   toward it (a tenth of the way each frame). Touch, keys and the
  *   scrollbar keep the browser's own scrolling.

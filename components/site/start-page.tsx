@@ -1,3 +1,4 @@
+import { CaseMotion } from "@/components/site/case-motion";
 import { intakeProjectTypes } from "@/lib/brief/intake";
 import { COLUMNS, LABEL, PAGE, SiteFooter } from "@/components/site/site-frame";
 import { SiteHeader } from "@/components/site/site-header";
@@ -19,6 +20,7 @@ export async function StartPage({ locale }: { locale: Locale }) {
 
   return (
     <div className="site flex-1" lang={locale}>
+      <CaseMotion />
       <SiteHeader
         locale={locale}
         homeHref={localePath(locale, "/")}
