@@ -584,3 +584,20 @@ html.case-smooth {
 html.case-smooth::-webkit-scrollbar {
   display: none;
 }
+
+/* Work page moodboard: pictures settle in one after another when the mix changes. */
+.work-board-pic {
+  animation: work-board-in 0.6s cubic-bezier(0.771, 0.029, 0.189, 1.007) both;
+  animation-delay: calc(min(var(--i, 0), 24) * 35ms);
+}
+@keyframes work-board-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .work-board-pic {
+    animation: none;
+  }
+}
