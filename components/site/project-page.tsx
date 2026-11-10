@@ -139,7 +139,8 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
         <section className="grid gap-2 px-2 pt-10 lg:grid-cols-[300px_minmax(0,1fr)] lg:pt-14">
           <CaseStory sections={sections} />
 
-          <div className="min-w-0">
+          {/* 8px between tiles, across and down, as on mubien.com. */}
+          <div className="grid min-w-0 gap-2">
             {project.cover ? (
               <div className="case-tile overflow-hidden rounded-[8px] bg-panel" style={{ aspectRatio: ratioOf(project.cover) }}>
                 <Media media={project.cover} priority sizes="(min-width: 1024px) 80vw, 100vw" className="size-full! object-cover" />
@@ -147,7 +148,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
             ) : null}
 
             {rows.map((row) => (
-              <div key={row.id} id={row.marker ?? undefined} className="flex flex-col lg:flex-row lg:items-start">
+              <div key={row.id} id={row.marker ?? undefined} className="flex flex-col gap-2 lg:flex-row lg:items-start">
                 {row.media.map((m) => (
                   <div
                     key={m.id}
@@ -165,10 +166,10 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
                 ))}
               </div>
             ))}
-            {trailing ? <div id={trailing} /> : null}
+            {trailing ? <div id={trailing} className="-mt-2" /> : null}
 
             {credits.length ? (
-              <dl className="case-tile mt-2 grid gap-7 rounded-[8px] bg-panel px-6 py-8 sm:grid-cols-3 sm:gap-x-10 sm:px-10 sm:py-12">
+              <dl className="case-tile grid gap-7 rounded-[8px] bg-panel px-6 py-8 sm:grid-cols-3 sm:gap-x-10 sm:px-10 sm:py-12">
                 {credits.map((c) => (
                   <div key={c.k}>
                     <dt className="text-[17px] leading-[1.4]">{c.k}</dt>
