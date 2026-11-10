@@ -6,13 +6,12 @@ import { BriefSeal } from "./brief-seal";
 import { ContactCall } from "./contact-call";
 import { SiteHeader } from "./site-header";
 import { HomeWorks } from "./home-works";
-import { SiteFooter } from "./site-frame";
 
 /**
  * The homepage in one language; app/page.tsx (English) and app/fr/page.tsx
  * render it. After studio1030.at: the work full screen, cutting from one
- * picture to the next; the first scroll lifts it away to the closing call,
- * with the footer at the bottom of that screen. That's the whole page.
+ * picture to the next; the first scroll lifts it away to the closing call.
+ * That's the whole page: no footer, it ends on the call.
  */
 export async function HomePage({ locale }: { locale: Locale }) {
   const t = HOME_COPY[locale];
@@ -42,7 +41,6 @@ export async function HomePage({ locale }: { locale: Locale }) {
           <section id="contact" className="relative flex h-full flex-col justify-center">
             <h2 className="sr-only">{t.sections.contact}</h2>
             <ContactCall lead={t.contact.lead} tail={t.contact.tail} body={t.contact.body} mixed={t.contact.mixed} projects={featured} />
-            <SiteFooter tight className="absolute inset-x-0 bottom-0 mt-0" />
           </section>
         </HomeWorks>
       </main>

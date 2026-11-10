@@ -12,7 +12,7 @@ const STEP_MS = 420;
  * Home, after studio1030.at: the work fills the screen, cutting from one
  * picture to the next on its own (no fade). Scrolling moves the whole
  * slideshow up with the page, pixel for pixel, uncovering what sits
- * still underneath (`children`: the closing call, footer at the bottom).
+ * still underneath (`children`: the closing call).
  * One screen of scroll and it's gone; that's the end of the page. Stopping
  * partway settles on the nearer end. The seal (BriefSeal) reads
  * [data-seal-lift] to ride from the bottom of the screen into its spot.
