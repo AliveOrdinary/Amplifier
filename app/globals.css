@@ -601,3 +601,34 @@ html.case-smooth::-webkit-scrollbar {
     animation: none;
   }
 }
+
+/* Work page: the floating line. Words carry a small chevron; a word's choices open upward. */
+.mix-word::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.2px solid currentColor;
+  border-bottom: 1.2px solid currentColor;
+  rotate: 45deg;
+  translate: 0 -2px;
+  transition: rotate 0.3s;
+}
+.mix-word[data-open]::after {
+  rotate: 225deg;
+  translate: 0 2px;
+}
+.mix-panel {
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.45s cubic-bezier(0.771, 0.029, 0.189, 1.007);
+}
+.mix-panel[data-open] {
+  grid-template-rows: 1fr;
+}
+.mix-chips {
+  animation: mix-chips-in 0.5s cubic-bezier(0.771, 0.029, 0.189, 1.007) 0.2s both;
+}
+@keyframes mix-chips-in {
+  from {
+    opacity: 0;
+  }
+}

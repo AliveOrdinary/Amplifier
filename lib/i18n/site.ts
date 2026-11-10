@@ -34,7 +34,7 @@ export type SiteCopy = {
     title: string;
     count: (n: number) => string;
     empty: string;
-    board: { all: (projects: number) => string; hint: string; board: (pictures: number, projects: number) => string; closest: string; none: string };
+    board: { lead: string; or: string; and: string; reset: string; board: (pictures: number, projects: number) => string; closest: string; none: string };
   };
   project: { label: string; about: string; works: string; more: string; client: string; year: string; services: string; previous: string; next: string };
 };
@@ -47,11 +47,13 @@ export const SITE_COPY: Record<Locale, SiteCopy> = {
       count: (n) => `${n} ${n === 1 ? "project" : "projects"}`,
       empty: "No published projects yet.",
       board: {
-        all: (n) => `All projects · ${n}`,
-        hint: "Move a fader to see the work as a moodboard",
+        lead: "Show me work that’s",
+        or: "or",
+        and: "and",
+        reset: "Reset",
         board: (n, p) => `Moodboard · ${n} ${n === 1 ? "picture" : "pictures"} from ${p} ${p === 1 ? "project" : "projects"}`,
         closest: "Closest first",
-        none: "Nothing sits that close to this mix. Try easing a fader back.",
+        none: "Nothing sits that close to this mix. Try setting a word back.",
       },
     },
     project: { label: "Project", about: "About the project", works: "Works", more: "More projects", client: "Client", year: "Year", services: "Services", previous: "Previous", next: "Next" },
@@ -64,11 +66,13 @@ export const SITE_COPY: Record<Locale, SiteCopy> = {
       count: (n) => `${n} projet${n > 1 ? "s" : ""}`,
       empty: "Aucun projet publié pour l’instant.",
       board: {
-        all: (n) => `Tous les projets · ${n}`,
-        hint: "Bougez un curseur pour voir le travail en planche d’ambiance",
+        lead: "Montrez-moi un travail",
+        or: "ou",
+        and: "et",
+        reset: "Réinitialiser",
         board: (n, p) => `Planche · ${n} image${n > 1 ? "s" : ""} de ${p} projet${p > 1 ? "s" : ""}`,
         closest: "Les plus proches d’abord",
-        none: "Rien ne correspond d’aussi près. Essayez de ramener un curseur.",
+        none: "Rien ne correspond d’aussi près. Essayez de remettre un mot au milieu.",
       },
     },
     project: { label: "Projet", about: "Le projet", works: "Projets", more: "Autres projets", client: "Client", year: "Année", services: "Services", previous: "Précédent", next: "Suivant" },

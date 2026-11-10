@@ -1,8 +1,8 @@
-import { listProjects } from "@/lib/portfolio";
+import { getProject, listProjects } from "@/lib/portfolio";
 import type { ProjectCard } from "@/lib/portfolio/types";
-import { BriefSeal } from "@/components/site/brief-seal";
 import { COLUMNS, LABEL, PAGE, SiteFooter } from "@/components/site/site-frame";
 import { SiteHeader } from "@/components/site/site-header";
+import { WorkBoard, type BoardPicture } from "@/components/site/work-board";
 import { WorkGrid } from "@/components/site/work-grid";
 import { cn } from "@/components/ui/primitives";
 import { HOME_COPY } from "@/lib/i18n/home";
@@ -20,6 +20,17 @@ export async function WorksPage({ locale }: { locale: Locale }) {
   const t = SITE_COPY[locale];
   const home = HOME_COPY[locale];
   const projects = await listProjects({ locale });
+  // Every picture each project shows (its cover, then its pictures in order), for the moodboard.
+  const pictures: BoardPicture[] = (await Promise.all(projects.map((p) => getProject(p.slug, locale)))).flatMap((project) => {
+    if (!project) return [];
+    const seen = new Set<string>();
+    const all = [project.cover, ...project.blocks.flatMap((b) => (b.type === "media" ? b.media : []))];
+    return all.flatMap((m) => {
+      if (!m || seen.has(m.id)) return [];
+      seen.add(m.id);
+      return [{ key: `${project.slug}-${m.id}`, media: m, slug: project.slug, title: project.title, href: localePath(locale, `/projects/${project.slug}`) }];
+    });
+  });
 
   const years = projects.map((p) => p.year).filter((y): y is number => Boolean(y));
   const [from, to] = [Math.min(...years), Math.max(...years)];
@@ -51,20 +62,21 @@ export async function WorksPage({ locale }: { locale: Locale }) {
           </h1>
         </section>
 
-        <WorkGrid
-          empty={t.works.empty}
-          items={projects.map((p) => ({
-            key: p.id,
-            href: localePath(locale, `/projects/${p.slug}`),
-            title: p.title,
-            meta: meta(p),
-            media: p.thumbnail ?? p.cover,
-          }))}
-        />
+        <WorkBoard pictures={pictures} locale={locale}>
+          <WorkGrid
+            empty={t.works.empty}
+            items={projects.map((p) => ({
+              key: p.id,
+              href: localePath(locale, `/projects/${p.slug}`),
+              title: p.title,
+              meta: meta(p),
+              media: p.thumbnail ?? p.cover,
+            }))}
+          />
+        </WorkBoard>
       </main>
 
       <SiteFooter />
-      <BriefSeal label={home.contact.cta} href={localePath(locale, "/start")} />
     </div>
   );
 }
