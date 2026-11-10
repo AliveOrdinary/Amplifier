@@ -149,7 +149,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
           {/* 8px between tiles, across and down, as on mubien.com. */}
           <div className="grid min-w-0 gap-2">
             {project.cover ? (
-              <div className="case-tile overflow-hidden rounded-[8px] bg-panel" style={{ aspectRatio: ratioOf(project.cover) }}>
+              <div className="case-tile overflow-hidden rounded-[16px] bg-panel" style={{ aspectRatio: ratioOf(project.cover) }}>
                 <Media media={project.cover} priority sizes="(min-width: 1024px) 80vw, 100vw" className="size-full! object-cover" />
               </div>
             ) : null}
@@ -158,7 +158,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
               // Joined: no gap and no curve where pictures meet; the piece keeps its outer corners.
               const joined = stack.length > 1 || stack[0].join;
               return (
-                <div key={stack[0].id} className={cn("grid", joined ? "overflow-hidden rounded-[8px]" : "gap-2")}>
+                <div key={stack[0].id} className={cn("grid", joined ? "overflow-hidden rounded-[16px]" : "gap-2")}>
                   {stack.map((row) => (
                     <div key={row.id} id={row.marker ?? undefined} className={cn("flex flex-col lg:flex-row lg:items-start", !joined && "gap-2")}>
                       {row.media.map((m) => (
@@ -168,7 +168,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
                           // Side by side, each takes width by its proportions so the row lines up top and bottom.
                           className={cn(
                             "case-tile min-w-0 overflow-hidden bg-panel lg:[flex:var(--r)_1_0]",
-                            !joined && "rounded-[8px]",
+                            !joined && "rounded-[16px]",
                             row.scroll && "overflow-y-auto",
                           )}
                           style={{ aspectRatio: row.scroll ? "16 / 9" : ratioOf(m), "--r": row.scroll ? 16 / 9 : ratioOf(m) } as CSSProperties}
@@ -188,7 +188,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
             {trailing ? <div id={trailing} className="-mt-2" /> : null}
 
             {credits.length ? (
-              <dl className="case-tile grid gap-7 rounded-[8px] bg-panel px-6 py-8 sm:grid-cols-3 sm:gap-x-10 sm:px-10 sm:py-12">
+              <dl className="case-tile grid gap-7 rounded-[16px] bg-panel px-6 py-8 sm:grid-cols-3 sm:gap-x-10 sm:px-10 sm:py-12">
                 {credits.map((c) => (
                   <div key={c.k}>
                     <dt className="text-[17px] leading-[1.4]">{c.k}</dt>
@@ -205,7 +205,7 @@ export async function ProjectPage({ slug, locale }: { slug: string; locale: Loca
             <div className="px-1 pb-2 font-mono text-[11px] tracking-[0.08em] text-muted uppercase sm:col-span-2">{t.project.more}</div>
             {more.map((n) => (
               <Link key={n.slug} href={href(n.slug)} className="group block">
-                <div className="case-tile aspect-[3/2] overflow-hidden rounded-[8px] bg-panel">
+                <div className="case-tile aspect-[3/2] overflow-hidden rounded-[16px] bg-panel">
                   {n.media ? <Media media={n.media} sizes="(min-width: 640px) 50vw, 100vw" aspect="3 / 2" className="size-full! object-cover" /> : null}
                 </div>
                 <div className="flex justify-between gap-4 px-1 pt-3.5 text-[17px]">

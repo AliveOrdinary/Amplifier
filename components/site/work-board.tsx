@@ -70,7 +70,7 @@ export function WorkBoard({ pictures, projects, locale, children }: { pictures: 
         <ul key={deal} className="columns-2 gap-2 px-2 lg:columns-4">
           {ranked.map((p, i) => (
             <li key={p.key} className="work-board-pic mb-2 break-inside-avoid" style={{ "--i": i } as CSSProperties}>
-              <Link href={p.href} className="group relative block overflow-hidden rounded-[8px] bg-panel" aria-label={p.title}>
+              <Link href={p.href} className="group relative block overflow-hidden rounded-[16px] bg-panel" aria-label={p.title}>
                 <Media media={p.media} sizes="(min-width: 1024px) 25vw, 50vw" />
                 <span className="pointer-events-none absolute bottom-2.5 left-2.5 rounded-[4px] bg-paper/70 px-2 py-1.5 text-[13px] leading-none opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                   {p.title}
