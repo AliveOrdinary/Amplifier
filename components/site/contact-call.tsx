@@ -143,7 +143,8 @@ export function ContactCall({
     <div
       ref={root}
       id="brief"
-      className="relative isolate flex h-svh scroll-mt-0 max-h-[960px] min-h-[640px] flex-col items-center justify-center overflow-hidden text-center"
+      className="relative isolate flex h-svh scroll-mt-0 max-h-[960px] min-h-[640px] flex-col items-center justify-center overflow-hidden pt-[12vh] text-center"
+      // pt: the heading and body sit a little below the middle of the screen.
       style={{ "--p": 1 } as CSSProperties}
     >
       {Array.from({ length: count }, (_, i) => {
