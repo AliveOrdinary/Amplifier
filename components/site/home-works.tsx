@@ -1,16 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import type { PortfolioMedia } from "@/lib/portfolio/types";
 import { LABEL, PAGE } from "@/components/site/site-frame";
 import { cn } from "@/components/ui/primitives";
 
-/** How long each picture shows before the next cuts in (as on studio1030.at). */
-const STEP_MS = 420;
-
 /**
- * Home, after studio1030.at: the work fills the screen, cutting from one
- * picture to the next on its own (no fade). Scrolling moves the whole
+ * Home, after studio1030.at: the work fills the screen, one cover held
+ * still (no auto swap). Scrolling moves the whole
  * slideshow up with the page, pixel for pixel, uncovering what sits
  * still underneath (`children`: the closing call).
  * One screen of scroll and it's gone; that's the end of the page. Stopping
@@ -19,14 +16,6 @@ const STEP_MS = 420;
  */
 export function HomeWorks({ pictures, hint, children }: { pictures: PortfolioMedia[]; hint: string; children: ReactNode }) {
   const stage = useRef<HTMLDivElement>(null);
-  const [shown, setShown] = useState(0);
-
-  // The cut: one picture after another, looping. Stays on the first for reduced motion.
-  useEffect(() => {
-    if (pictures.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const timer = window.setInterval(() => setShown((n) => (n + 1) % pictures.length), STEP_MS);
-    return () => window.clearInterval(timer);
-  }, [pictures.length]);
 
   // The lift follows the scroll; a scroll that stops partway settles.
   useEffect(() => {
@@ -62,8 +51,9 @@ export function HomeWorks({ pictures, hint, children }: { pictures: PortfolioMed
   return (
     <>
       <div ref={stage} data-seal-lift className="fixed inset-0 z-30 overflow-hidden bg-black will-change-transform">
-        {pictures.map((media, i) => (
-          <div key={`${media.id}-${i}`} className={cn("absolute inset-0", i === shown ? "visible" : "invisible")}>
+        {/* No auto swap: the first cover holds still. */}
+        {pictures.slice(0, 1).map((media, i) => (
+          <div key={`${media.id}-${i}`} className="absolute inset-0">
             {media.kind === "video" ? (
               <video src={media.url} className="size-full object-cover" autoPlay muted loop playsInline preload="metadata" />
             ) : (
