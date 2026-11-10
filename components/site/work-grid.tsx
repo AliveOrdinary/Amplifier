@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties, type RefObject } from "react";
 import type { PortfolioMedia } from "@/lib/portfolio/types";
 import { LABEL } from "@/components/site/site-frame";
 import { cn } from "@/components/ui/primitives";
@@ -21,49 +21,7 @@ export function WorkGrid({ items, empty }: { items: WorkItem[]; empty: string })
   const grid = useRef<HTMLUListElement>(null);
   const cursor = useRef<HTMLDivElement>(null);
 
-  // Reveal each cover once, as it comes into view.
-  useEffect(() => {
-    const cards = grid.current?.querySelectorAll<HTMLElement>("[data-work-card]");
-    if (!cards?.length) return;
-    if (!("IntersectionObserver" in window)) {
-      cards.forEach((c) => c.setAttribute("data-in", ""));
-      return;
-    }
-    const seen = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting) continue;
-          e.target.setAttribute("data-in", "");
-          seen.unobserve(e.target);
-        }
-      },
-      { rootMargin: "0px 0px -10% 0px" },
-    );
-    cards.forEach((c) => seen.observe(c));
-    return () => seen.disconnect();
-  }, [items.length]);
-
-  // The dot pointer over the grid.
-  useEffect(() => {
-    const area = grid.current;
-    const dot = cursor.current;
-    if (!area || !dot || !window.matchMedia("(pointer: fine)").matches) return;
-    const move = (e: PointerEvent) => {
-      dot.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
-      const over = e.target instanceof Element && e.target.closest("[data-work-media]");
-      dot.setAttribute("data-state", over ? "open" : "");
-    };
-    const enter = () => dot.setAttribute("data-on", "");
-    const leave = () => dot.removeAttribute("data-on");
-    area.addEventListener("pointermove", move);
-    area.addEventListener("pointerenter", enter);
-    area.addEventListener("pointerleave", leave);
-    return () => {
-      area.removeEventListener("pointermove", move);
-      area.removeEventListener("pointerenter", enter);
-      area.removeEventListener("pointerleave", leave);
-    };
-  }, []);
+  useWorkHover(grid, cursor, items.length);
 
   if (!items.length) return <p className="text-ink-soft">{empty}</p>;
 
@@ -86,11 +44,7 @@ export function WorkGrid({ items, empty }: { items: WorkItem[]; empty: string })
           </li>
         ))}
       </ul>
-      <div ref={cursor} aria-hidden data-state="" className="work-cursor">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M5 12h14M13 6l6 6-6 6" />
-        </svg>
-      </div>
+      <WorkCursor ref={cursor} />
     </>
   );
 }
@@ -102,4 +56,68 @@ function Cover({ media, eager }: { media: PortfolioMedia; eager?: boolean }) {
   }
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={media.url} alt={media.alt} loading={eager ? "eager" : "lazy"} decoding="async" className="work-cover" />;
+}
+
+/**
+ * The Work page's covers, wherever they're shown (the grid, the moodboard):
+ * each `[data-work-card]` inside `area` wipes up into view once, and over
+ * `area` the pointer is the dot that grows into an arrow on a picture
+ * (`[data-work-media]`). `key` changes when the set of pictures does.
+ */
+export function useWorkHover(area: RefObject<HTMLElement | null>, cursor: RefObject<HTMLDivElement | null>, key: unknown) {
+  // Reveal each cover once, as it comes into view.
+  useEffect(() => {
+    const cards = area.current?.querySelectorAll<HTMLElement>("[data-work-card]");
+    if (!cards?.length) return;
+    if (!("IntersectionObserver" in window)) {
+      cards.forEach((c) => c.setAttribute("data-in", ""));
+      return;
+    }
+    const seen = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          e.target.setAttribute("data-in", "");
+          seen.unobserve(e.target);
+        }
+      },
+      { rootMargin: "0px 0px -10% 0px" },
+    );
+    cards.forEach((c) => seen.observe(c));
+    return () => seen.disconnect();
+  }, [area, key]);
+
+  // The dot pointer.
+  useEffect(() => {
+    const el = area.current;
+    const dot = cursor.current;
+    if (!el || !dot || !window.matchMedia("(pointer: fine)").matches) return;
+    const move = (e: PointerEvent) => {
+      dot.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
+      const over = e.target instanceof Element && e.target.closest("[data-work-media]");
+      dot.setAttribute("data-state", over ? "open" : "");
+    };
+    const enter = () => dot.setAttribute("data-on", "");
+    const leave = () => dot.removeAttribute("data-on");
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerenter", enter);
+    el.addEventListener("pointerleave", leave);
+    return () => {
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerenter", enter);
+      el.removeEventListener("pointerleave", leave);
+      dot.removeAttribute("data-on");
+    };
+  }, [area, cursor, key]);
+}
+
+/** The dot that follows the pointer over the covers, an arrow inside for when it grows. */
+export function WorkCursor({ ref }: { ref: RefObject<HTMLDivElement | null> }) {
+  return (
+    <div ref={ref} aria-hidden data-state="" className="work-cursor">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M5 12h14M13 6l6 6-6 6" />
+      </svg>
+    </div>
+  );
 }

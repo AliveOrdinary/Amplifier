@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import type { PortfolioMedia } from "@/lib/portfolio/types";
 import { FADERS, FLAT_MIX, match, mixFor, type FaderKey, type Mix } from "@/lib/portfolio/channels";
 import { setMix, useMix } from "@/lib/portfolio/mix-store";
-import { Media } from "@/components/portfolio/media";
+import { WorkCursor, useWorkHover } from "@/components/site/work-grid";
 import { LABEL, PAGE } from "@/components/site/site-frame";
 import { cn } from "@/components/ui/primitives";
 import { HOME_COPY } from "@/lib/i18n/home";
@@ -65,18 +65,7 @@ export function WorkBoard({ pictures, locale, children }: { pictures: BoardPictu
       {!touched ? (
         children
       ) : ranked.length ? (
-        <ul key={deal} className="columns-2 gap-2 px-2 lg:columns-4">
-          {ranked.map((p, i) => (
-            <li key={p.key} className="work-board-pic mb-2 break-inside-avoid" style={{ "--i": i } as CSSProperties}>
-              <Link href={p.href} className="group relative block overflow-hidden rounded-[16px] bg-panel" aria-label={p.title}>
-                <Media media={p.media} sizes="(min-width: 1024px) 25vw, 50vw" />
-                <span className="pointer-events-none absolute bottom-2.5 left-2.5 rounded-[4px] bg-paper/70 px-2 py-1.5 text-[13px] leading-none opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                  {p.title}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <Board key={deal} pictures={ranked} />
       ) : (
         <p className={cn(PAGE, "py-24 text-center text-ink-soft")}>{copy.none}</p>
       )}
@@ -85,6 +74,44 @@ export function WorkBoard({ pictures, locale, children }: { pictures: BoardPictu
     </>
   );
 }
+
+/**
+ * The moodboard: the pictures in four columns (two on phones), each at its own
+ * proportions, with the Work grid's hover: they wipe up into view, the pointer
+ * is the dot that grows into an arrow, and a picture's top trims in.
+ */
+function Board({ pictures }: { pictures: BoardPicture[] }) {
+  const area = useRef<HTMLUListElement>(null);
+  const cursor = useRef<HTMLDivElement>(null);
+  useWorkHover(area, cursor, pictures.length);
+  return (
+    <>
+      <ul ref={area} className="work-grid columns-2 gap-2 px-2 lg:columns-4">
+        {pictures.map((p, i) => (
+          <li key={p.key} className="mb-2 break-inside-avoid">
+            <Link href={p.href} data-work-card className="work-card group block" style={{ "--delay": `${(i % 4) * 120}ms` } as CSSProperties} aria-label={p.title}>
+              <div data-work-media className="work-media relative overflow-hidden bg-panel" style={{ aspectRatio: ratioOf(p.media) }}>
+                {p.media.kind === "video" ? (
+                  <video src={p.media.url} className="work-cover" autoPlay muted loop playsInline preload="metadata" aria-label={p.media.alt || undefined} />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.media.url} alt={p.media.alt} loading={i < 8 ? "eager" : "lazy"} decoding="async" className="work-cover" />
+                )}
+                <span className="pointer-events-none absolute bottom-2.5 left-2.5 rounded-[4px] bg-paper/70 px-2 py-1.5 text-[13px] leading-none opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                  {p.title}
+                </span>
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <WorkCursor ref={cursor} />
+    </>
+  );
+}
+
+/** A picture's proportions; 4:3 until the file's size is known. */
+const ratioOf = (m: PortfolioMedia) => (m.width && m.height ? m.width / m.height : 4 / 3);
 
 /** The floating line: the four faders as words, each opening upward to its choices. */
 function MixLine({ pictures, locale }: { pictures: BoardPicture[]; locale: Locale }) {
