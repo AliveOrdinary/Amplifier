@@ -64,50 +64,59 @@ export function Desk({ projects, copy }: { projects: ProjectCard[]; copy: HomeCo
         <p className="rounded-[28px] border border-dashed border-rule-strong px-6 py-16 text-center text-ink-soft">{copy.empty}</p>
       )}
 
-      <div className="mt-2 rounded-[28px] border border-rule-strong p-5 sm:p-7">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className={cn(label, "text-muted")}>( {copy.mix} )</span>
-          <button
-            type="button"
-            onClick={() => setMix(FLAT_MIX)}
-            disabled={!touched}
-            className={cn(label, "h-10 rounded-full bg-ink px-5 text-paper transition-opacity hover:opacity-85 disabled:opacity-30")}
-          >
-            {copy.reset}
-          </button>
-        </div>
-        <div className="mt-6 grid gap-x-10 gap-y-7 sm:grid-cols-2 lg:grid-cols-4">
-          {FADERS.map(({ key }, i) => {
-            const f = { key, ...copy.faders[key] };
-            const v = mix[f.key];
-            const readout = v === 0 ? "0" : `${v > 0 ? "+" : "−"}${Math.abs(v)}`;
-            return (
-              <label key={f.key} className="flex flex-col gap-3">
-                <span className={cn(label, "flex justify-between")}>
-                  <span>
-                    ( {String(i + 1).padStart(2, "0")} ✺ {f.name} )
-                  </span>
-                  <span className={v ? "text-signal" : "text-muted"}>{readout}</span>
+      <MixPanel copy={copy} className="mt-2" />
+    </div>
+  );
+}
+
+/** "Mix to your taste": the four faders and Reset. The mix is shared (mix-store) with everything that listens. */
+export function MixPanel({ copy, className }: { copy: HomeCopy["desk"]; className?: string }) {
+  const mix = useMix();
+  const touched = FADERS.some((f) => mix[f.key] !== 0);
+  return (
+    <div className={cn("rounded-[28px] border border-rule-strong p-5 sm:p-7", className)}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className={cn(label, "text-muted")}>( {copy.mix} )</span>
+        <button
+          type="button"
+          onClick={() => setMix(FLAT_MIX)}
+          disabled={!touched}
+          className={cn(label, "h-10 rounded-full bg-ink px-5 text-paper transition-opacity hover:opacity-85 disabled:opacity-30")}
+        >
+          {copy.reset}
+        </button>
+      </div>
+      <div className="mt-6 grid gap-x-10 gap-y-7 sm:grid-cols-2 lg:grid-cols-4">
+        {FADERS.map(({ key }, i) => {
+          const f = { key, ...copy.faders[key] };
+          const v = mix[f.key];
+          const readout = v === 0 ? "0" : `${v > 0 ? "+" : "−"}${Math.abs(v)}`;
+          return (
+            <label key={f.key} className="flex flex-col gap-3">
+              <span className={cn(label, "flex justify-between")}>
+                <span>
+                  ( {String(i + 1).padStart(2, "0")} ✺ {f.name} )
                 </span>
-                <input
-                  type="range"
-                  min={-2}
-                  max={2}
-                  step={0.5}
-                  value={v}
-                  onChange={(e) => setMix((m) => ({ ...m, [f.key]: Number(e.target.value) }))}
-                  aria-label={`${f.name}: ${f.left} to ${f.right}`}
-                  className="fader"
-                  style={{ "--at": `${((v + 2) / 4) * 100}%` } as CSSProperties}
-                />
-                <span className="flex justify-between text-sm text-muted">
-                  <span>{f.left}</span>
-                  <span>{f.right}</span>
-                </span>
-              </label>
-            );
-          })}
-        </div>
+                <span className={v ? "text-signal" : "text-muted"}>{readout}</span>
+              </span>
+              <input
+                type="range"
+                min={-2}
+                max={2}
+                step={0.5}
+                value={v}
+                onChange={(e) => setMix((m) => ({ ...m, [f.key]: Number(e.target.value) }))}
+                aria-label={`${f.name}: ${f.left} to ${f.right}`}
+                className="fader"
+                style={{ "--at": `${((v + 2) / 4) * 100}%` } as CSSProperties}
+              />
+              <span className="flex justify-between text-sm text-muted">
+                <span>{f.left}</span>
+                <span>{f.right}</span>
+              </span>
+            </label>
+          );
+        })}
       </div>
     </div>
   );
