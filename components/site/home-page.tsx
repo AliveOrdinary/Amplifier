@@ -16,8 +16,8 @@ import { HomeWorks } from "./home-works";
 export async function HomePage({ locale }: { locale: Locale }) {
   const t = HOME_COPY[locale];
   const [featured, all] = await Promise.all([featuredProjects(locale), allProjects(locale)]);
-  // Every project's tile and cover, in the studio's order.
-  const pictures = all.flatMap((p) => [p.thumbnail, p.cover].filter((m, i, list): m is NonNullable<typeof m> => Boolean(m) && list.findIndex((x) => x?.id === m!.id) === i));
+  // One picture per project: its cover, in the studio's order.
+  const pictures = all.flatMap((p) => (p.cover ? [p.cover] : []));
 
   return (
     <div className="site flex-1" lang={locale}>

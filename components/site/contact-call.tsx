@@ -87,7 +87,10 @@ export function ContactCall({
       const start = vh * 0.45;
       const end = vh - box.height - (box.top - label);
       const atBottom = window.scrollY + vh >= document.documentElement.scrollHeight - 2;
-      const raw = atBottom ? 1 : (start - label) / Math.max(1, start - end);
+      // Home's lifting slideshow: the call stays put underneath, so deal out as the work lifts away
+      // (in step with the seal travelling into its spot) rather than leaving the stack showing.
+      const lifting = document.querySelector("[data-seal-lift]");
+      const raw = lifting ? window.scrollY / vh : atBottom ? 1 : (start - label) / Math.max(1, start - end);
       const p = still.matches ? 1 : Math.min(1, Math.max(0, raw));
       const ease = 1 - (1 - p) ** 3;
       el.style.setProperty("--p", String(ease));
