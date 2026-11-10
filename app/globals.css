@@ -250,6 +250,52 @@ body:has([data-workspace]) .studio-header-row {
   }
 }
 
+/* The opening greetings in Noto Sans: one design for Latin, Devanagari, Malayalam, Tamil, Telugu
+   and Arabic. Each file holds only its greeting's letters (public/fonts/greet, OFL). Shown only once
+   loaded, so a greeting never flashes in a fallback font. */
+@font-face {
+  font-family: "Greet";
+  src: url("/fonts/greet/NotoSans-hello.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: block;
+  unicode-range: U+0000-024F;
+}
+@font-face {
+  font-family: "Greet";
+  src: url("/fonts/greet/NotoSansDevanagari-hello.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: block;
+  unicode-range: U+0900-097F, U+200C-200D;
+}
+@font-face {
+  font-family: "Greet";
+  src: url("/fonts/greet/NotoSansMalayalam-hello.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: block;
+  unicode-range: U+0D00-0D7F, U+200C-200D;
+}
+@font-face {
+  font-family: "Greet";
+  src: url("/fonts/greet/NotoSansTamil-hello.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: block;
+  unicode-range: U+0B80-0BFF;
+}
+@font-face {
+  font-family: "Greet";
+  src: url("/fonts/greet/NotoSansTelugu-hello.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: block;
+  unicode-range: U+0C00-0C7F;
+}
+@font-face {
+  font-family: "Greet";
+  src: url("/fonts/greet/NotoSansArabic-hello.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: block;
+  unicode-range: U+0600-06FF, U+FE70-FEFF;
+}
+
 /* The opening greetings (components/site/preloader.tsx). */
 .preloader {
   position: fixed;
@@ -268,7 +314,7 @@ html[data-greeted] .preloader {
 }
 .preloader-word {
   grid-area: 1 / 1;
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: "Greet", var(--font-geist-sans), system-ui, sans-serif;
   font-weight: 700;
   font-size: clamp(56px, 9vw, 120px);
   letter-spacing: -0.02em;
