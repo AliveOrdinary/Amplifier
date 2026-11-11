@@ -6,7 +6,7 @@ export default async function SettingsLayout({ children }: LayoutProps<"/studio/
   const member = await getMember();
   return (
     <PageContainer>
-      <PageHeader eyebrow={<Mono>{member.studioName}</Mono>} title="Settings" />
+      <PageHeader eyebrow={<Mono>{member.studioName} studio</Mono>} title="Settings" />
       <SettingsTabs />
       {children}
     </PageContainer>

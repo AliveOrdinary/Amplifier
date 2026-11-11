@@ -166,8 +166,9 @@ export function ProjectEditor({ project }: { project: EditorProject }) {
             htmlFor="p-slug"
             hint={project.published ? "Changing it breaks links people already have." : "Follows the name until you change it."}
           >
-            <div className="flex items-stretch">
-              <span className="flex items-center border border-r-0 border-rule-strong px-3 font-mono text-sm text-muted">/projects/</span>
+            {/* One field, with the fixed part of the address inside it. */}
+            <div className="flex h-11 items-center rounded-xl border border-rule-strong focus-within:border-ink">
+              <span className="pl-3.5 font-mono text-sm text-muted">/projects/</span>
               <Input
                 id="p-slug"
                 value={form.slug}
@@ -175,7 +176,7 @@ export function ProjectEditor({ project }: { project: EditorProject }) {
                   setSlugLinked(false);
                   set("slug", e.target.value.toLowerCase().replace(/\s+/g, "-"));
                 }}
-                className="font-mono text-sm"
+                className="h-full rounded-none border-0 pl-0 font-mono text-sm focus:border-0"
                 spellCheck={false}
               />
             </div>

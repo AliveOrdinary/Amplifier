@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { processQueue } from "@/lib/library/score-queue";
+import { finishUnfinished } from "@/lib/library/unfinished";
 
 export const maxDuration = 300;
 
@@ -9,7 +10,8 @@ const BUDGET_MS = 240_000;
 
 /**
  * Once a day (vercel.json, around 09:00 UTC): read back finished scoring
- * batches and send anything still waiting, for every studio. A safety net:
+ * batches, send anything still waiting, and retry images whose adding was
+ * cut off part-way (lib/library/unfinished.ts), for every studio. A safety net:
  * the library, the rubric page and board imports already do this whenever
  * someone is around. Vercel calls it with `Authorization: Bearer CRON_SECRET`.
  */
@@ -21,18 +23,25 @@ export async function GET(request: NextRequest) {
 
   const started = Date.now();
   const db = createAdminClient();
-  const [queued, open] = await Promise.all([
+  const [queued, open, unfinished] = await Promise.all([
     db.from("score_queue").select("studio_id"),
     db.from("score_batches").select("studio_id").is("ended_at", null),
+    db.from("images").select("studio_id").is("display_path", null).is("add_error", null),
   ]);
-  const studios = [...new Set([...(queued.data ?? []), ...(open.data ?? [])].map((r) => r.studio_id as string))];
+  const studios = [
+    ...new Set([...(queued.data ?? []), ...(open.data ?? []), ...(unfinished.data ?? [])].map((r) => r.studio_id as string)),
+  ];
 
   const results: Record<string, unknown> = {};
   for (const studio of studios) {
+    // First, so anything it finishes joins this run's batches.
+    await finishUnfinished(db, studio, { deadline: started + BUDGET_MS / 2 }).catch((error) =>
+      console.error("daily retry of stranded images failed", studio, error),
+    );
     // A few rounds: each reads back up to three batches and sends up to two.
     for (let round = 0; round < 5 && Date.now() - started < BUDGET_MS; round++) {
       try {
-        const r = await processQueue(db, studio, { force: true });
+        const r = await processQueue(db, studio, { force: true, budgetMs: Math.max(30_000, BUDGET_MS - (Date.now() - started)) });
         results[studio] = r;
         if (!r.applied && !r.submitted) break;
       } catch (error) {

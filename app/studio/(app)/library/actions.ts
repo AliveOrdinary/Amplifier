@@ -1,11 +1,8 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { after } from "next/server";
 import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { processQueue } from "@/lib/library/score-queue";
 import { MEDIUM_KEYS, clampScore } from "@/lib/library/constants";
 import {
   assertAcceptable,
@@ -17,15 +14,13 @@ import {
   type IngestResult,
 } from "@/lib/library/pipeline";
 import { fetchRemoteImage, RemoteFetchError } from "@/lib/library/fetch-remote";
+import { resetUnfinished } from "@/lib/library/unfinished";
 import { scoreImage } from "@/lib/library/score";
-import { embedByIds, embeddingsEnabled, similarImages } from "@/lib/library/embed";
+import { embeddingsEnabled, similarImages } from "@/lib/library/embed";
 import {
   getImages,
-  getImagesSince,
-  libraryCounts,
   libraryPage,
   pickImages,
-  type LibraryCounts,
   type PickOptions,
   type LibraryFilters,
   type PageCursor,
@@ -105,6 +100,27 @@ export async function finishUpload(imageId: string): Promise<AddResult> {
   }
 }
 
+/** Try again to add an image that gave up part-way (lib/library/unfinished.ts). */
+export async function retryAdd(imageId: string): Promise<AddResult> {
+  const member = await getMember();
+  try {
+    const db = await createClient();
+    const { data: image } = await db
+      .from("images")
+      .select("collection")
+      .eq("id", imageId)
+      .eq("studio_id", member.studioId)
+      .maybeSingle();
+    if (!image) throw new IngestError("That image no longer exists.");
+    await resetUnfinished(db, imageId);
+    // Board imports go back to batch scoring; anything added by hand is scored now.
+    const board = image.collection !== null;
+    return await withImage(db, await finishImage(db, imageId, undefined, { queue: board, autoApprove: board }));
+  } catch (error) {
+    return fail(error);
+  }
+}
+
 /** Cancel a reserved upload that never arrived. */
 export async function abandonUpload(imageId: string) {
   const member = await getMember();
@@ -127,28 +143,6 @@ export async function addFromLink(url: string): Promise<AddResult> {
       pageUrl: remote.pageUrl,
     });
     return await withImage(db, result);
-  } catch (error) {
-    return fail(error);
-  }
-}
-
-/** New images (from the extension or a phone) and updates to ones still being scored. */
-export async function pollImages(
-  since: string,
-  pendingIds: string[],
-): Promise<{ ok: true; images: LibraryImage[]; counts: LibraryCounts } | Fail> {
-  const member = await getMember();
-  // While someone has the library open, read back finished scoring batches and send waiting images.
-  after(() => processQueue(createAdminClient(), member.studioId).catch((err) => console.error("queue processing failed", err)));
-  try {
-    const db = await createClient();
-    const [fresh, updated, counts] = await Promise.all([
-      getImagesSince(db, member.studioId, since, 100),
-      getImages(db, pendingIds.slice(0, 50)),
-      libraryCounts(db, member.studioId),
-    ]);
-    const byId = new Map([...updated, ...fresh].map((image) => [image.id, image]));
-    return { ok: true, images: [...byId.values()], counts };
   } catch (error) {
     return fail(error);
   }
@@ -299,35 +293,6 @@ export async function deleteImage(imageId: string): Promise<{ ok: true } | Fail>
 }
 
 /* --------------------------------------------------------------- Similarity */
-
-/**
- * Embed a few images added before embeddings existed (or whose embedding
- * failed earlier). The library calls this quietly in a loop when it opens.
- */
-export async function embedMissing(): Promise<{ ok: true; remaining: number } | Fail> {
-  const member = await getMember();
-  try {
-    if (!embeddingsEnabled()) return { ok: true, remaining: 0 };
-    const db = await createClient();
-    const missing = () =>
-      db
-        .from("images")
-        .select("id", { count: "exact" })
-        .eq("studio_id", member.studioId)
-        .is("embedding", null)
-        .or("embed_error.is.null,embed_error.like.Voyage returned 429*")
-        .not("thumb_path", "is", null)
-        .order("created_at")
-        .limit(8);
-    const { data, error } = await missing();
-    if (error) throw new Error(error.message);
-    await embedByIds(db, (data ?? []).map((r) => r.id as string), member.studioId);
-    const { count } = await missing();
-    return { ok: true, remaining: count ?? 0 };
-  } catch (error) {
-    return fail(error);
-  }
-}
 
 /** Images that look most like this one, closest first. */
 export async function findSimilar(imageId: string): Promise<{ ok: true; ids: string[] } | Fail> {

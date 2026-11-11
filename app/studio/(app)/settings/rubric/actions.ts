@@ -4,10 +4,11 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { MAX_DIMENSIONS } from "@/lib/library/constants";
 import { dimensionKey, listDimensions } from "@/lib/library/rubric";
 import { scoreImage } from "@/lib/library/score";
-import { enqueue, submitQueued } from "@/lib/library/score-queue";
+import { enqueue, processQueue } from "@/lib/library/score-queue";
 
 type Fail = { ok: false; error: string };
 const fail = (error: unknown): Fail => ({
@@ -237,7 +238,8 @@ export async function queueStale(): Promise<{ ok: true; queued: number } | Fail>
       );
       queued += stale.length;
     }
-    await submitQueued(db, member.studioId, { force: true });
+    // Send the first of them now (one run at a time; the rest go with the next run).
+    await processQueue(createAdminClient(), member.studioId, { force: true, budgetMs: 60_000 });
     refresh();
     return { ok: true, queued };
   } catch (error) {

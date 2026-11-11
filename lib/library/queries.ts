@@ -6,7 +6,7 @@ const URL_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
 const RENEW_BEFORE_MS = 24 * 60 * 60 * 1000;
 
 const COLUMNS =
-  "id, status, medium, description, width, height, thumb_path, display_path, thumb_url, display_url, urls_expire_at, source_url, page_url, collection, review_reason, original_name, score_error, scored_at, created_at, image_scores ( dimension, score, source, confidence, needs_check )";
+  "id, status, medium, description, width, height, thumb_path, display_path, thumb_url, display_url, urls_expire_at, source_url, page_url, collection, review_reason, original_name, score_error, add_error, scored_at, created_at, image_scores ( dimension, score, source, confidence, needs_check )";
 
 type Row = {
   id: string;
@@ -26,6 +26,7 @@ type Row = {
   review_reason: string | null;
   original_name: string | null;
   score_error: string | null;
+  add_error: string | null;
   scored_at: string | null;
   created_at: string;
   image_scores:
@@ -124,6 +125,7 @@ function toLibraryImage(r: Row): LibraryImage {
     scoreError: r.score_error,
     scored: Boolean(r.scored_at),
     ready: Boolean(r.display_path) && (Boolean(r.scored_at) || Boolean(r.score_error)),
+    stuck: !r.display_path && r.add_error !== null,
     createdAt: r.created_at,
     scores,
   };
@@ -171,18 +173,41 @@ export async function libraryPage(
   return { images, next: rows.length === limit && last ? { createdAt: last.created_at, id: last.id } : null };
 }
 
-export type LibraryCounts = { toReview: number; approved: number; scoring: number; toCheck: number; newest: string | null };
+export type LibraryCounts = {
+  toReview: number;
+  approved: number;
+  /** Still being added or scored. */
+  scoring: number;
+  toCheck: number;
+  newest: string | null;
+  /** Gave up being added after a few tries: shown on Review to retry or remove. */
+  stuck: number;
+  /** Not finished being added and due another try (lib/library/unfinished.ts). */
+  unfinished: number;
+};
 
 export async function libraryCounts(db: SupabaseClient, studioId: string): Promise<LibraryCounts> {
   const { data, error } = await db.rpc("library_counts", { p_studio: studioId });
   if (error) throw new Error(error.message);
-  const row = ((data ?? []) as { to_review: number; approved: number; scoring: number; to_check: number; newest: string | null }[])[0];
+  const row = (
+    (data ?? []) as {
+      to_review: number;
+      approved: number;
+      scoring: number;
+      to_check: number;
+      newest: string | null;
+      stuck?: number;
+      unfinished?: number;
+    }[]
+  )[0];
   return {
     toReview: row?.to_review ?? 0,
     approved: row?.approved ?? 0,
     scoring: row?.scoring ?? 0,
     toCheck: row?.to_check ?? 0,
     newest: row?.newest ?? null,
+    stuck: row?.stuck ?? 0,
+    unfinished: row?.unfinished ?? 0,
   };
 }
 
@@ -218,10 +243,42 @@ export async function scoringNow(db: SupabaseClient, studioId: string, limit = 5
     .is("collection", null)
     .is("scored_at", null)
     .is("score_error", null)
+    .is("add_error", null)
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw new Error(error.message);
   return toLibraryImages(db, (data ?? []) as unknown as Row[]);
+}
+
+/** An image that couldn't be added after a few tries. */
+export type StuckImage = {
+  id: string;
+  name: string | null;
+  /** The Pinterest pin or page it came from. */
+  pageUrl: string | null;
+  collection: string | null;
+  error: string;
+  createdAt: string;
+};
+
+export async function stuckImages(db: SupabaseClient, studioId: string): Promise<StuckImage[]> {
+  const { data, error } = await db
+    .from("images")
+    .select("id, original_name, page_url, source_url, collection, add_error, created_at")
+    .eq("studio_id", studioId)
+    .is("display_path", null)
+    .not("add_error", "is", null)
+    .order("created_at")
+    .limit(50);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    name: r.original_name as string | null,
+    pageUrl: (r.page_url ?? r.source_url) as string | null,
+    collection: r.collection as string | null,
+    error: r.add_error as string,
+    createdAt: r.created_at as string,
+  }));
 }
 
 export type Coverage = {

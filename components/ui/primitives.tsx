@@ -42,7 +42,7 @@ export function PageContainer({ children, className }: { children: ReactNode; cl
 
 /* ----------------------------------------------------------------- Buttons */
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "secondary" | "ghost" | "text";
 type Size = "md" | "sm";
 
 /** Pills, as on the public site. */
@@ -53,6 +53,8 @@ const variants: Record<Variant, string> = {
   primary: "bg-signal text-on-signal border border-signal font-medium hover:brightness-105",
   secondary: "bg-transparent text-ink border border-rule-strong hover:border-ink",
   ghost: "bg-transparent text-ink border border-transparent hover:bg-panel",
+  /** A plain word, no padding, so it lines up with the text around it: for actions in a row (Rename, Archive, Delete…). */
+  text: "bg-transparent text-ink border-0 underline-offset-4 decoration-rule-strong hover:underline",
 };
 
 const sizes: Record<Size, string> = {
@@ -61,7 +63,7 @@ const sizes: Record<Size, string> = {
 };
 
 export function buttonClass(variant: Variant = "secondary", size: Size = "md", className?: string) {
-  return cn(base, variants[variant], sizes[size], className);
+  return cn(base, variants[variant], sizes[size], variant === "text" && "rounded-none px-0", className);
 }
 
 export function Button({

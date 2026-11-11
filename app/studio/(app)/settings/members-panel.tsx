@@ -85,18 +85,18 @@ function MemberItem({
         <p className="truncate text-sm text-muted">{member.email}</p>
       </div>
       <Mono className="flex items-center gap-2">
-        {!member.joined ? <span aria-hidden className="size-1.5 bg-signal" /> : null}
+        {!member.joined ? <span aria-hidden className="size-1.5 rounded-full bg-signal" /> : null}
         {member.joined ? "Joined" : "Invited · not joined yet"}
       </Mono>
-      <div className="-ml-3 flex flex-wrap gap-1 sm:-mr-3 sm:ml-0">
+      <div className="flex flex-wrap gap-x-5">
         {!renaming ? (
-          <Button size="sm" variant="ghost" onClick={() => setRenaming(true)}>
+          <Button size="sm" variant="text" onClick={() => setRenaming(true)}>
             Rename
           </Button>
         ) : null}
         <Button
           size="sm"
-          variant="ghost"
+          variant="text"
           disabled={pending}
           onClick={() =>
             start(async () => {
@@ -111,7 +111,7 @@ function MemberItem({
         {!member.you ? (
           <Button
             size="sm"
-            variant="ghost"
+            variant="text"
             disabled={pending}
             className={confirm ? "text-danger" : undefined}
             onBlur={() => setConfirm(false)}

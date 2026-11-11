@@ -244,8 +244,15 @@ export async function prepareReport(briefId: string): Promise<{ ok: true } | Fai
 
 const Content = z.object({
   headline: z.string().trim().max(600),
+  reading: z
+    .object({
+      summary: z.string().trim().max(1200),
+      points: z.array(z.object({ title: z.string().trim().max(80), text: z.string().trim().max(800) })).max(6),
+      questions: z.array(z.string().trim().max(400)).max(8),
+    })
+    .optional(),
   contradictions: z
-    .array(z.object({ key: z.string(), line: z.string().trim().min(1).max(600), ask: z.string().trim().max(600) }))
+    .array(z.object({ key: z.string(), line: z.string().trim().min(1).max(600), ask: z.string().trim().max(600), tentative: z.boolean().optional() }))
     .max(12),
   directions: z.object({
     chose: z.array(z.string().trim().min(1).max(200)).max(8),

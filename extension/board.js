@@ -10,7 +10,8 @@
     return;
   }
 
-  const UPLOADS_AT_ONCE = 3;
+  // Two at a time: each pin is stored, checked for duplicates and embedded, which is heavy for the database.
+  const UPLOADS_AT_ONCE = 2;
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const state = {

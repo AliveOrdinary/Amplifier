@@ -95,8 +95,8 @@ export function ExtensionKeys({ keys }: { keys: MemberKey[] }) {
                 <Mono suppressHydrationWarning>Last used {date(key.last_used_at)}</Mono>
                 <Button
                   size="sm"
-                  variant="ghost"
-                  className="-mr-3 ml-auto"
+                  variant="text"
+                  className="ml-auto"
                   onClick={async () => {
                     const result = await revokeExtensionKey(key.id);
                     if (!result.ok) setError(result.error);
@@ -119,7 +119,7 @@ export function ExtensionKeys({ keys }: { keys: MemberKey[] }) {
 
       <div>
         <h3 className="text-[17px] font-medium">From your phone (Android)</h3>
-        <p className="mt-2 max-w-[60ch] text-[15px] leading-relaxed text-ink-soft">
+        <p className="mt-3 max-w-[60ch] text-[15px] leading-relaxed text-ink-soft">
           Open this studio in Chrome on Android and choose Add to home screen. Amplifier then appears in the share
           sheet: share an image or a Pinterest pin to it. iPhones don&apos;t allow web apps in the share sheet, so on an
           iPhone copy the link and paste it into the link field in the Library.
