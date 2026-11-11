@@ -245,9 +245,13 @@ export async function buildScoreRequest(
   only?: string[] | null,
   /** For a batch: a signed link to the image, which Claude fetches itself. */
   link?: string,
+  /** A picture that isn't in the library (scorePicture), already read. */
+  given?: Anthropic.Messages.ImageBlockParam["source"],
 ): Promise<ScoreRequest> {
   let source: Anthropic.Messages.ImageBlockParam["source"];
-  if (link) {
+  if (given) {
+    source = given;
+  } else if (link) {
     source = { type: "url", url: link };
   } else {
     const { data: image, error } = await db.from("images").select("id, display_path").eq("id", imageId).single();
@@ -402,4 +406,30 @@ export async function scoreImage(db: SupabaseClient, imageId: string, { only }: 
   }
   await recordClaude(db, { studioId: image.studio_id as string, kind: "score", model: message.model, usage: message.usage, images: 1 });
   return applyScores(db, request, readAnswer(message));
+}
+
+/**
+ * Score a picture that isn't in the library (a portfolio image) on the whole
+ * rubric, with the same anchors and corrections, and hand the scores back
+ * without saving anything. `webp`: the picture, sized for Claude.
+ */
+export async function scorePicture(db: SupabaseClient, context: ScoringContext, webp: Buffer): Promise<Record<string, number>> {
+  const keys = context.dimensions.map((d) => d.key);
+  const source = { type: "base64" as const, media_type: "image/webp" as const, data: webp.toString("base64") };
+  let request = await buildScoreRequest(db, "", context, keys, undefined, source);
+  let message;
+  try {
+    message = await anthropic().messages.create(request.params);
+  } catch (err) {
+    // A bad reference image shouldn't stop scoring.
+    if (!context.references.length || !(err instanceof Anthropic.BadRequestError)) throw err;
+    console.warn("Scoring without references:", err.message);
+    request = await buildScoreRequest(db, "", { ...context, references: [] }, keys, undefined, source);
+    message = await anthropic().messages.create(request.params);
+  }
+  await recordClaude(db, { studioId: context.studioId, kind: "score", model: message.model, usage: message.usage, images: 1 });
+  const parsed = resultSchema(keys, false).safeParse(readAnswer(message));
+  if (!parsed.success) throw new Error("Claude's answer couldn't be read.");
+  const scores = parsed.data.scores as Record<string, { score: number }>;
+  return Object.fromEntries(keys.map((key) => [key, clampScore(scores[key].score)]));
 }

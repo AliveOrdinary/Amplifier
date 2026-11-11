@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { ProjectCard } from "@/lib/portfolio/types";
-import { FADERS, FLAT_MIX, match, mixFor } from "@/lib/portfolio/channels";
+import { FADERS, FLAT_MIX, match, mixOf } from "@/lib/portfolio/channels";
 import { setMix, useMix } from "@/lib/portfolio/mix-store";
 import { cn } from "@/components/ui/primitives";
 import type { HomeCopy } from "@/lib/i18n/home";
@@ -22,7 +22,7 @@ export function Desk({ projects, copy }: { projects: ProjectCard[]; copy: HomeCo
   const channels = projects.map((p, i) => ({
     project: p,
     ch: String(i + 1).padStart(2, "0"),
-    level: match(mix, mixFor(p.slug)),
+    level: match(mix, mixOf(p.scores)),
   }));
   const solo = touched && channels.length ? channels.reduce((a, b) => (b.level > a.level ? b : a)) : null;
   return (

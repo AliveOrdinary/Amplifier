@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties } from "react";
-import { FADERS, match, mixFor } from "@/lib/portfolio/channels";
+import { FADERS, match, mixOf } from "@/lib/portfolio/channels";
 import { useMix } from "@/lib/portfolio/mix-store";
 import type { ProjectCard } from "@/lib/portfolio/types";
 
@@ -55,14 +55,14 @@ export function ContactCall({
 
   const art = projects.flatMap((p) => {
     const m = p.thumbnail ?? p.cover;
-    return m ? [{ media: m, slug: p.slug }] : [];
+    return m ? [{ media: m, slug: p.slug, scores: p.scores }] : [];
   }).slice(0, SLOTS.length);
   const count = art.length;
 
   // Lay the work out by the desk's mix: the closest match gets the biggest, nearest place.
   const mix = useMix();
   const touched = FADERS.some((f) => mix[f.key] !== 0);
-  const levels = art.map((a) => match(mix, mixFor(a.slug)));
+  const levels = art.map((a) => match(mix, mixOf(a.scores)));
   const ranked = levels.map((_, i) => i).sort((a, b) => levels[b] - levels[a]);
   const slotOf = art.map((_, i) => (touched ? ranked.indexOf(i) : DEFAULT_SLOTS[i]));
   const layout = useRef({ slotOf, levels, touched });

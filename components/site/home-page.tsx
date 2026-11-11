@@ -82,9 +82,10 @@ const sample = (slug: string, title: string, service: string, year: number, url:
   services: [service],
   summary: null,
   featured: true,
-  cover: url ? { id: `${slug}-cover`, kind: "image", url, width: null, height: null, alt: title, caption: null, hasAudio: false } : null,
+  cover: url ? { id: `${slug}-cover`, kind: "image", url, width: null, height: null, alt: title, caption: null, hasAudio: false, scores: null } : null,
   thumbnail: null,
   publishedAt: null,
+  scores: null,
 });
 
 const SAMPLE: ProjectCard[] = [
