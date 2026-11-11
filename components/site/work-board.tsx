@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { PortfolioMedia } from "@/lib/portfolio/types";
-import { FADERS, FLAT_MIX, match, mixOf, type FaderKey, type Mix } from "@/lib/portfolio/channels";
+import { FADERS, FLAT_MIX, fits, mixOf, type FaderKey, type Mix } from "@/lib/portfolio/channels";
 import { setMix, useMix } from "@/lib/portfolio/mix-store";
 import { WorkCursor, useWorkHover } from "@/components/site/work-grid";
 import { LABEL, PAGE } from "@/components/site/site-frame";
@@ -16,7 +16,11 @@ export type FaderLabels = Partial<Record<FaderKey, { left: string; right: string
 
 export type BoardPicture = { key: string; media: PortfolioMedia; slug: string; title: string; href: string };
 
-/** How close a picture has to sit to the mix to make the board (1 = exactly there). */
+/**
+ * How close a picture has to sit to the words that were set to make the board
+ * (1 = exactly there). At this, one word alone takes pictures at least half a
+ * step onto its side.
+ */
 const CUTOFF = 0.62;
 /** How long the mix rests before the board redraws. */
 const SETTLE_MS = 220;
@@ -25,7 +29,7 @@ const STEPS = [-2, 0, 2] as const;
 
 const rank = (pictures: BoardPicture[], mix: Mix) =>
   pictures
-    .map((p, i) => ({ p, i, fit: match(mix, mixOf(p.media.scores)) }))
+    .map((p, i) => ({ p, i, fit: fits(mix, mixOf(p.media.scores)) }))
     .filter((x) => x.fit >= CUTOFF)
     .sort((a, b) => b.fit - a.fit || a.i - b.i)
     .map((x) => x.p);

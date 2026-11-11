@@ -54,5 +54,18 @@ export function match(mix: Mix, project: Mix | null) {
   return Math.max(0, 1 - distance / furthest);
 }
 
+/**
+ * How well a picture fits the Work page's line, 0…1. Unlike `match`, a word
+ * left on "either" (0) asks for nothing, so only the words that were set
+ * count: with "Playful" alone, a picture's density doesn't matter. 0 when the
+ * picture isn't scored or nothing is set.
+ */
+export function fits(mix: Mix, picture: Mix | null) {
+  const set = FADERS.map((f) => f.key).filter((k) => mix[k] !== 0);
+  if (!picture || !set.length) return 0;
+  const distance = Math.sqrt(set.reduce((sum, k) => sum + (mix[k] - picture[k]) ** 2, 0));
+  return Math.max(0, 1 - distance / Math.sqrt(set.length * 16));
+}
+
 /** Desk slots: channels in use, then empty ones up to this many. */
 export const DESK_SLOTS = 5;

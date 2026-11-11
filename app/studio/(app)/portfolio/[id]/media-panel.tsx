@@ -38,7 +38,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 type ScoreRun = { state: "idle" } | { state: "running"; done: number; total: number } | { state: "failed"; error: string };
 
 /**
- * Has Claude place the project's pictures on the rubric, a few per request
+ * Has Claude score the project's pictures on the rubric, a few per request
  * (portfolio/score/route.ts), until none are waiting. The page refreshes
  * after each round, so scores appear as they land.
  */
@@ -170,12 +170,12 @@ export function MediaPanel({ project, blocks, faders }: { project: EditorProject
           <div className="min-w-0">
             <p className="text-[15px]">
               {run.state === "running"
-                ? `Placing pictures on the rubric: ${run.done} of ${run.total}`
+                ? `Scoring pictures: ${run.done} of ${run.total}`
                 : unscored
-                  ? `${plural(unscored, "picture isn't", "pictures aren't")} on the Work page's mix yet`
+                  ? `${plural(unscored, "picture isn't", "pictures aren't")} scored for the Work page's mix yet`
                   : failed
-                    ? `Claude couldn't place ${plural(failed, "picture", "pictures")}`
-                    : "Every picture is placed for the Work page's mix"}
+                    ? `Claude couldn't score ${plural(failed, "picture", "pictures")}`
+                    : "Every picture is scored for the Work page's mix"}
             </p>
             <p className="mt-0.5 text-sm text-muted">
               {run.state === "failed"
@@ -186,7 +186,7 @@ export function MediaPanel({ project, blocks, faders }: { project: EditorProject
           <div className="flex items-center gap-4">
             {unscored && run.state !== "running" ? (
               <Button size="sm" onClick={() => void start(unscored)}>
-                Place {plural(unscored, "picture", "pictures")}
+                Score {plural(unscored, "picture", "pictures")}
               </Button>
             ) : null}
             {failed && run.state !== "running" ? (
@@ -373,12 +373,12 @@ function MixRows({
     return (
       <p className="text-sm text-muted">
         {m.scoreError
-          ? `Claude couldn't place it: ${m.scoreError}`
+          ? `Claude couldn't score it: ${m.scoreError}`
           : m.kind === "video"
-            ? "Takes the average of this project's pictures once they're placed."
+            ? "Takes the average of this project's pictures once they're scored."
             : scoring
-              ? "Being placed…"
-              : "Not on the mix yet."}
+              ? "Being scored…"
+              : "Not scored for the mix yet."}
       </p>
     );
   }
