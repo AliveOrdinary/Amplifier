@@ -201,7 +201,7 @@ export function ProjectEditor({ project, faders }: { project: EditorProject; fad
       <Section
         number="02"
         title="Images and video"
-        description="Everything for this project. Pick the cover (top of the case study) and, if it should differ, the thumbnail (its tile on Home and Works) here; choose what the case study shows below. Claude places each picture on the rubric for the Work page's mix, and you can correct it."
+        description="Everything for this project. Pick the cover (top of the case study) and, if it should differ, the thumbnail (its tile on Home and Works) here; choose what the case study shows below. Claude scores each picture on the rubric for the Work page's mix, and you can correct it."
       >
         <MediaPanel project={project} blocks={form.blocks} faders={faders} />
       </Section>
