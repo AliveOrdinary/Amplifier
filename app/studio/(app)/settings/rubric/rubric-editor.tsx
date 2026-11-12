@@ -160,7 +160,7 @@ function RescoreBar({ stale, rescoring, toCheck }: { stale: number; rescoring: n
     <div className="flex flex-col gap-3">
       {count || running ? (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-rule-strong px-5 py-3.5">
-          <span aria-hidden className="size-2 shrink-0 bg-signal" />
+          <span aria-hidden className="size-2 shrink-0 rounded-full bg-signal" />
           <p className="min-w-0 flex-1 text-[15px]" aria-live="polite">
             {running && !background
               ? `Rescoring… ${count} ${count === 1 ? "image" : "images"} left. Keep this page open.`
@@ -185,14 +185,14 @@ function RescoreBar({ stale, rescoring, toCheck }: { stale: number; rescoring: n
       ) : null}
       {rescoring && !count && !message ? (
         <p className="flex flex-wrap items-center gap-x-3 text-sm text-ink-soft">
-          <span aria-hidden className="size-1.5 rounded-full bg-signal" />
+          <span aria-hidden className="size-1.5 rounded-full rounded-full bg-signal" />
           {rescoring} {rescoring === 1 ? "image is" : "images are"} being rescored in the background.
         </p>
       ) : null}
       {message && !running ? <p className="text-sm text-ink-soft">{message}</p> : null}
       {toCheck ? (
         <p className="flex flex-wrap items-center gap-x-3 text-sm text-ink-soft">
-          <span aria-hidden className="size-1.5 rounded-full bg-signal" />
+          <span aria-hidden className="size-1.5 rounded-full rounded-full bg-signal" />
           {toCheck} of your corrections were made before a definition changed.
           <Link href="/studio/library/browse?check=1" className="text-ink underline underline-offset-2">
             Check them
@@ -273,7 +273,7 @@ function DimensionCard({
               <Button size="sm" variant="ghost" aria-label="Move down" disabled={last || pending} onClick={() => act(() => moveDimension(dimension.key, 1))}>
                 ↓
               </Button>
-              <Button size="sm" variant="ghost" disabled={pending} onClick={() => act(() => retireDimension(dimension.key, true))}>
+              <Button size="sm" variant="text" className="ml-3" disabled={pending} onClick={() => act(() => retireDimension(dimension.key, true))}>
                 Retire
               </Button>
             </div>

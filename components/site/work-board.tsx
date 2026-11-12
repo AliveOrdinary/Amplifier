@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { PortfolioMedia } from "@/lib/portfolio/types";
-import { FADERS, FLAT_MIX, match, mixFor, type FaderKey, type Mix } from "@/lib/portfolio/channels";
+import { FADERS, FLAT_MIX, fits, mixOf, type FaderKey, type Mix } from "@/lib/portfolio/channels";
 import { setMix, useMix } from "@/lib/portfolio/mix-store";
 import { WorkCursor, useWorkHover } from "@/components/site/work-grid";
 import { LABEL, PAGE } from "@/components/site/site-frame";
@@ -11,9 +11,16 @@ import { cn } from "@/components/ui/primitives";
 import { HOME_COPY } from "@/lib/i18n/home";
 import { SITE_COPY, type Locale } from "@/lib/i18n/site";
 
+/** The ends of a fader, by key, as the rubric names them (lib/portfolio faderLabels). */
+export type FaderLabels = Partial<Record<FaderKey, { left: string; right: string }>>;
+
 export type BoardPicture = { key: string; media: PortfolioMedia; slug: string; title: string; href: string };
 
-/** How close a picture has to sit to the mix to make the board (1 = exactly there). */
+/**
+ * How close a picture has to sit to the words that were set to make the board
+ * (1 = exactly there). At this, one word alone takes pictures at least half a
+ * step onto its side.
+ */
 const CUTOFF = 0.62;
 /** How long the mix rests before the board redraws. */
 const SETTLE_MS = 220;
@@ -22,7 +29,7 @@ const STEPS = [-2, 0, 2] as const;
 
 const rank = (pictures: BoardPicture[], mix: Mix) =>
   pictures
-    .map((p, i) => ({ p, i, fit: match(mix, mixFor(p.slug)) }))
+    .map((p, i) => ({ p, i, fit: fits(mix, mixOf(p.media.scores)) }))
     .filter((x) => x.fit >= CUTOFF)
     .sort((a, b) => b.fit - a.fit || a.i - b.i)
     .map((x) => x.p);
@@ -35,9 +42,21 @@ const rank = (pictures: BoardPicture[], mix: Mix) =>
  * geometric". Each word opens upward to its three choices; picking one end
  * turns the projects into one moodboard of every picture close to the mix,
  * closest first. A choice that would leave the board empty is greyed out.
- * A picture sits where its project sits on the faders (lib/portfolio/channels).
+ * A picture sits where the studio's rubric puts it: Claude's scores with the
+ * studio's corrections (Studio › Portfolio). One not scored yet stays off the board.
  */
-export function WorkBoard({ pictures, locale, children }: { pictures: BoardPicture[]; locale: Locale; children: ReactNode }) {
+export function WorkBoard({
+  pictures,
+  locale,
+  labels,
+  children,
+}: {
+  pictures: BoardPicture[];
+  locale: Locale;
+  /** The faders' ends as the studio's rubric names them, where they differ from the site's copy. */
+  labels: FaderLabels;
+  children: ReactNode;
+}) {
   // Looked up here: the copy has functions in it, which can't be handed over from the server.
   const copy = SITE_COPY[locale].works.board;
   const live = useMix();
@@ -70,7 +89,7 @@ export function WorkBoard({ pictures, locale, children }: { pictures: BoardPictu
         <p className={cn(PAGE, "py-24 text-center text-ink-soft")}>{copy.none}</p>
       )}
 
-      <MixLine pictures={pictures} locale={locale} />
+      <MixLine pictures={pictures} locale={locale} labels={labels} />
     </>
   );
 }
@@ -114,9 +133,10 @@ function Board({ pictures }: { pictures: BoardPicture[] }) {
 const ratioOf = (m: PortfolioMedia) => (m.width && m.height ? m.width / m.height : 4 / 3);
 
 /** The floating line: the four faders as words, each opening upward to its choices. */
-function MixLine({ pictures, locale }: { pictures: BoardPicture[]; locale: Locale }) {
+function MixLine({ pictures, locale, labels }: { pictures: BoardPicture[]; locale: Locale; labels: FaderLabels }) {
   const copy = SITE_COPY[locale].works.board;
-  const faders = HOME_COPY[locale].desk.faders;
+  const written = HOME_COPY[locale].desk.faders;
+  const faders = Object.fromEntries(FADERS.map((f) => [f.key, { ...written[f.key], ...labels[f.key] }])) as typeof written;
   const mix = useMix();
   const [open, setOpen] = useState<FaderKey | null>(null);
   const box = useRef<HTMLDivElement>(null);

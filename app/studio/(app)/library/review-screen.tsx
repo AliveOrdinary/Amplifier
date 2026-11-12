@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { mediumLabel } from "@/lib/library/constants";
 import type { LibraryImage } from "@/lib/library/types";
 import { Mono, buttonClass, cn } from "@/components/ui/primitives";
+import { ScoringSummary } from "./scoring-status";
+import { StuckImages } from "./stuck-images";
 import { useLibrary } from "./library-provider";
 import { ImageStage, ScorePanel, SecondaryActions, hotkeyIndex, isTypingTarget } from "./editor";
 import { AddControls } from "./library-chrome";
@@ -15,7 +17,7 @@ import { AddControls } from "./library-chrome";
  * dimmed, so you can step back to them.
  */
 export function ReviewScreen() {
-  const { images, counts, dimensions, jobs, decide, setScore } = useLibrary();
+  const { images, counts, dimensions, jobs, stuck, decide, setScore } = useLibrary();
 
   const [reviewed, setReviewed] = useState<Set<string>>(() => new Set());
   const queue = useMemo(
@@ -25,9 +27,9 @@ export function ReviewScreen() {
         .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)),
     [images, reviewed],
   );
-  const scoring = Math.max(counts.scoring, images.filter((i) => !i.ready).length) + jobs.filter((j) => j.state === "uploading").length;
+  const scoring = Math.max(counts.scoring, images.filter((i) => !i.ready && !i.stuck).length) + jobs.filter((j) => j.state === "uploading").length;
   const pending = queue.filter((i) => i.status === "pending");
-  const hasLibrary = images.length > 0 || counts.approved > 0 || counts.scoring > 0;
+  const hasLibrary = images.length > 0 || counts.approved > 0 || counts.scoring > 0 || stuck.length > 0;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Once nothing is pending, show the caught-up screen; Undo brings the image back.
@@ -95,11 +97,13 @@ export function ReviewScreen() {
           <h2 className="text-2xl font-medium">{hasLibrary ? "All caught up" : "Start your library"}</h2>
           <p className="mt-2 max-w-md text-[15px] text-ink-soft">
             {scoring
-              ? `${scoring} ${scoring === 1 ? "image is" : "images are"} being scored. Images you add appear here; board imports go straight to the library unless one needs a look.`
+              ? "Images you add appear here once they're scored; board imports go straight to the library unless one needs a look."
               : hasLibrary
                 ? "Nothing is waiting for review. Add more images below."
                 : "Add reference images: Claude scores each one, then you check the scores here."}
           </p>
+          {stuck.length ? <StuckImages className="mt-8 w-full border-t border-rule pt-6 text-left" /> : null}
+          {scoring ? <ScoringSummary scoring={scoring} className="mt-8 w-full border-t border-rule pt-6 text-left" /> : null}
           <div className="mt-8 w-full">
             <AddControls large />
           </div>
@@ -120,11 +124,11 @@ export function ReviewScreen() {
     <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[264px_minmax(0,1fr)_420px]">
       {/* Queue */}
       <aside className="flex min-h-0 flex-col border-rule max-lg:border-b lg:border-r">
-        <div className="flex justify-between px-4 pt-3.5 pb-2.5">
+        <div className="flex justify-between px-4 pt-4 pb-3">
           <Mono>To review</Mono>
           <Mono>{pending.length ? `${position >= 0 ? position + 1 : "–"} / ${pending.length}` : "Done"}</Mono>
         </div>
-        <ul ref={listRef} className="flex min-h-0 flex-1 gap-1 overflow-auto max-lg:px-4 max-lg:pb-3 lg:flex-col lg:gap-0">
+        <ul ref={listRef} className="flex min-h-0 flex-1 gap-2 overflow-auto max-lg:px-4 max-lg:pt-1 max-lg:pb-4 lg:flex-col lg:gap-0">
           {queue.map((image) => {
             const active = image.id === current.id;
             const done = image.status !== "pending";
@@ -142,7 +146,7 @@ export function ReviewScreen() {
                   <span
                     className={cn(
                       "relative block size-14 shrink-0 overflow-hidden rounded-lg bg-panel lg:size-[52px]",
-                      active && "max-lg:outline max-lg:outline-2 max-lg:outline-signal",
+                      active && "max-lg:ring-2 max-lg:ring-signal max-lg:ring-offset-2 max-lg:ring-offset-paper",
                       done && "opacity-40",
                     )}
                   >
@@ -160,10 +164,14 @@ export function ReviewScreen() {
             );
           })}
         </ul>
+        {stuck.length ? (
+          <div className="max-h-[40%] overflow-y-auto border-t border-rule px-4 py-3 max-lg:hidden">
+            <StuckImages compact />
+          </div>
+        ) : null}
         {scoring ? (
           <div className="border-t border-rule px-4 py-3 max-lg:hidden">
-            <Mono>Being scored · {scoring}</Mono>
-            <p className="mt-1 text-xs text-muted">Joins the end of the queue when ready. Board imports skip it unless flagged.</p>
+            <ScoringSummary scoring={scoring} compact />
           </div>
         ) : null}
       </aside>
@@ -171,8 +179,9 @@ export function ReviewScreen() {
       {/* Image */}
       <section aria-label="Image" className="flex min-h-0 flex-col p-4 lg:p-6">
         <ImageStage image={current} className="min-h-[320px] flex-1" />
-        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 pt-3">
-          <p className="min-w-0 flex-1 text-[15px] text-ink-soft">{current.description ?? current.name}</p>
+        {/* On a phone the description gets the full width, with the labels on their own line. */}
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 pt-4">
+          <p className="w-full min-w-0 text-[15px] leading-relaxed text-ink-soft lg:w-auto lg:flex-1">{current.description ?? current.name}</p>
           <Mono>{mediumLabel(current.medium)}</Mono>
           {current.width && current.height ? (
             <Mono>
@@ -180,9 +189,9 @@ export function ReviewScreen() {
             </Mono>
           ) : null}
         </div>
-        {current.scoreError ? <p className="mt-1 text-sm text-danger">Scoring failed: {current.scoreError}</p> : null}
+        {current.scoreError ? <p className="mt-2 text-sm text-danger">Scoring failed: {current.scoreError}</p> : null}
         {current.reviewReason && !current.scoreError ? (
-          <p className="mt-1 text-sm text-ink-soft">Flagged on import: {current.reviewReason}.</p>
+          <p className="mt-2 text-sm text-ink-soft">Flagged on import: {current.reviewReason}.</p>
         ) : null}
       </section>
 

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import type { EditorProject, StudioMedia } from "@/lib/portfolio/studio";
 import type { StoredBlock } from "@/lib/portfolio/types";
 import { IMAGE_TYPES, VIDEO_TYPES } from "@/lib/portfolio/blocks";
 import { Button, Mono, cn } from "@/components/ui/primitives";
-import { deleteMedia, setCover, setThumbnail, updateMedia } from "../actions";
+import { deleteMedia, setCover, setMediaScore, setThumbnail, updateMedia } from "../actions";
 import { fileSize as size, uploadFile } from "../upload";
 
 const ACCEPT = [...IMAGE_TYPES, ...VIDEO_TYPES].join(",");
@@ -27,15 +28,76 @@ export function Thumb({ media, className }: { media: StudioMedia; className?: st
   );
 }
 
+/** One of the Work page's faders, named by the rubric. */
+export type MixFader = { key: string; left: string; right: string };
+
+const STEPS = [-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2];
+const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "0");
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+type ScoreRun = { state: "idle" } | { state: "running"; done: number; total: number } | { state: "failed"; error: string };
+
+/**
+ * Has Claude score the project's pictures on the rubric, a few per request
+ * (portfolio/score/route.ts), until none are waiting. The page refreshes
+ * after each round, so scores appear as they land.
+ */
+function useScoring(projectId: string) {
+  const router = useRouter();
+  const [run, setRun] = useState<ScoreRun>({ state: "idle" });
+  const going = useRef(false);
+
+  const start = useCallback(
+    async (total: number, again?: "all" | "failed") => {
+      if (going.current || !total) return;
+      going.current = true;
+      let done = 0;
+      setRun({ state: "running", done, total });
+      try {
+        for (let round = 0; round < 40; round++) {
+          const response = await fetch("/studio/portfolio/score", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ projectId, again: round === 0 ? again : undefined }),
+          });
+          const r = (await response.json().catch(() => null)) as
+            | { ok: true; scored: number; failed: number; left: number }
+            | { ok: false; error: string }
+            | null;
+          if (!r?.ok) throw new Error(r?.error ?? "Couldn't score the pictures.");
+          done += r.scored + r.failed;
+          setRun({ state: "running", done, total: Math.max(total, done + r.left) });
+          router.refresh();
+          // Nothing left, or a round that got nowhere (try again later rather than spin).
+          if (!r.left || !(r.scored + r.failed)) break;
+        }
+        setRun({ state: "idle" });
+      } catch (error) {
+        setRun({ state: "failed", error: error instanceof Error ? error.message : "Couldn't score the pictures." });
+        router.refresh();
+      } finally {
+        going.current = false;
+      }
+    },
+    [projectId, router],
+  );
+  return { run, start };
+}
+
 type Upload = { name: string; state: "waiting" | "uploading" | "done" | "failed"; error?: string };
 
-export function MediaPanel({ project, blocks }: { project: EditorProject; blocks: StoredBlock[] }) {
+export function MediaPanel({ project, blocks, faders }: { project: EditorProject; blocks: StoredBlock[]; faders: MixFader[] }) {
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const busy = uploads.some((u) => u.state === "waiting" || u.state === "uploading");
 
   const used = new Set(blocks.flatMap((b) => (b.type === "media" ? b.media : [])));
+
+  const pictures = project.media.filter((m) => m.kind === "image");
+  const unscored = pictures.filter((m) => !m.scored && !m.scoreError).length;
+  const failed = pictures.filter((m) => m.scoreError).length;
+  const { run, start } = useScoring(project.id);
 
   async function upload(files: File[]) {
     if (!files.length) return;
@@ -53,6 +115,9 @@ export function MediaPanel({ project, blocks }: { project: EditorProject; blocks
       }
     }
     setUploads((list) => list.filter((u) => u.state === "failed"));
+    // New pictures go straight to Claude, as in the library.
+    const added = files.filter((f) => f.type.startsWith("image/")).length;
+    if (added) void start(unscored + added);
   }
 
   return (
@@ -100,6 +165,44 @@ export function MediaPanel({ project, blocks }: { project: EditorProject; blocks
         </ul>
       ) : null}
 
+      {pictures.length && faders.length ? (
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-y border-rule py-3" role="status">
+          <div className="min-w-0">
+            <p className="text-[15px]">
+              {run.state === "running"
+                ? `Scoring pictures: ${run.done} of ${run.total}`
+                : unscored
+                  ? `${plural(unscored, "picture isn't", "pictures aren't")} scored for the Work page's mix yet`
+                  : failed
+                    ? `Claude couldn't score ${plural(failed, "picture", "pictures")}`
+                    : "Every picture is scored for the Work page's mix"}
+            </p>
+            <p className="mt-0.5 text-sm text-muted">
+              {run.state === "failed"
+                ? run.error
+                : "Claude scores each picture on your rubric; correct any score under its picture. Videos take the average of the project's pictures."}
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            {unscored && run.state !== "running" ? (
+              <Button size="sm" onClick={() => void start(unscored)}>
+                Score {plural(unscored, "picture", "pictures")}
+              </Button>
+            ) : null}
+            {failed && run.state !== "running" ? (
+              <Button size="sm" variant="text" onClick={() => void start(failed, "failed")}>
+                Try {failed === 1 ? "it" : "them"} again
+              </Button>
+            ) : null}
+            {!unscored && !failed && run.state !== "running" ? (
+              <Button size="sm" variant="text" onClick={() => void start(pictures.length, "all")}>
+                Score again
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {project.media.length ? (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-x-4 gap-y-6">
           {project.media.map((m) => (
@@ -110,6 +213,8 @@ export function MediaPanel({ project, blocks }: { project: EditorProject; blocks
               cover={project.coverId === m.id}
               thumbnail={project.thumbnailId === m.id}
               placed={used.has(m.id)}
+              faders={faders}
+              scoring={run.state === "running"}
             />
           ))}
         </ul>
@@ -124,6 +229,8 @@ function MediaTile({
   cover,
   thumbnail,
   placed,
+  faders,
+  scoring,
 }: {
   media: StudioMedia;
   projectId: string;
@@ -131,6 +238,9 @@ function MediaTile({
   /** Shown on the project's tile instead of the cover. */
   thumbnail: boolean;
   placed: boolean;
+  faders: MixFader[];
+  /** Claude is scoring this project's pictures now. */
+  scoring: boolean;
 }) {
   const [alt, setAlt] = useState(m.alt);
   const [confirm, setConfirm] = useState(false);
@@ -164,8 +274,8 @@ function MediaTile({
           <Thumb media={m} className="h-44" />
         )}
         <span className="absolute top-2 left-2 flex gap-1">
-          {cover ? <span className="bg-signal px-2 py-0.5 font-mono text-[11px] uppercase text-on-signal">Cover</span> : null}
-          {thumbnail ? <span className="bg-ink px-2 py-0.5 font-mono text-[11px] uppercase text-paper">Thumbnail</span> : null}
+          {cover ? <span className="rounded-full bg-signal px-2.5 py-0.5 font-mono text-[11px] uppercase text-on-signal">Cover</span> : null}
+          {thumbnail ? <span className="rounded-full bg-ink px-2.5 py-0.5 font-mono text-[11px] uppercase text-paper">Thumbnail</span> : null}
         </span>
       </div>
 
@@ -192,6 +302,8 @@ function MediaTile({
         </label>
       ) : null}
 
+      {faders.length ? <MixRows media={m} faders={faders} scoring={scoring} disabled={pending} onPick={(key, value) => run(() => setMediaScore(m.id, key, value))} /> : null}
+
       <div>
         <label htmlFor={`alt-${m.id}`} className="sr-only">
           Description for screen readers
@@ -206,26 +318,26 @@ function MediaTile({
         />
       </div>
 
-      <div className="-ml-3 flex flex-wrap">
+      <div className="flex flex-wrap gap-x-5">
         {cover ? null : (
-          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setCover(projectId, m.id))}>
+          <Button size="sm" variant="text" disabled={pending} onClick={() => run(() => setCover(projectId, m.id))}>
             Make cover
           </Button>
         )}
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setThumbnail(projectId, thumbnail ? null : m.id))}>
+        <Button size="sm" variant="text" disabled={pending} onClick={() => run(() => setThumbnail(projectId, thumbnail ? null : m.id))}>
           {thumbnail ? "Remove thumbnail" : "Make thumbnail"}
         </Button>
         {confirm ? (
           <>
-            <Button size="sm" variant="ghost" className="text-danger" disabled={pending} onClick={() => run(() => deleteMedia(m.id))}>
+            <Button size="sm" variant="text" className="text-danger" disabled={pending} onClick={() => run(() => deleteMedia(m.id))}>
               Delete for good
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>
+            <Button size="sm" variant="text" onClick={() => setConfirm(false)}>
               Keep
             </Button>
           </>
         ) : (
-          <Button size="sm" variant="ghost" onClick={() => setConfirm(true)}>
+          <Button size="sm" variant="text" onClick={() => setConfirm(true)}>
             Delete…
           </Button>
         )}
@@ -236,5 +348,87 @@ function MediaTile({
         </p>
       ) : null}
     </li>
+  );
+}
+
+/**
+ * Where a file sits on the Work page's four faders. Orange is Claude's score,
+ * white your correction (click a cell to set one, click it again to go back),
+ * grey a video's project average.
+ */
+function MixRows({
+  media: m,
+  faders,
+  scoring,
+  disabled,
+  onPick,
+}: {
+  media: StudioMedia;
+  faders: MixFader[];
+  scoring: boolean;
+  disabled: boolean;
+  onPick: (key: string, value: number | null) => void;
+}) {
+  if (!m.scores) {
+    return (
+      <p className="text-sm text-muted">
+        {m.scoreError
+          ? `Claude couldn't score it: ${m.scoreError}`
+          : m.kind === "video"
+            ? "Takes the average of this project's pictures once they're scored."
+            : scoring
+              ? "Being scored…"
+              : "Not scored for the mix yet."}
+      </p>
+    );
+  }
+  const inherited = m.kind === "video";
+  return (
+    <div className="flex flex-col" aria-label="Where it sits on the Work page's mix">
+      {faders.map((f) => {
+        const value = Math.round((m.scores?.[f.key] ?? 0) * 2) / 2;
+        const edited = f.key in m.scoreEdits;
+        return (
+          <div key={f.key} className="grid grid-cols-[4.4rem_minmax(0,1fr)_4.6rem] items-center gap-1.5 text-[12px] leading-none">
+            <span className={cn("truncate", value < 0 ? "text-ink" : "text-muted")}>{f.left}</span>
+            <div role="radiogroup" aria-label={`${f.left} to ${f.right}`} className="grid grid-cols-9">
+              {STEPS.map((step) => {
+                const on = value === step;
+                const side = step < 0 ? f.left : step > 0 ? f.right : "Balanced";
+                return (
+                  <button
+                    key={step}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    aria-label={`${signed(step)} ${side}`}
+                    title={on && edited ? "Your correction. Click to go back." : `${signed(step)} ${side}`}
+                    disabled={disabled}
+                    onClick={() => onPick(f.key, on && edited ? null : step)}
+                    className={cn(
+                      "h-6 bg-clip-content px-[1.5px] py-[5px] transition-colors",
+                      on
+                        ? edited
+                          ? "bg-ink"
+                          : inherited
+                            ? "bg-muted"
+                            : "bg-signal"
+                        : step === 0
+                          ? "bg-rule-strong/60 hover:bg-rule-strong"
+                          : "bg-rule/70 hover:bg-rule-strong",
+                    )}
+                  />
+                );
+              })}
+            </div>
+            <span className={cn("truncate text-right", value > 0 ? "text-ink" : "text-muted")}>{f.right}</span>
+          </div>
+        );
+      })}
+      <Mono className="mt-1 normal-case tracking-normal">
+        {inherited ? "Project average" : "Claude"}
+        {Object.keys(m.scoreEdits).length ? " · white: your correction" : ""}
+      </Mono>
+    </div>
   );
 }

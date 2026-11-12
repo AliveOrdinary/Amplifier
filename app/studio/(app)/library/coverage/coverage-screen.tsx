@@ -21,7 +21,7 @@ export function CoverageScreen({ coverage }: { coverage: Coverage }) {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <PageContainer className="mx-0 pt-2 sm:px-6">
+      <PageContainer className="max-w-none pt-2 sm:px-6">
         <Section
           number="01"
           title="Dimensions"
@@ -32,12 +32,12 @@ export function CoverageScreen({ coverage }: { coverage: Coverage }) {
           ) : (
             <>
               <p className="flex items-start gap-2 text-[15px]">
-                <span aria-hidden className="mt-1.5 size-2 shrink-0 bg-signal" />
+                <span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full bg-signal" />
                 {thin.length
                   ? `Under ${THIN_BIN} images: ${[...new Set(thin)].slice(0, 8).join(", ")}${thin.length > 8 ? ", and more" : ""}.`
                   : "Every bin has enough images."}
               </p>
-              <div className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-x-8 gap-y-8">
+              <div className="mt-6 grid grid-cols-2 gap-x-8 gap-y-8 md:grid-cols-4">
                 {dimensions.map((d) => (
                   <figure key={d.key} className="m-0">
                     <div

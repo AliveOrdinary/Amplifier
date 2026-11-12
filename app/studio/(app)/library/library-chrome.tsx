@@ -8,11 +8,13 @@ import { Button, Mono, cn } from "@/components/ui/primitives";
 import { useLibrary } from "./library-provider";
 import { isTypingTarget } from "./editor";
 import { PendingDot } from "../link-pending";
+import { ScoringChip, queuedCount } from "./scoring-status";
 
 /** Tabs on the left, adding images on the right. */
 export function LibraryBar() {
   const pathname = usePathname();
-  const { counts } = useLibrary();
+  const { counts, progress } = useLibrary();
+  const scoring = queuedCount(progress) > 0;
 
   const tabs = [
     { href: "/studio/library", label: "Review", count: counts.toReview },
@@ -44,8 +46,10 @@ export function LibraryBar() {
       </nav>
 
       <div className="ml-auto flex min-w-0 flex-[1_1_420px] items-center justify-end gap-2">
+        <ScoringChip />
         <UploadStatus />
-        <Mono className="hidden xl:inline">Drop or paste anywhere</Mono>
+        {/* While batches are out, their status takes this spot. */}
+        {scoring ? null : <Mono className="hidden xl:inline">Drop or paste anywhere</Mono>}
         <AddControls />
       </div>
     </div>

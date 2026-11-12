@@ -8,7 +8,7 @@ import { prepareReport, saveReport } from "../../actions";
 
 export type Thumb = { id: string; url: string | null; description: string | null };
 
-type Editable = Pick<ReportContent, "headline" | "contradictions" | "directions">;
+type Editable = Pick<ReportContent, "headline" | "reading" | "contradictions" | "directions">;
 
 const field =
   "w-full resize-y rounded-xl border border-rule-strong bg-transparent px-3 py-2 text-[16px] leading-snug text-ink focus:border-ink focus:outline-none";
@@ -36,6 +36,7 @@ export function ReportView({
   const router = useRouter();
   const saved: Editable = {
     headline: report.content.headline,
+    reading: report.content.reading,
     contradictions: report.content.contradictions,
     directions: report.content.directions,
   };
@@ -45,6 +46,8 @@ export function ReportView({
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const content = editing ? draft : saved;
+  /** Section numbers shift by one when the reading is there (older reports don't have it). */
+  const n = (i: number) => String(i + (content.reading ? 1 : 0)).padStart(2, "0");
 
   const save = () =>
     start(async () => {
@@ -66,6 +69,8 @@ export function ReportView({
 
   const setLine = (i: number, change: Partial<Editable["contradictions"][number]>) =>
     setDraft((d) => ({ ...d, contradictions: d.contradictions.map((c, j) => (j === i ? { ...c, ...change } : c)) }));
+  const setReading = (change: (r: NonNullable<Editable["reading"]>) => NonNullable<Editable["reading"]>) =>
+    setDraft((d) => (d.reading ? { ...d, reading: change(d.reading) } : d));
   const setDirection = (side: "chose" | "rejected", i: number, value: string) =>
     setDraft((d) => ({ ...d, directions: { ...d.directions, [side]: d.directions[side].map((l, j) => (j === i ? value : l)) } }));
 
@@ -88,7 +93,7 @@ export function ReportView({
             <p className="mt-3 text-sm text-muted">Prepared before the client finished. Regenerate once they have.</p>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           {editing ? (
             <>
               <Button variant="primary" onClick={save} disabled={pending}>
@@ -104,7 +109,7 @@ export function ReportView({
               <Button size="sm" onClick={regenerate} disabled={pending}>
                 Rewrite
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setConfirmRedo(false)}>
+              <Button size="sm" variant="text" onClick={() => setConfirmRedo(false)}>
                 Cancel
               </Button>
             </>
@@ -115,7 +120,7 @@ export function ReportView({
               </Button>
               <Button
                 size="sm"
-                variant="ghost"
+                variant="text"
                 disabled={pending}
                 onClick={() => (report.content.editedAt ? setConfirmRedo(true) : regenerate())}
               >
@@ -131,12 +136,87 @@ export function ReportView({
         ) : null}
       </div>
 
-      <Section number="01" title="Contradictions" description="Where their words and their choices disagree. Raise these first.">
+      {content.reading ? (
+        <Section number="01" title="What they're asking for" description="The client as a whole: the project, who it's for, what they named and how they describe it.">
+          {editing && draft.reading ? (
+            <div className="flex flex-col gap-3">
+              <textarea
+                aria-label="What they're asking for"
+                rows={4}
+                value={draft.reading.summary}
+                onChange={(e) => setReading((r) => ({ ...r, summary: e.target.value }))}
+                className={cn(field, "text-[18px]")}
+              />
+              {draft.reading.points.map((p, i) => (
+                <div key={i} className="flex flex-col gap-1.5">
+                  <Mono className="text-ink">{p.title}</Mono>
+                  <textarea
+                    aria-label={p.title}
+                    rows={2}
+                    value={p.text}
+                    onChange={(e) => setReading((r) => ({ ...r, points: r.points.map((q, j) => (j === i ? { ...q, text: e.target.value } : q)) }))}
+                    className={field}
+                  />
+                </div>
+              ))}
+              <Mono className="mt-2 text-ink">Questions for the meeting</Mono>
+              {draft.reading.questions.map((q, i) => (
+                <textarea
+                  key={i}
+                  aria-label="Question for the meeting"
+                  rows={2}
+                  value={q}
+                  onChange={(e) => setReading((r) => ({ ...r, questions: r.questions.map((x, j) => (j === i ? e.target.value : x)) }))}
+                  className={field}
+                />
+              ))}
+            </div>
+          ) : (
+            <>
+              <p className="max-w-3xl text-[20px] leading-snug">{content.reading.summary}</p>
+              {content.reading.points.length ? (
+                <dl className="mt-8 grid gap-x-10 gap-y-6 border-t border-rule pt-6 sm:grid-cols-2">
+                  {content.reading.points.map((p, i) => (
+                    <div key={i}>
+                      <dt>
+                        <Mono className="text-ink">{p.title}</Mono>
+                      </dt>
+                      <dd className="mt-1.5 text-[16px] leading-relaxed text-ink-soft">{p.text}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+              {content.reading.questions.length ? (
+                <div className="mt-8 border-t border-rule pt-6">
+                  <Mono className="text-ink">Questions for the meeting</Mono>
+                  <ul className="mt-3 flex flex-col gap-2.5">
+                    {content.reading.questions.map((q, i) => (
+                      <li key={i} className="flex items-baseline gap-2.5 text-[16px]">
+                        <span aria-hidden className="size-2 shrink-0 translate-y-[-1px] rounded-full bg-signal" />
+                        <span>{q}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </>
+          )}
+        </Section>
+      ) : null}
+
+      <Section
+        number={n(1)}
+        title="Contradictions"
+        description="Where what they said about the look and what they picked pull apart, and their story doesn't explain it."
+      >
         {content.contradictions.length ? (
           <ol className="flex flex-col">
             {content.contradictions.map((c, i) => (
               <li key={`${c.key}-${i}`} className="flex flex-wrap gap-x-6 gap-y-2 border-b border-rule py-5 first:pt-0 last:border-b-0">
-                <Mono className="w-40 shrink-0 pt-1.5 text-ink">{labels[c.key] ?? c.key}</Mono>
+                <div className="flex w-40 shrink-0 flex-col gap-1 pt-1.5">
+                  <Mono className="text-ink">{labels[c.key] ?? c.key}</Mono>
+                  {c.tentative ? <Mono title="Only a few pairs tested this. Check it rather than rely on it.">Early hint</Mono> : null}
+                </div>
                 <div className="min-w-0 flex-[1_1_380px]">
                   {editing ? (
                     <div className="flex flex-col gap-2">
@@ -155,7 +235,7 @@ export function ReportView({
                       <p className="text-[20px] leading-snug">{c.line}</p>
                       {c.ask ? (
                         <p className="mt-3 flex items-baseline gap-2.5 text-[16px]">
-                          <span aria-hidden className="size-2 shrink-0 translate-y-[-1px] bg-signal" />
+                          <span aria-hidden className="size-2 shrink-0 translate-y-[-1px] rounded-full bg-signal" />
                           <span>
                             <span className="font-medium">Ask:</span> {c.ask}
                           </span>
@@ -169,16 +249,16 @@ export function ReportView({
           </ol>
         ) : (
           <p className="text-[16px] text-ink-soft">
-            None worth raising: what they said and what they chose point the same way. Use the profile below to confirm it in the meeting.
+            None worth raising: what they said about the look and what they chose point the same way, or their story explains the difference. Use the profile below to confirm it in the meeting.
           </p>
         )}
       </Section>
 
-      <Section number="02" title="Taste profile" description="Their words against their choices, on each dimension of the rubric.">
+      <Section number={n(2)} title="Taste profile" description="Their words against their choices, on each dimension of the rubric.">
         {profile}
       </Section>
 
-      <Section number="03" title="Confident directions" description="What they kept choosing, and what they kept passing over.">
+      <Section number={n(3)} title="Confident directions" description="What they kept choosing, and what they kept passing over.">
         <div className="grid gap-10 sm:grid-cols-2">
           {(["chose", "rejected"] as const).map((side) => (
             <div key={side}>
@@ -211,12 +291,12 @@ export function ReportView({
         </div>
       </Section>
 
-      <Section number="04" title="Hesitations" description="Where they slowed down or changed their mind. Worth a gentle question.">
+      <Section number={n(4)} title="Hesitations" description="Where they slowed down or changed their mind. Worth a gentle question.">
         {hesitations}
       </Section>
 
       {moodboard ? (
-        <Section number="05" title="Starter moodboard" description="Their picks and close matches. Shape it here, then take it into Figma, FigJam or Claude Design.">
+        <Section number={n(5)} title="Starter moodboard" description="Their picks and close matches. Shape it here, then take it into Figma, FigJam or Claude Design.">
           {moodboard}
         </Section>
       ) : null}

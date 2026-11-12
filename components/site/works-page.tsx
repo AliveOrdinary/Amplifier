@@ -1,5 +1,5 @@
 import { CaseMotion } from "@/components/site/case-motion";
-import { getProject, listProjects } from "@/lib/portfolio";
+import { faderLabels, getProject, listProjects } from "@/lib/portfolio";
 import type { ProjectCard } from "@/lib/portfolio/types";
 import { COLUMNS, LABEL, PAGE, SiteFooter } from "@/components/site/site-frame";
 import { SiteHeader } from "@/components/site/site-header";
@@ -21,6 +21,8 @@ export async function WorksPage({ locale }: { locale: Locale }) {
   const t = SITE_COPY[locale];
   const home = HOME_COPY[locale];
   const projects = await listProjects({ locale });
+  // The rubric is written in English; the French keeps its own translations.
+  const labels = locale === "en" ? await faderLabels() : {};
   // Every picture each project shows (its cover, then its pictures in order), for the moodboard.
   const pictures: BoardPicture[] = (await Promise.all(projects.map((p) => getProject(p.slug, locale)))).flatMap((project) => {
     if (!project) return [];
@@ -64,7 +66,7 @@ export async function WorksPage({ locale }: { locale: Locale }) {
           </h1>
         </section>
 
-        <WorkBoard pictures={pictures} locale={locale}>
+        <WorkBoard pictures={pictures} locale={locale} labels={labels}>
           <WorkGrid
             empty={t.works.empty}
             items={projects.map((p) => ({

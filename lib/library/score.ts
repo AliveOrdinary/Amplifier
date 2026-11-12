@@ -116,24 +116,60 @@ function thumbData(url: string) {
   return data;
 }
 
+/**
+ * How long links sent in a batch stay valid. A batch can take up to 24 hours
+ * and Claude fetches each image when it gets to it, so a link has to outlive
+ * that with room to spare.
+ */
+export const BATCH_LINK_SECONDS = 3 * 24 * 60 * 60;
+
+/** Fresh signed links to library files, by path. */
+export async function signedLinks(db: SupabaseClient, paths: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(paths.filter(Boolean))];
+  if (!unique.length) return new Map();
+  const { data, error } = await db.storage.from("library").createSignedUrls(unique, BATCH_LINK_SECONDS);
+  if (error) throw new Error(`Couldn't make links to the images: ${error.message}`);
+  return new Map((data ?? []).flatMap((d) => (d.signedUrl && d.path ? [[d.path, d.signedUrl] as const] : [])));
+}
+
 /** Anchor images and past corrections, shown before the image to score. */
-async function referenceBlocks(dimensions: DimensionRow[], anchors: Anchor[], corrections: Correction[]): Promise<Block[]> {
+async function referenceBlocks(
+  db: SupabaseClient,
+  dimensions: DimensionRow[],
+  anchors: Anchor[],
+  corrections: Correction[],
+  links: boolean,
+): Promise<Block[]> {
   const blocks: Block[] = [];
   const label = new Map(dimensions.map((d) => [d.key, d]));
-  const data = new Map(
-    await Promise.all([...anchors.map((a) => a.url), ...corrections.map((c) => c.url)].map(async (url) => [url, await thumbData(url)] as const)),
-  );
-  const image = (url: string): Block | null => {
-    const base64 = data.get(url);
-    return base64 ? { type: "image", source: { type: "base64", media_type: "image/webp", data: base64 } } : null;
-  };
+
+  let image: (ref: { imageId: string; url: string }) => Block | null;
+  if (links) {
+    // For a batch: links Claude fetches itself (no downloading here, and a small request).
+    const ids = [...new Set([...anchors.map((a) => a.imageId), ...corrections.map((c) => c.imageId)])];
+    const { data: rows } = ids.length ? await db.from("images").select("id, thumb_path").in("id", ids) : { data: [] };
+    const pathOf = new Map((rows ?? []).map((r) => [r.id as string, r.thumb_path as string | null]));
+    const signed = await signedLinks(db, [...pathOf.values()].filter((p): p is string => Boolean(p)));
+    image = (ref) => {
+      const url = signed.get(pathOf.get(ref.imageId) ?? "");
+      return url ? { type: "image", source: { type: "url", url } } : null;
+    };
+  } else {
+    const data = new Map(
+      await Promise.all([...anchors.map((a) => a.url), ...corrections.map((c) => c.url)].map(async (url) => [url, await thumbData(url)] as const)),
+    );
+    image = (ref) => {
+      const base64 = data.get(ref.url);
+      return base64 ? { type: "image", source: { type: "base64", media_type: "image/webp", data: base64 } } : null;
+    };
+  }
 
   const anchorBlocks: Block[] = [];
   for (const d of dimensions) {
     for (const side of ["left", "right"] as const) {
       const images = anchors
         .filter((a) => a.dimension === d.key && a.side === side)
-        .map((a) => image(a.url))
+        .map((a) => image(a))
         .filter((b): b is Block => b !== null);
       if (!images.length) continue;
       anchorBlocks.push({ type: "text", text: `${d.key}, ${side === "left" ? `-2 ${d.left}` : `+2 ${d.right}`}:` }, ...images);
@@ -145,7 +181,7 @@ async function referenceBlocks(dimensions: DimensionRow[], anchors: Anchor[], co
 
   const correctionBlocks: Block[] = [];
   for (const c of corrections) {
-    const picture = image(c.url);
+    const picture = image(c);
     if (!picture) continue;
     const lines = c.scores
       .filter((s) => label.has(s.dimension))
@@ -176,7 +212,7 @@ export type ScoringContext = { studioId: string; dimensions: DimensionRow[]; ref
 export async function scoringContext(
   db: SupabaseClient,
   studioId: string,
-  { exclude }: { exclude?: string } = {},
+  { exclude, links = false }: { exclude?: string; /** Reference images as links, for batches. */ links?: boolean } = {},
 ): Promise<ScoringContext> {
   const dimensions = await listDimensions(db, studioId);
   if (!dimensions.length) throw new Error("The rubric has no dimensions. Add one in Settings › Rubric.");
@@ -185,7 +221,7 @@ export async function scoringContext(
     listAnchors(db, keys).then((list) => list.filter((a) => a.imageId !== exclude)),
     recentCorrections(db, studioId, keys, { exclude }),
   ]);
-  return { studioId, dimensions, references: await referenceBlocks(dimensions, anchors, corrections) };
+  return { studioId, dimensions, references: await referenceBlocks(db, dimensions, anchors, corrections, links) };
 }
 
 export type ScoreRequest = {
@@ -207,12 +243,23 @@ export async function buildScoreRequest(
   imageId: string,
   context: ScoringContext,
   only?: string[] | null,
+  /** For a batch: a signed link to the image, which Claude fetches itself. */
+  link?: string,
+  /** A picture that isn't in the library (scorePicture), already read. */
+  given?: Anthropic.Messages.ImageBlockParam["source"],
 ): Promise<ScoreRequest> {
-  const { data: image, error } = await db.from("images").select("id, display_path").eq("id", imageId).single();
-  if (error || !image?.display_path) throw new Error("The image hasn't been processed yet.");
-  const file = await db.storage.from("library").download(image.display_path);
-  if (file.error) throw new Error("Couldn't read the image for scoring.");
-  const data = Buffer.from(await file.data.arrayBuffer()).toString("base64");
+  let source: Anthropic.Messages.ImageBlockParam["source"];
+  if (given) {
+    source = given;
+  } else if (link) {
+    source = { type: "url", url: link };
+  } else {
+    const { data: image, error } = await db.from("images").select("id, display_path").eq("id", imageId).single();
+    if (error || !image?.display_path) throw new Error("The image hasn't been processed yet.");
+    const file = await db.storage.from("library").download(image.display_path);
+    if (file.error) throw new Error("Couldn't read the image for scoring.");
+    source = { type: "base64", media_type: "image/webp", data: Buffer.from(await file.data.arrayBuffer()).toString("base64") };
+  }
 
   const active = context.dimensions.map((d) => d.key);
   const keys = only ? active.filter((key) => only.includes(key)) : active;
@@ -232,7 +279,7 @@ export async function buildScoreRequest(
           role: "user",
           content: [
             ...context.references,
-            { type: "image", source: { type: "base64", media_type: "image/webp", data } },
+            { type: "image", source },
             {
               type: "text",
               text: full ? "Score this reference image." : `Score this reference image on ${keys.join(", ")} only.`,
@@ -359,4 +406,30 @@ export async function scoreImage(db: SupabaseClient, imageId: string, { only }: 
   }
   await recordClaude(db, { studioId: image.studio_id as string, kind: "score", model: message.model, usage: message.usage, images: 1 });
   return applyScores(db, request, readAnswer(message));
+}
+
+/**
+ * Score a picture that isn't in the library (a portfolio image) on the whole
+ * rubric, with the same anchors and corrections, and hand the scores back
+ * without saving anything. `webp`: the picture, sized for Claude.
+ */
+export async function scorePicture(db: SupabaseClient, context: ScoringContext, webp: Buffer): Promise<Record<string, number>> {
+  const keys = context.dimensions.map((d) => d.key);
+  const source = { type: "base64" as const, media_type: "image/webp" as const, data: webp.toString("base64") };
+  let request = await buildScoreRequest(db, "", context, keys, undefined, source);
+  let message;
+  try {
+    message = await anthropic().messages.create(request.params);
+  } catch (err) {
+    // A bad reference image shouldn't stop scoring.
+    if (!context.references.length || !(err instanceof Anthropic.BadRequestError)) throw err;
+    console.warn("Scoring without references:", err.message);
+    request = await buildScoreRequest(db, "", { ...context, references: [] }, keys, undefined, source);
+    message = await anthropic().messages.create(request.params);
+  }
+  await recordClaude(db, { studioId: context.studioId, kind: "score", model: message.model, usage: message.usage, images: 1 });
+  const parsed = resultSchema(keys, false).safeParse(readAnswer(message));
+  if (!parsed.success) throw new Error("Claude's answer couldn't be read.");
+  const scores = parsed.data.scores as Record<string, { score: number }>;
+  return Object.fromEntries(keys.map((key) => [key, clampScore(scores[key].score)]));
 }

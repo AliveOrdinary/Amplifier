@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Amplifier Library",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Add images to the Amplifier studio library: right-click any image, or import a whole Pinterest board.",
   "permissions": ["contextMenus", "storage", "notifications", "scripting", "activeTab"],
   "host_permissions": ["<all_urls>"],

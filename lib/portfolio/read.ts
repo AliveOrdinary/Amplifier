@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PORTFOLIO_BUCKET } from "./blocks";
+import { averageScores, type Scores } from "./channels";
 import type { Block, Locale, PortfolioMedia, Project, ProjectCard, ProjectFrench, StoredBlock } from "./types";
 
 /** Reading projects from the database into the shapes in ./types. Callers pick the client. */
@@ -19,6 +20,11 @@ export type MediaRow = {
   mime: string | null;
   sort: number;
   created_at: string;
+  /** Claude's scores and the studio's corrections (migration 19). */
+  scores: Scores | null;
+  score_edits: Scores | null;
+  scored_at: string | null;
+  score_error: string | null;
 };
 
 export type ProjectRow = {
@@ -76,14 +82,40 @@ export async function projectColumns(db: SupabaseClient) {
   return [BASE_COLUMNS, fr && "fr", thumb && "thumbnail_media_id"].filter(Boolean).join(", ");
 }
 export const MEDIA_COLUMNS =
-  "id, project_id, kind, storage_path, caption, has_audio, width, height, alt, bytes, mime, sort, created_at";
+  "id, project_id, kind, storage_path, caption, has_audio, width, height, alt, bytes, mime, sort, created_at, scores, score_edits, scored_at, score_error";
+
+type ScoreRow = Pick<MediaRow, "kind" | "scores" | "score_edits" | "scored_at">;
+
+/** A picture's own scores: Claude's with the studio's corrections on top. Null when it has neither. */
+export function ownScores(row: ScoreRow): Scores | null {
+  const edits = row.score_edits ?? {};
+  if (row.kind === "image" && row.scored_at) return { ...(row.scores ?? {}), ...edits };
+  return Object.keys(edits).length && row.kind === "image" ? edits : null;
+}
+
+/** Where a project sits: the average of its scored pictures. */
+export function projectScores(rows: ScoreRow[]): Scores | null {
+  return averageScores(rows.flatMap((r) => {
+    const own = ownScores(r);
+    return own ? [own] : [];
+  }));
+}
+
+/** What a file shows on the mix: a picture's own scores; a video's project average, with its corrections. */
+export function shownScores(row: ScoreRow, project: Scores | null): Scores | null {
+  if (row.kind === "image") return ownScores(row);
+  const edits = row.score_edits ?? {};
+  return project || Object.keys(edits).length ? { ...(project ?? {}), ...edits } : null;
+}
 
 export function mediaUrl(db: SupabaseClient, path: string) {
   return db.storage.from(PORTFOLIO_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
-export function toMedia(db: SupabaseClient, row: MediaRow): PortfolioMedia {
+/** `project`: its project's average, which a video takes (see shownScores). */
+export function toMedia(db: SupabaseClient, row: MediaRow, project: Scores | null = null): PortfolioMedia {
   return {
+    scores: shownScores(row, project),
     id: row.id,
     kind: row.kind,
     url: mediaUrl(db, row.storage_path),
@@ -109,7 +141,13 @@ function localMedia(media: PortfolioMedia, fr: ProjectFrench | null): PortfolioM
   return alt ? { ...media, alt } : media;
 }
 
-function toCard(row: ProjectRow, cover: PortfolioMedia | null, locale: Locale = "en", thumbnail: PortfolioMedia | null = null): ProjectCard {
+function toCard(
+  row: ProjectRow,
+  cover: PortfolioMedia | null,
+  locale: Locale = "en",
+  thumbnail: PortfolioMedia | null = null,
+  scores: Scores | null = null,
+): ProjectCard {
   const fr = french(row, locale);
   return {
     id: row.id,
@@ -123,6 +161,7 @@ function toCard(row: ProjectRow, cover: PortfolioMedia | null, locale: Locale = 
     cover: cover ? localMedia(cover, fr) : null,
     thumbnail: thumbnail ? localMedia(thumbnail, fr) : null,
     publishedAt: row.published_at,
+    scores,
   };
 }
 
@@ -156,15 +195,27 @@ export async function readCards(
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as unknown as ProjectRow[];
 
+  // Every file's scores (small), for where each project sits; the full row only for covers and thumbnails.
+  const averages = new Map<string, Scores | null>();
+  if (rows.length) {
+    const { data: scored, error: scoreError } = await db
+      .from("project_media")
+      .select("project_id, kind, scores, score_edits, scored_at")
+      .in("project_id", rows.map((r) => r.id));
+    if (scoreError) throw new Error(scoreError.message);
+    const byProject = Map.groupBy((scored ?? []) as (ScoreRow & { project_id: string })[], (m) => m.project_id);
+    for (const r of rows) averages.set(r.id, projectScores(byProject.get(r.id) ?? []));
+  }
+
   const fileIds = rows.flatMap((r) => [r.cover_media_id, r.thumbnail_media_id].filter((id): id is string => Boolean(id)));
   const files = new Map<string, PortfolioMedia>();
   if (fileIds.length) {
     const { data: media, error: mediaError } = await db.from("project_media").select(MEDIA_COLUMNS).in("id", fileIds);
     if (mediaError) throw new Error(mediaError.message);
-    for (const m of (media ?? []) as MediaRow[]) files.set(m.id, toMedia(db, m));
+    for (const m of (media ?? []) as MediaRow[]) files.set(m.id, toMedia(db, m, averages.get(m.project_id) ?? null));
   }
   const file = (id: string | null | undefined) => (id ? (files.get(id) ?? null) : null);
-  return rows.map((r) => toCard(r, file(r.cover_media_id), options.locale, file(r.thumbnail_media_id)));
+  return rows.map((r) => toCard(r, file(r.cover_media_id), options.locale, file(r.thumbnail_media_id), averages.get(r.id) ?? null));
 }
 
 /** One project by its address, with its blocks resolved and its neighbours. */
@@ -190,7 +241,8 @@ export async function readProject(
 
   const locale = options.locale ?? "en";
   const fr = french(row, locale);
-  const files = ((media ?? []) as MediaRow[]).map((m) => localMedia(toMedia(db, m), fr));
+  const average = projectScores((media ?? []) as MediaRow[]);
+  const files = ((media ?? []) as MediaRow[]).map((m) => localMedia(toMedia(db, m, average), fr));
   const byId = new Map(files.map((m) => [m.id, m]));
   const neighbours = (list ?? []) as unknown as { slug: string; title: string; fr?: ProjectFrench | null }[];
   const at = neighbours.findIndex((p) => p.slug === row.slug);
@@ -206,6 +258,7 @@ export async function readProject(
       row.cover_media_id ? (byId.get(row.cover_media_id) ?? null) : null,
       locale,
       row.thumbnail_media_id ? (byId.get(row.thumbnail_media_id) ?? null) : null,
+      average,
     ),
     blocks: resolveBlocks(row.blocks, byId, fr),
     media: files,

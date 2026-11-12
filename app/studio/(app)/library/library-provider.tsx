@@ -4,16 +4,16 @@ import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, 
 import { createClient } from "@/lib/supabase/client";
 import { ACCEPTED_TYPES, MAX_UPLOAD_BYTES, clampScore } from "@/lib/library/constants";
 import type { Dimension, ImageStatus, LibraryImage } from "@/lib/library/types";
-import type { Board, LibraryCounts } from "@/lib/library/queries";
+import type { Board, LibraryCounts, StuckImage } from "@/lib/library/queries";
+import type { ScoringProgress } from "@/lib/library/score-queue";
 import {
   abandonUpload,
   addFromLink,
   deleteImage,
-  embedMissing,
   finishUpload,
-  pollImages,
   prepareUpload,
   rescore,
+  retryAdd,
   saveScore,
   setMedium,
   setStatus,
@@ -37,8 +37,14 @@ type LibraryState = {
   images: LibraryImage[];
   /** Whole-library numbers for the tabs, refreshed as you work. */
   counts: LibraryCounts;
+  /** Where batch scoring (board imports, rubric changes) is up to. */
+  progress: ScoringProgress;
   /** Pinterest boards images were imported from. */
   boards: Board[];
+  /** Images that couldn't be added after a few tries. */
+  stuck: StuckImage[];
+  retryStuck: (image: StuckImage) => Promise<void>;
+  removeStuck: (image: StuckImage) => Promise<void>;
   /** Add images loaded elsewhere (a Browse page) so edits reach every screen. */
   remember: (images: LibraryImage[]) => void;
   /** The studio's active rubric, in order. */
@@ -66,23 +72,65 @@ export function useLibrary() {
   return value;
 }
 
+type PollResult =
+  | { ok: true; images: LibraryImage[]; counts: LibraryCounts; progress: ScoringProgress; stuck?: StuckImage[] }
+  | { ok: false };
+
+/** The library's refresh (a route, so it never holds up approvals; see library/refresh/route.ts). */
+async function pollLibrary(since: string, pending: string[]): Promise<PollResult> {
+  try {
+    const response = await fetch("/studio/library/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ since, pending }),
+    });
+    if (!response.ok) return { ok: false };
+    return (await response.json()) as PollResult;
+  } catch {
+    return { ok: false };
+  }
+}
+
+async function embedSome(): Promise<{ ok: true; remaining: number } | { ok: false }> {
+  try {
+    const response = await fetch("/studio/library/embed-missing", { method: "POST" });
+    if (!response.ok) return { ok: false };
+    return (await response.json()) as { ok: true; remaining: number };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/**
+ * Decisions made here, so a refresh that was already on its way (or a save
+ * still in flight) doesn't put an approved image back in the queue.
+ */
+type Decision = { status: ImageStatus; savedAt: number | null };
+
 const newest = (list: LibraryImage[], start: string) => list.reduce((max, i) => (i.createdAt > max ? i.createdAt : max), start);
 
 export function LibraryProvider({
   initialImages,
   initialCounts,
+  initialProgress,
+  initialStuck,
   boards,
   dimensions,
   children,
 }: {
   initialImages: LibraryImage[];
   initialCounts: LibraryCounts;
+  initialProgress: ScoringProgress;
+  initialStuck: StuckImage[];
   boards: Board[];
   dimensions: Dimension[];
   children: ReactNode;
 }) {
   const [images, setImages] = useState(initialImages);
   const [counts, setCounts] = useState(initialCounts);
+  const [progress, setProgress] = useState(initialProgress);
+  const [stuck, setStuck] = useState(initialStuck);
+  const openBatches = useRef(new Set(initialProgress.batches.map((b) => b.id)));
   const [jobs, setJobs] = useState<Job[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -259,23 +307,82 @@ export function LibraryProvider({
     imagesRef.current = images;
   }, [images]);
 
+  const jobsRef = useRef(jobs);
+  const progressRef = useRef(progress);
+  useEffect(() => {
+    jobsRef.current = jobs;
+    progressRef.current = progress;
+  }, [jobs, progress]);
+
+  const decisions = useRef(new Map<string, Decision>());
+  /** A refresh's copy of an image, with any decision made since it set out kept. */
+  const keepDecisions = useCallback((incoming: LibraryImage[], askedAt: number) => {
+    const now = Date.now();
+    for (const [id, d] of decisions.current) if (d.savedAt !== null && now - d.savedAt > 5 * 60_000) decisions.current.delete(id);
+    return incoming.map((image) => {
+      const d = decisions.current.get(image.id);
+      // Not saved yet, or saved after this refresh set out: what's on screen is newer.
+      return d && (d.savedAt === null || d.savedAt > askedAt) ? { ...image, status: d.status } : image;
+    });
+  }, []);
+
   // Anything added after the newest image when the page loaded is new.
   const since = useRef(initialCounts.newest ?? "1970-01-01T00:00:00Z");
   useEffect(() => {
-    const tick = async () => {
-      if (document.visibilityState !== "visible") return;
-      const current = imagesRef.current;
-      // Board imports are scored in batches and go straight to the library; no need to watch each one.
-      const pendingIds = current.filter((i) => !i.ready && !i.collection).map((i) => i.id);
-      const result = await pollImages(since.current, pendingIds);
-      if (!result.ok) return;
-      since.current = newest(result.images, since.current);
-      upsert(result.images);
-      setCounts(result.counts);
+    let busy = false;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Every 30 seconds while something is on its way (uploads, scoring); every
+    // 2 minutes otherwise, which is enough to pick up the extension's additions.
+    // The database is small: a library left open shouldn't keep it busy all day.
+    const next = () => {
+      if (stopped) return;
+      const working =
+        jobsRef.current.some((j) => j.state === "uploading" || j.state === "scoring") ||
+        imagesRef.current.some((i) => !i.ready && !i.stuck && !i.collection) ||
+        progressRef.current.waiting + progressRef.current.packing + progressRef.current.batches.length > 0;
+      timer = setTimeout(tick, working ? 30_000 : 120_000);
     };
-    const timer = setInterval(tick, 15_000);
-    return () => clearInterval(timer);
-  }, [upsert]);
+    const tick = async () => {
+      // One refresh at a time: when the studio is slow they'd otherwise stack up.
+      if (busy || document.visibilityState !== "visible") return next();
+      busy = true;
+      try {
+        const current = imagesRef.current;
+        // Board imports are scored in batches and go straight to the library; no need to watch each one.
+        const pendingIds = current.filter((i) => !i.ready && !i.stuck && !i.collection).map((i) => i.id);
+        const askedAt = Date.now();
+        const result = await pollLibrary(since.current, pendingIds);
+        if (!result.ok) return;
+        since.current = newest(result.images, since.current);
+        upsert(keepDecisions(result.images, askedAt));
+        setCounts(result.counts);
+        setProgress(result.progress);
+        setStuck(result.stuck ?? []);
+        // A batch that was with Claude and has now been read back: say so.
+        const back = result.progress.finished.filter((b) => openBatches.current.has(b.id));
+        openBatches.current = new Set(result.progress.batches.map((b) => b.id));
+        const scored = back.reduce((sum, b) => sum + b.count, 0);
+        if (scored) notify(`Scores are back for ${scored} ${scored === 1 ? "image" : "images"}.`);
+      } finally {
+        busy = false;
+        next();
+      }
+    };
+    // Coming back to the tab: look straight away.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      clearTimeout(timer);
+      void tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    next();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [upsert, keepDecisions, notify]);
 
   // Quietly embed images that predate embeddings, a few at a time.
   useEffect(() => {
@@ -284,7 +391,7 @@ export function LibraryProvider({
       let last = Infinity;
       let stalled = 0;
       for (let round = 0; round < 60 && !stopped && stalled < 4; round++) {
-        const r = await embedMissing();
+        const r = await embedSome();
         if (!r.ok || r.remaining === 0) return;
         // No progress usually means a rate limit: wait before trying again.
         stalled = r.remaining < last ? 0 : stalled + 1;
@@ -314,7 +421,19 @@ export function LibraryProvider({
       const previous = image.status;
       patch(image.id, status === "pending" ? { status } : { status, reviewReason: null });
       moveCount(previous, status);
-      void setStatus(image.id, status).then((r) => {
+      /** Save a decision, and remember it until a refresh can't be older than the save. */
+      const save = (to: ImageStatus) => {
+        const d: Decision = { status: to, savedAt: null };
+        decisions.current.set(image.id, d);
+        return setStatus(image.id, to).then((r) => {
+          if (decisions.current.get(image.id) === d) {
+            if (r.ok) d.savedAt = Date.now();
+            else decisions.current.delete(image.id);
+          }
+          return r;
+        });
+      };
+      void save(status).then((r) => {
         if (!r.ok) {
           patch(image.id, { status: previous });
           moveCount(status, previous);
@@ -328,7 +447,7 @@ export function LibraryProvider({
           run: () => {
             patch(image.id, { status: previous });
             moveCount(status, previous);
-            void setStatus(image.id, previous);
+            void save(previous);
             setNotice(null);
             onUndo?.();
           },
@@ -393,11 +512,44 @@ export function LibraryProvider({
     [notify],
   );
 
+  /* ------------------------------------------------- couldn't be added */
+
+  const retryStuck = useCallback(
+    async (image: StuckImage) => {
+      const r = await retryAdd(image.id);
+      if (!r.ok) {
+        setStuck((list) => list.map((s) => (s.id === image.id ? { ...s, error: r.error } : s)));
+        return notify(`Still couldn't add it: ${r.error}`, { tone: "error" });
+      }
+      setStuck((list) => list.filter((s) => s.id !== image.id));
+      setCounts((c) => ({ ...c, stuck: Math.max(0, c.stuck - 1) }));
+      if (r.image) upsert([r.image]);
+      notify(r.status === "duplicate" ? "Already in the library" : image.collection ? "Added. It'll be scored with the next batch." : "Added");
+    },
+    [upsert, notify],
+  );
+
+  const removeStuck = useCallback(
+    async (image: StuckImage) => {
+      const r = await deleteImage(image.id);
+      if (!r.ok) return notify(r.error, { tone: "error" });
+      setStuck((list) => list.filter((s) => s.id !== image.id));
+      setCounts((c) => ({ ...c, stuck: Math.max(0, c.stuck - 1) }));
+      setImages((list) => list.filter((i) => i.id !== image.id));
+      notify("Removed");
+    },
+    [notify],
+  );
+
   const value = useMemo<LibraryState>(
     () => ({
       images,
       counts,
+      progress,
       boards,
+      stuck,
+      retryStuck,
+      removeStuck,
       remember: upsert,
       dimensions,
       jobs,
@@ -414,7 +566,7 @@ export function LibraryProvider({
       dismissNotice,
       holdNotice,
     }),
-    [images, counts, boards, upsert, dimensions, jobs, notice, addFiles, addLink, clearJobs, decide, setScore, setImageMedium, rescoreImage, removeImage, notify, dismissNotice, holdNotice],
+    [images, counts, progress, boards, stuck, retryStuck, removeStuck, upsert, dimensions, jobs, notice, addFiles, addLink, clearJobs, decide, setScore, setImageMedium, rescoreImage, removeImage, notify, dismissNotice, holdNotice],
   );
 
   return (

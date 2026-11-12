@@ -1,7 +1,8 @@
 import { getMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { libraryBoards, libraryCounts, reviewQueue, scoringNow } from "@/lib/library/queries";
+import { libraryBoards, libraryCounts, reviewQueue, scoringNow, stuckImages } from "@/lib/library/queries";
 import { listDimensions } from "@/lib/library/rubric";
+import { scoringProgress } from "@/lib/library/score-queue";
 import { LibraryProvider } from "./library-provider";
 import { Suspense } from "react";
 import { LibraryBar, NoticeToast, ShareResult } from "./library-chrome";
@@ -15,18 +16,22 @@ import { LibraryBar, NoticeToast, ShareResult } from "./library-chrome";
 export default async function LibraryLayout({ children }: LayoutProps<"/studio/library">) {
   const member = await getMember();
   const db = await createClient();
-  const [queue, scoring, counts, boards, dimensions] = await Promise.all([
+  const [queue, scoring, counts, boards, dimensions, progress, stuck] = await Promise.all([
     reviewQueue(db, member.studioId),
     scoringNow(db, member.studioId),
     libraryCounts(db, member.studioId),
     libraryBoards(db, member.studioId),
     listDimensions(db, member.studioId),
+    scoringProgress(db, member.studioId),
+    stuckImages(db, member.studioId),
   ]);
 
   return (
     <LibraryProvider
       initialImages={[...scoring, ...queue]}
       initialCounts={counts}
+      initialProgress={progress}
+      initialStuck={stuck}
       boards={boards}
       dimensions={dimensions.map(({ key, left, right, leftDefinition, rightDefinition }) => ({
         key,

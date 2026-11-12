@@ -41,7 +41,7 @@ export function NewBriefForm({ templates, approved }: { templates: { value: stri
 
       {approved < ENOUGH_IMAGES ? (
         <p className="flex items-start gap-2 text-sm text-ink-soft">
-          <span aria-hidden className="mt-1.5 size-2 shrink-0 bg-signal" />
+          <span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full bg-signal" />
           The library has {approved} approved {approved === 1 ? "image" : "images"}. Briefs work best with {ENOUGH_IMAGES} or
           more; with fewer, some images repeat and some dimensions can&apos;t be tested.
         </p>
