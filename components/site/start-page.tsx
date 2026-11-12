@@ -1,10 +1,11 @@
+import { CaseMotion } from "@/components/site/case-motion";
 import { intakeProjectTypes } from "@/lib/brief/intake";
 import { COLUMNS, LABEL, PAGE, SiteFooter } from "@/components/site/site-frame";
 import { SiteHeader } from "@/components/site/site-header";
 import { cn } from "@/components/ui/primitives";
 import { HOME_COPY } from "@/lib/i18n/home";
 import { START_COPY } from "@/lib/i18n/start";
-import { SITE_COPY, alternates, localePath, type Locale } from "@/lib/i18n/site";
+import { SITE_COPY, alternates, localePath, type Locale, STUDIO_EMAIL } from "@/lib/i18n/site";
 import { StartForm } from "./start-form";
 
 /**
@@ -19,18 +20,20 @@ export async function StartPage({ locale }: { locale: Locale }) {
 
   return (
     <div className="site flex-1" lang={locale}>
+      <CaseMotion />
       <SiteHeader
         locale={locale}
         homeHref={localePath(locale, "/")}
         homeLabel={SITE_COPY[locale].homeLabel}
         links={[
           { id: "work", label: home.nav.work, href: localePath(locale, "/projects") },
-          { id: "studio", label: home.nav.studio },
-          { id: "contact", label: home.nav.contact, href: `${localePath(locale, "/")}#brief` },
+          { id: "email", label: home.nav.email, href: `mailto:${STUDIO_EMAIL}` },
+          { id: "contact", label: home.nav.contact, href: localePath(locale, "/start") },
         ]}
         linkBase={localePath(locale, "/")}
         languages={alternates("/start")}
         city={home.city}
+        current="contact"
       />
 
       <main className={cn(PAGE, "pt-12 pb-24")}>

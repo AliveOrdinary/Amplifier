@@ -9,7 +9,7 @@ import { Button, Field, Input, Mono, PageContainer, PageHeader, Section, cn } fr
 import { deleteProject, saveProject, setPublished } from "../actions";
 import { BlocksEditor } from "./blocks-editor";
 import { FrenchEditor } from "./french-editor";
-import { MediaPanel } from "./media-panel";
+import { MediaPanel, type MixFader } from "./media-panel";
 
 type Form = {
   title: string;
@@ -42,7 +42,7 @@ const area =
  * One project: details and the case study are edited together and saved
  * with one button; files, the cover and publishing take effect at once.
  */
-export function ProjectEditor({ project }: { project: EditorProject }) {
+export function ProjectEditor({ project, faders }: { project: EditorProject; faders: MixFader[] }) {
   const [saved, setSaved] = useState(() => toForm(project));
   const [form, setForm] = useState(saved);
   const [error, setError] = useState<string | null>(null);
@@ -201,9 +201,9 @@ export function ProjectEditor({ project }: { project: EditorProject }) {
       <Section
         number="02"
         title="Images and video"
-        description="Everything for this project. Pick the cover (top of the case study) and, if it should differ, the thumbnail (its tile on Home and Works) here; choose what the case study shows below."
+        description="Everything for this project. Pick the cover (top of the case study) and, if it should differ, the thumbnail (its tile on Home and Works) here; choose what the case study shows below. Claude scores each picture on the rubric for the Work page's mix, and you can correct it."
       >
-        <MediaPanel project={project} blocks={form.blocks} />
+        <MediaPanel project={project} blocks={form.blocks} faders={faders} />
       </Section>
 
       <Section

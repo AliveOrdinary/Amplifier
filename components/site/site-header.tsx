@@ -89,8 +89,13 @@ export function SiteHeader({
         </nav>
 
         <div className="pointer-events-auto flex items-center gap-6 justify-self-end">
-          <LanguageSwitch locale={locale} paths={languages} className="text-[11px] text-white/45 [&_[aria-current]]:text-white [&_a:hover]:text-white" />
-          <span className="hidden items-center gap-2 font-mono text-[11px] tracking-[0.08em] uppercase sm:flex">
+          {/* In the menu's type: the same font, weight and size classes as the links. */}
+          <LanguageSwitch
+            locale={locale}
+            paths={languages}
+            className="text-[11px]! font-light! tracking-normal! normal-case! text-white/45 [font-family:inherit]! sm:text-[13px]! min-[900px]:text-[15px]! [&_[aria-current]]:text-white [&_a:hover]:text-white"
+          />
+          <span className="hidden items-center gap-2 font-light sm:flex sm:text-[13px] min-[900px]:text-[15px]">
             <span className="text-white/45">{city}</span>
             <StudioTime locale={locale} />
           </span>

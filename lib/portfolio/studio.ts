@@ -1,11 +1,21 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEDIA_COLUMNS, projectColumns, toMedia, type MediaRow, type ProjectRow } from "./read";
+import { MEDIA_COLUMNS, projectColumns, projectScores, toMedia, type MediaRow, type ProjectRow } from "./read";
+import type { Scores } from "./channels";
 import type { PortfolioMedia, ProjectFrench, StoredBlock } from "./types";
 
 /** What Studio › Portfolio reads, as the signed-in member (drafts included). */
 
-export type StudioMedia = PortfolioMedia & { bytes: number | null; mime: string | null };
+export type StudioMedia = PortfolioMedia & {
+  bytes: number | null;
+  mime: string | null;
+  /** The studio's corrections to its scores, by dimension key. */
+  scoreEdits: Scores;
+  /** Pictures: Claude has scored it. */
+  scored: boolean;
+  /** Why Claude couldn't score it. */
+  scoreError: string | null;
+};
 
 export type StudioProjectRow = {
   id: string;
@@ -41,11 +51,14 @@ export type EditorProject = {
   media: StudioMedia[];
 };
 
-const studioMedia = (db: SupabaseClient, row: MediaRow): StudioMedia => ({
-  ...toMedia(db, row),
+const studioMedia = (db: SupabaseClient, row: MediaRow, project: Scores | null): StudioMedia => ({
+  ...toMedia(db, row, project),
   hasAudio: row.has_audio,
   bytes: row.bytes,
   mime: row.mime,
+  scoreEdits: row.score_edits ?? {},
+  scored: Boolean(row.scored_at),
+  scoreError: row.score_error,
 });
 
 export async function studioProjects(db: SupabaseClient): Promise<StudioProjectRow[]> {
@@ -108,6 +121,6 @@ export async function editorProject(db: SupabaseClient, id: string): Promise<Edi
     blocks: Array.isArray(row.blocks) ? row.blocks : [],
     fr: row.fr && typeof row.fr === "object" ? row.fr : {},
     updatedAt: row.updated_at,
-    media: ((media ?? []) as MediaRow[]).map((m) => studioMedia(db, m)),
+    media: ((media ?? []) as MediaRow[]).map((m) => studioMedia(db, m, projectScores((media ?? []) as MediaRow[]))),
   };
 }

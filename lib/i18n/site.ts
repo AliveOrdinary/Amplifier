@@ -8,6 +8,9 @@
 
 import type { Locale } from "@/lib/portfolio/types";
 
+/** The studio's email: the nav's "Get in touch" opens it. */
+export const STUDIO_EMAIL = "hey@amplifier.studio";
+
 export type { Locale };
 
 export const LOCALES: readonly Locale[] = ["en", "fr"];
@@ -34,8 +37,9 @@ export type SiteCopy = {
     title: string;
     count: (n: number) => string;
     empty: string;
+    board: { lead: string; or: string; and: string; reset: string; board: (pictures: number, projects: number) => string; closest: string; none: string };
   };
-  project: { label: string; works: string; more: string; client: string; year: string; services: string; previous: string; next: string };
+  project: { label: string; about: string; works: string; more: string; client: string; year: string; services: string; previous: string; next: string };
 };
 
 export const SITE_COPY: Record<Locale, SiteCopy> = {
@@ -45,8 +49,17 @@ export const SITE_COPY: Record<Locale, SiteCopy> = {
       title: "Work",
       count: (n) => `${n} ${n === 1 ? "project" : "projects"}`,
       empty: "No published projects yet.",
+      board: {
+        lead: "Show me work that’s",
+        or: "or",
+        and: "and",
+        reset: "Reset",
+        board: (n, p) => `Moodboard · ${n} ${n === 1 ? "picture" : "pictures"} from ${p} ${p === 1 ? "project" : "projects"}`,
+        closest: "Closest first",
+        none: "Nothing sits that close to this mix. Try setting a word back.",
+      },
     },
-    project: { label: "Project", works: "Works", more: "More projects", client: "Client", year: "Year", services: "Services", previous: "Previous", next: "Next" },
+    project: { label: "Project", about: "About the project", works: "Works", more: "More projects", client: "Client", year: "Year", services: "Services", previous: "Previous", next: "Next" },
   },
   // Draft: to be checked by a fluent speaker.
   fr: {
@@ -55,7 +68,16 @@ export const SITE_COPY: Record<Locale, SiteCopy> = {
       title: "Projets",
       count: (n) => `${n} projet${n > 1 ? "s" : ""}`,
       empty: "Aucun projet publié pour l’instant.",
+      board: {
+        lead: "Montrez-moi un travail",
+        or: "ou",
+        and: "et",
+        reset: "Réinitialiser",
+        board: (n, p) => `Planche · ${n} image${n > 1 ? "s" : ""} de ${p} projet${p > 1 ? "s" : ""}`,
+        closest: "Les plus proches d’abord",
+        none: "Rien ne correspond d’aussi près. Essayez de remettre un mot au milieu.",
+      },
     },
-    project: { label: "Projet", works: "Projets", more: "Autres projets", client: "Client", year: "Année", services: "Services", previous: "Précédent", next: "Suivant" },
+    project: { label: "Projet", about: "Le projet", works: "Projets", more: "Autres projets", client: "Client", year: "Année", services: "Services", previous: "Précédent", next: "Suivant" },
   },
 };

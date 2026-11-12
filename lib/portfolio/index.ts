@@ -4,6 +4,7 @@ import { draftMode } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseEnv } from "@/lib/supabase/env";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { FADERS, type FaderKey } from "./channels";
 import { readCards, readProject } from "./read";
 import type { Locale, Project, ProjectCard } from "./types";
 
@@ -52,6 +53,25 @@ export async function getProject(slug: string, locale: Locale = "en"): Promise<P
   // Preview is only ever switched on for signed-in members (app/api/portfolio/preview).
   const { isEnabled: preview } = await draftMode();
   return readProject(preview ? createAdminClient() : publicClient(), slug, { includeDrafts: preview, preview, locale });
+}
+
+/**
+ * The Work page's faders as the rubric names them now (Settings › Rubric),
+ * by dimension key: a rename there shows on the site. A fader whose dimension
+ * was retired, or isn't in the rubric, is missing and keeps the site's own words.
+ */
+export async function faderLabels(): Promise<Partial<Record<FaderKey, { left: string; right: string }>>> {
+  "use cache";
+  cacheTag(PORTFOLIO_TAG);
+  cacheLife("max");
+  // The rubric is the studio's (members only), so the server reads it; only these names leave.
+  const { data, error } = await createAdminClient()
+    .from("dimensions")
+    .select("key, left_label, right_label")
+    .in("key", FADERS.map((f) => f.key))
+    .is("retired_at", null);
+  if (error) throw new Error(error.message);
+  return Object.fromEntries((data ?? []).map((d) => [d.key, { left: d.left_label as string, right: d.right_label as string }]));
 }
 
 /** Addresses of every published project, e.g. for generateStaticParams or a sitemap. */

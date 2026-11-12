@@ -18,6 +18,12 @@ export type PortfolioMedia = {
   caption: string | null;
   /** Videos: true when the sound matters (offer an unmute button); false plays silent. */
   hasAudio: boolean;
+  /**
+   * Where it sits on the studio's rubric, by dimension key (-2…2): Claude's
+   * scores with the studio's corrections; for a video, its project's average.
+   * Null until scored. The Work page's mix reads these.
+   */
+  scores: Record<string, number> | null;
 };
 
 /** A run of text, written in Markdown (## headings, paragraphs, lists, links, **bold**). */
@@ -26,7 +32,8 @@ export type TextBlock = { id: string; type: "text"; text: string; label: string 
 
 /** One to three images or videos shown side by side, with an optional caption under them. */
 /**
- * `join`: two or three side by side touch, with no gap, as one picture.
+ * `join`: two or three side by side touch, with no gap, as one picture; a single picture
+ * joins the picture block above it the same way (no gap, no curve where they meet).
  * `scroll`: one tall image shown in a 16:9 frame you scroll inside (a full-length web page, say).
  */
 export type MediaBlock = { id: string; type: "media"; media: PortfolioMedia[]; caption: string | null; join: boolean; scroll: boolean };
@@ -49,6 +56,8 @@ export type ProjectCard = {
   /** Image or video for the project's tile (Home, Works). Null: the tile shows the cover. */
   thumbnail: PortfolioMedia | null;
   publishedAt: string | null;
+  /** The average of its pictures' scores on the rubric. Null until any is scored. */
+  scores: Record<string, number> | null;
 };
 
 /** A whole case study, with its neighbours in the studio's order for "next project" links. */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties } from "react";
-import { FADERS, match, mixFor } from "@/lib/portfolio/channels";
+import { FADERS, match, mixOf } from "@/lib/portfolio/channels";
 import { useMix } from "@/lib/portfolio/mix-store";
 import type { ProjectCard } from "@/lib/portfolio/types";
 
@@ -55,14 +55,14 @@ export function ContactCall({
 
   const art = projects.flatMap((p) => {
     const m = p.thumbnail ?? p.cover;
-    return m ? [{ media: m, slug: p.slug }] : [];
+    return m ? [{ media: m, slug: p.slug, scores: p.scores }] : [];
   }).slice(0, SLOTS.length);
   const count = art.length;
 
   // Lay the work out by the desk's mix: the closest match gets the biggest, nearest place.
   const mix = useMix();
   const touched = FADERS.some((f) => mix[f.key] !== 0);
-  const levels = art.map((a) => match(mix, mixFor(a.slug)));
+  const levels = art.map((a) => match(mix, mixOf(a.scores)));
   const ranked = levels.map((_, i) => i).sort((a, b) => levels[b] - levels[a]);
   const slotOf = art.map((_, i) => (touched ? ranked.indexOf(i) : DEFAULT_SLOTS[i]));
   const layout = useRef({ slotOf, levels, touched });
@@ -87,7 +87,10 @@ export function ContactCall({
       const start = vh * 0.45;
       const end = vh - box.height - (box.top - label);
       const atBottom = window.scrollY + vh >= document.documentElement.scrollHeight - 2;
-      const raw = atBottom ? 1 : (start - label) / Math.max(1, start - end);
+      // Home's lifting slideshow: the call stays put underneath, so deal out as the work lifts away
+      // (in step with the seal travelling into its spot) rather than leaving the stack showing.
+      const lifting = document.querySelector("[data-seal-lift]");
+      const raw = lifting ? window.scrollY / vh : atBottom ? 1 : (start - label) / Math.max(1, start - end);
       const p = still.matches ? 1 : Math.min(1, Math.max(0, raw));
       const ease = 1 - (1 - p) ** 3;
       el.style.setProperty("--p", String(ease));
@@ -140,7 +143,8 @@ export function ContactCall({
     <div
       ref={root}
       id="brief"
-      className="relative isolate flex h-svh scroll-mt-0 max-h-[960px] min-h-[640px] flex-col items-center justify-center overflow-hidden text-center"
+      className="relative isolate flex h-svh scroll-mt-0 max-h-[960px] min-h-[640px] flex-col items-center justify-center overflow-hidden pt-[12vh] text-center"
+      // pt: the heading and body sit a little below the middle of the screen.
       style={{ "--p": 1 } as CSSProperties}
     >
       {Array.from({ length: count }, (_, i) => {
@@ -165,7 +169,6 @@ export function ContactCall({
         );
       })}
 
-      <span aria-hidden className="power-led order-first mb-8 size-2.5 rounded-full bg-signal shadow-[0_0_14px_var(--signal)]" />
       {/* The heading reads as one sentence; the button sits between its halves on screen. */}
       <h2 className="contents">
         <span className={`${big} order-1 block`}>{lead}</span>

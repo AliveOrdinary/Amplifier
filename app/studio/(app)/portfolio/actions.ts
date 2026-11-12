@@ -142,7 +142,7 @@ export async function saveProject(id: string, input: ProjectDraft): Promise<Ok<{
     const blocks: StoredBlock[] = d.blocks.flatMap((b): StoredBlock[] => {
       if (b.type === "text") return [{ id: b.id, type: "text", text: b.text, label: b.label?.trim() || null }];
       const ids = b.media.filter((m) => own.has(m));
-      return ids.length ? [{ id: b.id, type: "media", media: ids, caption: b.caption?.trim() || null, ...(b.join && ids.length > 1 ? { join: true } : {}), ...(b.scroll && ids.length === 1 ? { scroll: true } : {}) }] : [];
+      return ids.length ? [{ id: b.id, type: "media", media: ids, caption: b.caption?.trim() || null, ...(b.join ? { join: true } : {}), ...(b.scroll && ids.length === 1 ? { scroll: true } : {}) }] : [];
     });
 
     // French needs migration 14; until then the English still saves.
@@ -334,6 +334,31 @@ export async function updateMedia(id: string, input: z.input<typeof MediaChange>
         ...(c.width && c.height ? { width: c.width, height: c.height } : {}),
       })
       .eq("id", id);
+    if (error) throw new Error(error.message);
+    changed();
+    return { ok: true };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/**
+ * Correct one of a file's scores on the rubric (it wins over Claude's and
+ * survives a rescore), or pass null to go back to Claude's.
+ */
+export async function setMediaScore(id: string, key: string, value: number | null): Promise<Ok | Fail> {
+  await getMember();
+  try {
+    if (!/^[a-z0-9_]{1,40}$/.test(key)) throw new Error("Unknown dimension.");
+    if (value !== null && !(Number.isFinite(value) && value >= -2 && value <= 2)) throw new Error("Scores run from -2 to 2.");
+    const db = await createClient();
+    const { data: media, error: readError } = await db.from("project_media").select("score_edits").eq("id", id).maybeSingle();
+    if (readError) throw new Error(readError.message);
+    if (!media) throw new Error("That file no longer exists.");
+    const edits = { ...((media.score_edits as Record<string, number> | null) ?? {}) };
+    if (value === null) delete edits[key];
+    else edits[key] = Math.round(value * 2) / 2;
+    const { error } = await db.from("project_media").update({ score_edits: edits }).eq("id", id);
     if (error) throw new Error(error.message);
     changed();
     return { ok: true };

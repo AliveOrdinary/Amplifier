@@ -1,12 +1,13 @@
-import { listProjects } from "@/lib/portfolio";
+import { CaseMotion } from "@/components/site/case-motion";
+import { faderLabels, getProject, listProjects } from "@/lib/portfolio";
 import type { ProjectCard } from "@/lib/portfolio/types";
-import { BriefSeal } from "@/components/site/brief-seal";
 import { COLUMNS, LABEL, PAGE, SiteFooter } from "@/components/site/site-frame";
 import { SiteHeader } from "@/components/site/site-header";
+import { WorkBoard, type BoardPicture } from "@/components/site/work-board";
 import { WorkGrid } from "@/components/site/work-grid";
 import { cn } from "@/components/ui/primitives";
 import { HOME_COPY } from "@/lib/i18n/home";
-import { SITE_COPY, alternates, localePath, type Locale } from "@/lib/i18n/site";
+import { SITE_COPY, alternates, localePath, type Locale, STUDIO_EMAIL } from "@/lib/i18n/site";
 
 /** "Packaging · Identity · 2022" */
 const meta = (p: ProjectCard) => [...p.services, ...(p.year ? [String(p.year)] : [])].join(" · ");
@@ -20,6 +21,19 @@ export async function WorksPage({ locale }: { locale: Locale }) {
   const t = SITE_COPY[locale];
   const home = HOME_COPY[locale];
   const projects = await listProjects({ locale });
+  // The rubric is written in English; the French keeps its own translations.
+  const labels = locale === "en" ? await faderLabels() : {};
+  // Every picture each project shows (its cover, then its pictures in order), for the moodboard.
+  const pictures: BoardPicture[] = (await Promise.all(projects.map((p) => getProject(p.slug, locale)))).flatMap((project) => {
+    if (!project) return [];
+    const seen = new Set<string>();
+    const all = [project.cover, ...project.blocks.flatMap((b) => (b.type === "media" ? b.media : []))];
+    return all.flatMap((m) => {
+      if (!m || seen.has(m.id)) return [];
+      seen.add(m.id);
+      return [{ key: `${project.slug}-${m.id}`, media: m, slug: project.slug, title: project.title, href: localePath(locale, `/projects/${project.slug}`) }];
+    });
+  });
 
   const years = projects.map((p) => p.year).filter((y): y is number => Boolean(y));
   const [from, to] = [Math.min(...years), Math.max(...years)];
@@ -28,14 +42,15 @@ export async function WorksPage({ locale }: { locale: Locale }) {
 
   return (
     <div className="site flex-1" lang={locale}>
+      <CaseMotion />
       <SiteHeader
         locale={locale}
         homeHref={localePath(locale, "/")}
         homeLabel={t.homeLabel}
         links={[
           { id: "work", label: home.nav.work, href: localePath(locale, "/projects") },
-          { id: "studio", label: home.nav.studio },
-          { id: "contact", label: home.nav.contact, href: `${localePath(locale, "/")}#brief` },
+          { id: "email", label: home.nav.email, href: `mailto:${STUDIO_EMAIL}` },
+          { id: "contact", label: home.nav.contact, href: localePath(locale, "/start") },
         ]}
         linkBase={localePath(locale, "/")}
         languages={alternates("/projects")}
@@ -51,20 +66,21 @@ export async function WorksPage({ locale }: { locale: Locale }) {
           </h1>
         </section>
 
-        <WorkGrid
-          empty={t.works.empty}
-          items={projects.map((p) => ({
-            key: p.id,
-            href: localePath(locale, `/projects/${p.slug}`),
-            title: p.title,
-            meta: meta(p),
-            media: p.thumbnail ?? p.cover,
-          }))}
-        />
+        <WorkBoard pictures={pictures} locale={locale} labels={labels}>
+          <WorkGrid
+            empty={t.works.empty}
+            items={projects.map((p) => ({
+              key: p.id,
+              href: localePath(locale, `/projects/${p.slug}`),
+              title: p.title,
+              meta: meta(p),
+              media: p.thumbnail ?? p.cover,
+            }))}
+          />
+        </WorkBoard>
       </main>
 
       <SiteFooter />
-      <BriefSeal label={home.contact.cta} href={localePath(locale, "/start")} />
     </div>
   );
 }
